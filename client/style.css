@@ -326,9 +326,8 @@ html[data-theme='light'] .header-search{flex:1 1 36%;max-width:420px}
   .topnav{width:100%;margin-left:0;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
   .topnav::-webkit-scrollbar{display:none}
   .topnav a{white-space:nowrap;flex:0 0 auto}
-}
-}
-
+ 
+ .icon-button {
 .icon-button {
   display: inline-flex;
   align-items: center;
