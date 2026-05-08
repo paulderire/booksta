@@ -336,7 +336,8 @@ async function ensureSchema(client) {
   }
 }
 
-async function seed() {
+async function seed(options = {}) {
+  const { closePool = true } = options;
   const client = await pool.connect();
   try {
     for (const statement of schemaStatements) {
@@ -485,12 +486,21 @@ async function seed() {
     console.log(`Seeded ${createdUsers.length} users, ${createdBooks.length} books, ${sampleReviews.length} reviews, and ${samplePromotions.length} promotions.`);
   } finally {
     client.release();
-    await pool.end();
+    if (closePool) {
+      await pool.end();
+    }
   }
 }
 
-seed().catch(async (error) => {
-  console.error(error);
-  await pool.end();
-  process.exit(1);
-});
+module.exports = {
+  ensureSchema,
+  seed
+};
+
+if (require.main === module) {
+  seed().catch(async (error) => {
+    console.error(error);
+    await pool.end();
+    process.exit(1);
+  });
+}
