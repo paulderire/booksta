@@ -17,6 +17,12 @@ overlay.setAttribute('aria-hidden', 'true');
 document.body.appendChild(overlay);
 overlay.addEventListener('click', () => setDrawerOpen(false));
 
+const mobileMenu = document.getElementById('mobile-menu');
+const mobileMenuAuth = document.getElementById('mobile-menu-auth');
+const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
+const mobileCartButton = document.getElementById('mobile-cart-button');
+const mobileCartCount = document.getElementById('mobile-cart-count');
+
 const genreSeed = ['Fiction', 'Sci-Fi', 'Fantasy', 'Thriller', 'Romance', 'Self-Help', 'History', 'Manga'];
 
 const state = {
@@ -311,17 +317,54 @@ function renderChrome() {
     cartCount.textContent = String(cartQuantity);
   }
 
+  if (mobileCartCount) {
+    mobileCartCount.textContent = String(cartQuantity);
+  }
+
   if (authSlot) {
     authSlot.innerHTML = state.user
       ? `
-        <div class="auth-row">
-          <span class="hint">Hi, ${escapeHtml(state.user.name || 'Reader')}</span>
-          <button class="ghost-button" type="button" data-action="logout">Logout</button>
+        <div class="account-menu">
+          <button class="account-trigger" type="button" data-action="toggle-account-menu" aria-expanded="false" aria-haspopup="menu">
+            <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
+            <span class="account-trigger-copy">
+              <span class="account-trigger-label">${escapeHtml(state.user.name || 'Reader')}</span>
+              <span class="account-trigger-sub">${escapeHtml(state.user.role || 'customer')}</span>
+            </span>
+            <span class="account-caret">⌄</span>
+          </button>
+          <div class="account-dropdown" data-account-menu aria-hidden="true">
+            <a href="#/profile" data-action="close-account-menu">Profile</a>
+            <button class="ghost-button account-logout" type="button" data-action="logout">Logout</button>
+          </div>
         </div>
       `
       : `
         <a class="ghost-button" href="#/login">Login</a>
         <a class="primary-button" href="#/register">Register</a>
+      `;
+  }
+
+  if (mobileMenuAuth) {
+    mobileMenuAuth.innerHTML = state.user
+      ? `
+        <div class="mobile-account-card">
+          <div class="mobile-account-top">
+            <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
+            <div>
+              <div class="mobile-account-name">${escapeHtml(state.user.name || 'Reader')}</div>
+              <div class="mobile-account-role">${escapeHtml(state.user.role || 'customer')}</div>
+            </div>
+          </div>
+          <a class="ghost-button" href="#/profile" data-action="close-mobile-menu">Profile</a>
+          <button class="ghost-button" type="button" data-action="logout">Logout</button>
+        </div>
+      `
+      : `
+        <div class="mobile-account-card">
+          <a class="ghost-button" href="#/login" data-action="close-mobile-menu">Login</a>
+          <a class="primary-button" href="#/register" data-action="close-mobile-menu">Register</a>
+        </div>
       `;
   }
 
@@ -346,10 +389,10 @@ function syncFooterLinks() {
   const whatsappNumber = String(settings.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
   const links = [
     ['footer-whatsapp-link', whatsappNumber ? `https://wa.me/${whatsappNumber}` : 'https://wa.me/250782781575', `+${whatsappNumber || '250782781575'}`],
-    ['footer-instagram-link', settings.instagramUrl || '#/social/instagram', 'Instagram'],
-    ['footer-facebook-link', settings.facebookUrl || '#/social/facebook', 'Facebook'],
-    ['footer-x-link', settings.xUrl || '#/social/x', 'X'],
-    ['footer-tiktok-link', settings.tiktokUrl || '#/social/tiktok', 'TikTok']
+    ['footer-instagram-link', settings.instagramUrl || '#/social/instagram', '◆ Instagram booksta'],
+    ['footer-facebook-link', settings.facebookUrl || '#/social/facebook', '◆ Facebook booksta'],
+    ['footer-x-link', settings.xUrl || '#/social/x', '◆ X booksta'],
+    ['footer-tiktok-link', settings.tiktokUrl || '#/social/tiktok', '◆ TikTok booksta']
   ];
 
   links.forEach(([id, href, text]) => {
@@ -1262,6 +1305,63 @@ async function loadCartData() {
     showToast(error.message, 'error');
     renderApp();
   }
+
+    function updateMobileViewFlag() {
+      const topbar = document.querySelector('.topbar');
+      if (!topbar) return;
+      const isMobile = window.innerWidth <= 700;
+      topbar.classList.toggle('mobile-view', !!isMobile);
+    }
+
+    // Initialize mobile flag on load and update on resize (debounced)
+    window.addEventListener('load', () => {
+      updateMobileViewFlag();
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(updateMobileViewFlag, 120);
+      });
+    });
+
+    // Move header-search into topbar when mobile to prevent crowding
+    const _mobileDomState = { moved: false, placeholder: null };
+    function ensureHeaderSearchPlacement() {
+      const topbar = document.querySelector('.topbar');
+      const headerSearch = document.querySelector('.header-search');
+      if (!topbar || !headerSearch) return;
+      const isMobile = window.innerWidth <= 700;
+
+      if (isMobile && !_mobileDomState.moved) {
+        // insert a placeholder where headerSearch was so we can restore later
+        const placeholder = document.createElement('div');
+        placeholder.className = 'header-search-placeholder';
+        headerSearch.parentNode.insertBefore(placeholder, headerSearch);
+        _mobileDomState.placeholder = placeholder;
+        // move headerSearch into topbar, below the left area
+        const left = topbar.querySelector('.topbar-left');
+        if (left && left.parentNode) {
+          left.parentNode.insertBefore(headerSearch, left.nextSibling);
+        } else {
+          topbar.appendChild(headerSearch);
+        }
+        _mobileDomState.moved = true;
+      }
+
+      if (!isMobile && _mobileDomState.moved) {
+        // restore to original location if placeholder exists
+        const ph = _mobileDomState.placeholder;
+        if (ph && ph.parentNode) {
+          ph.parentNode.insertBefore(headerSearch, ph);
+          ph.parentNode.removeChild(ph);
+        }
+        _mobileDomState.moved = false;
+        _mobileDomState.placeholder = null;
+      }
+    }
+
+    // Run placement check on load and resize alongside mobile flag
+    window.addEventListener('load', () => { ensureHeaderSearchPlacement(); });
+    window.addEventListener('resize', () => { window.clearTimeout(window._headerSearchPlacementTimer); window._headerSearchPlacementTimer = window.setTimeout(ensureHeaderSearchPlacement, 140); });
 }
 
 async function loadWishlistData() {
@@ -1418,6 +1518,37 @@ function startHeroCycle() {
 function handleAction(target) {
   const action = target.dataset.action;
 
+  if (action === 'toggle-mobile-menu') {
+    const panel = document.getElementById('mobile-menu');
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('is-open');
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    target.setAttribute('aria-expanded', String(!!isOpen));
+    closeAccountMenu();
+    return;
+  }
+
+  if (action === 'close-mobile-menu') {
+    closeMobileMenu();
+    return;
+  }
+
+  if (action === 'toggle-account-menu') {
+    const menu = document.querySelector('[data-account-menu]');
+    const trigger = target;
+    if (!menu) return;
+    const isOpen = menu.classList.toggle('is-open');
+    menu.setAttribute('aria-hidden', String(!isOpen));
+    trigger.setAttribute('aria-expanded', String(!!isOpen));
+    closeMobileMenu();
+    return;
+  }
+
+  if (action === 'close-account-menu') {
+    closeAccountMenu();
+    return;
+  }
+
   if (action === 'logout') {
     performLogout();
     return;
@@ -1511,6 +1642,24 @@ function handleAction(target) {
       showToast(`Order ${order.id.slice(0, 8)} contains ${order.items.length} item(s).`, 'success');
     }
   }
+}
+
+function closeMobileMenu() {
+  const panel = document.getElementById('mobile-menu');
+  if (!panel) return;
+  panel.classList.remove('is-open');
+  panel.setAttribute('aria-hidden', 'true');
+  const toggle = document.querySelector('[data-action="toggle-mobile-menu"]');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function closeAccountMenu() {
+  const menu = document.querySelector('[data-account-menu]');
+  if (!menu) return;
+  menu.classList.remove('is-open');
+  menu.setAttribute('aria-hidden', 'true');
+  const trigger = document.querySelector('[data-action="toggle-account-menu"]');
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
 }
 
 async function addToCart(bookId, quantity = 1) {
@@ -1721,6 +1870,16 @@ document.addEventListener('click', (event) => {
   handleAction(target);
 });
 
+// Close menus when tapping outside them
+document.addEventListener('click', (event) => {
+  const target = event.target;
+  if (target.closest('.mobile-menu') || target.closest('.account-menu') || target.closest('[data-action="toggle-mobile-menu"]') || target.closest('[data-action="toggle-account-menu"]')) {
+    return;
+  }
+  closeMobileMenu();
+  closeAccountMenu();
+});
+
 app.addEventListener('submit', async (event) => {
   const form = event.target.closest('form[data-form]');
   if (!form) {
@@ -1779,7 +1938,12 @@ themeToggle.addEventListener('click', () => {
   setTheme(state.theme === 'dark' ? 'light' : 'dark');
 });
 
+mobileThemeToggle?.addEventListener('click', () => {
+  setTheme(state.theme === 'dark' ? 'light' : 'dark');
+});
+
 document.getElementById('cart-button').addEventListener('click', () => setDrawerOpen(!state.drawerOpen));
+mobileCartButton?.addEventListener('click', () => setDrawerOpen(!state.drawerOpen));
 
 window.addEventListener('hashchange', () => {
   setDrawerOpen(false);
@@ -1790,11 +1954,17 @@ window.addEventListener('resize', () => {
   if (window.innerWidth > 980) {
     setDrawerOpen(false);
   }
+  if (window.innerWidth > 700) {
+    closeMobileMenu();
+    closeAccountMenu();
+  }
 });
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     setDrawerOpen(false);
+    closeMobileMenu();
+    closeAccountMenu();
   }
 });
 

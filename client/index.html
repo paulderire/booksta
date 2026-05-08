@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Syne:wght@700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=5" />
+    <link rel="stylesheet" href="style.css?v=7" />
   </head>
   <body>
     <div class="bg-orb bg-orb-a"></div>
@@ -16,10 +16,11 @@
     <div class="noise"></div>
     <header class="topbar glass">
       <div class="topbar-left">
-        <a class="brand" href="#/" aria-label="Booksta Online BookStore home">
-          <img class="site-logo" src="assets/WhatsApp%20Image%202026-05-07%20at%2014.35.19.jpeg" alt="Booksta Online BookStore" />
-          <span class="site-name">Booksta Online BookStore</span>
+        <a class="brand" href="#/" aria-label="Booksta Online bookstore home">
+          <img class="site-logo" src="assets/WhatsApp%20Image%202026-05-07%20at%2014.35.19.jpeg" alt="Booksta Online bookstore" />
+          <span class="site-name"><strong>Booksta Online</strong><small>bookstore</small></span>
         </a>
+        <button class="nav-toggle" aria-label="Toggle navigation" data-action="toggle-mobile-menu">☰</button>
       </div>
 
       <div class="topbar-center">
@@ -44,6 +45,22 @@
       </div>
     </header>
 
+    <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
+      <nav class="mobile-menu-nav" aria-label="Mobile navigation">
+        <a href="#/" data-action="close-mobile-menu">Home</a>
+        <a href="#/wishlist" data-action="close-mobile-menu">Wishlist</a>
+        <a href="#/orders" data-action="close-mobile-menu">Orders</a>
+        <a href="#/profile" data-action="close-mobile-menu">Profile</a>
+      </nav>
+      <div class="mobile-menu-actions">
+        <button class="icon-button" id="mobile-theme-toggle" type="button" aria-label="Toggle theme">◐ Theme</button>
+        <button class="icon-button" id="mobile-cart-button" type="button" aria-label="Open cart">
+          Cart <span class="badge" id="mobile-cart-count">0</span>
+        </button>
+        <div class="mobile-menu-auth" id="mobile-menu-auth"></div>
+      </div>
+    </div>
+
     <main id="app" class="app-shell" aria-live="polite"></main>
     <div id="toasts" class="toasts"></div>
 
@@ -52,9 +69,9 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <a class="brand" href="#/">
-            <img class="footer-logo" src="assets/WhatsApp%20Image%202026-05-07%20at%2014.35.19.jpeg" alt="Booksta Online BookStore" style="height:48px;margin-right:0.6rem" />
+            <img class="footer-logo" src="assets/WhatsApp%20Image%202026-05-07%20at%2014.35.19.jpeg" alt="Booksta Online bookstore" style="height:48px;margin-right:0.6rem" />
             <span>
-              <strong>Booksta Online BookStore</strong>
+              <strong>Booksta Online</strong>
               <small>bookstore</small>
             </span>
           </a>
@@ -85,13 +102,19 @@
           <h4>Contact</h4>
           <p class="hint">WhatsApp: <a id="footer-whatsapp-link" href="https://wa.me/250782781575">+250 782 781 575</a></p>
           <p class="hint">Email: <a href="mailto:booksta@gmail.com">booksta@gmail.com</a></p>
-          <p class="hint">Follow: <a id="footer-instagram-link" href="#/social/instagram">Instagram</a> · <a id="footer-facebook-link" href="#/social/facebook">Facebook</a> · <a id="footer-x-link" href="#/social/x">X</a> · <a id="footer-tiktok-link" href="#/social/tiktok">TikTok</a></p>
+          <p class="hint follow-socials">
+            Follow:<br>
+            <a id="footer-instagram-link" href="#/social/instagram">Instagram</a><br>
+            <a id="footer-facebook-link" href="#/social/facebook">Facebook</a><br>
+            <a id="footer-x-link" href="#/social/x">X</a><br>
+            <a id="footer-tiktok-link" href="#/social/tiktok">TikTok</a>
+          </p>
         </div>
       </div>
       <div class="footer-bottom">
         <small class="muted">© <span id="footer-year"></span><br/><span class="footer-brand">Booksta online<br/>bookstore</span> — All rights reserved.</small>
       </div>
     </footer>
-    <script type="module" src="app.js?v=5"></script>
+    <script type="module" src="app.js?v=7"></script>
   </body>
 </html>
