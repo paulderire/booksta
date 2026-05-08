@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Booksta Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Syne:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/admin.css?v=2" />
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+  <div class="noise"></div>
+  
+  <header class="admin-topbar glass">
+    <div class="admin-brand">
+      <span class="brand-mark">⚙</span>
+      <div><strong>Booksta</strong><small>admin</small></div>
+    </div>
+    <div id="admin-user" class="admin-user-info"></div>
+    <button id="theme-toggle-admin" class="icon-button">◐</button>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar glass">
+      <nav class="admin-nav">
+        <button data-view="dashboard" class="nav-item active">📊 Dashboard</button>
+        <button data-view="books" class="nav-item">📚 Books</button>
+        <button data-view="featured" class="nav-item">⭐ Featured</button>
+        <button data-view="orders" class="nav-item">📦 Orders</button>
+        <button data-view="users" class="nav-item">👥 Users</button>
+        <button data-view="promotions" class="nav-item">🎉 Promotions</button>
+        <button data-view="reviews" class="nav-item">💬 Reviews</button>
+        <button data-view="analytics" class="nav-item">📈 Analytics</button>
+        <button data-view="settings" class="nav-item">⚙ Settings</button>
+      </nav>
+      <div style="margin-top:auto;padding:1rem;border-top:1px solid rgba(255,255,255,0.05)">
+        <button id="logout-admin" class="nav-item full-width" style="text-align:left">🚪 Logout</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+
+      <section id="view-dashboard" class="view dashboard-view">
+        <div class="dashboard-hero glass">
+          <div class="dashboard-intro">
+            <div class="eyebrow">Command center</div>
+            <h2>Dashboard</h2>
+            <p>Track revenue, inventory, orders, reviews, and promotions from one focused control room.</p>
+          </div>
+          <div class="dashboard-pulse">
+            <span>Live</span>
+            <strong>Admin Control</strong>
+            <small>Orders · stock · promotions · moderation</small>
+          </div>
+        </div>
+
+        <div id="stats-grid" class="stats-grid"></div>
+
+        <div class="dashboard-grid">
+          <section class="dashboard-panel glass">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Shortcuts</div>
+                <h3>Quick actions</h3>
+              </div>
+              <p>Common tasks stay one click away.</p>
+            </div>
+            <div id="admin-quick-actions" class="admin-quick-actions"></div>
+          </section>
+
+          <section class="dashboard-panel glass">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Activity</div>
+                <h3>Recent events</h3>
+              </div>
+              <p>Latest order movement and customer activity.</p>
+            </div>
+            <div id="activity-feed" class="activity-feed"></div>
+          </section>
+
+          <section class="dashboard-panel glass dashboard-orders">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Orders</div>
+                <h3>Recent orders</h3>
+              </div>
+              <p>Latest customer purchases and status updates.</p>
+            </div>
+            <div id="recent-orders-table" class="table-wrap"></div>
+          </section>
+
+          <section class="dashboard-panel glass dashboard-stock">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Inventory</div>
+                <h3>Low stock alerts</h3>
+              </div>
+              <p>Titles that need restocking soon.</p>
+            </div>
+            <div id="inventory-alerts" class="alert-grid"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-footer">
+          <button id="export-csv" class="btn-primary">⬇ Export Orders CSV</button>
+        </div>
+      </section>
+
+      <section id="view-books" class="view" style="display:none;">
+        <div class="section-header">
+          <h2>Manage Books</h2>
+          <button id="new-book" class="btn-primary">➕ New Book</button>
+        </div>
+        <div class="search-bar">
+          <input id="book-search" placeholder="Search by title, author, genre..." class="search-input" />
+        </div>
+        <div id="books-table" style="overflow-x:auto"></div>
+      </section>
+
+      <section id="view-featured" class="view" style="display:none;">
+        <h2>Featured Books Manager</h2>
+        <p style="color:var(--text-muted)">Toggle featured status • Manage hero display</p>
+        <div id="featured-books-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.5rem;margin-top:1.5rem"></div>
+      </section>
+
+      <section id="view-orders" class="view" style="display:none;">
+        <div class="section-header">
+          <h2>Manage Orders</h2>
+          <div style="display:flex;gap:1rem">
+            <input id="order-search" placeholder="Search by email..." class="search-input" style="flex:1;max-width:300px" />
+            <select id="order-filter" class="filter-select">
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div id="orders-table" style="overflow-x:auto"></div>
+      </section>
+
+      <section id="view-users" class="view" style="display:none;">
+        <div class="section-header">
+          <h2>Manage Users</h2>
+          <input id="user-search" placeholder="Search by name, email..." class="search-input" style="flex:1;max-width:300px" />
+        </div>
+        <div id="users-table" style="overflow-x:auto"></div>
+      </section>
+
+      <section id="view-reviews" class="view" style="display:none;">
+        <h2>Review Moderation</h2>
+        <div id="reviews-list" style="display:flex;flex-direction:column;gap:1rem"></div>
+      </section>
+
+      <section id="view-promotions" class="view" style="display:none;">
+        <div class="section-header">
+          <h2>🎉 Promotions Manager</h2>
+          <button id="new-promo" class="btn-primary">➕ New Promotion</button>
+        </div>
+        <div id="promotions-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:1.5rem;margin-top:1.5rem"></div>
+      </section>
+
+      <section id="view-analytics" class="view" style="display:none;">
+        <h2>Analytics</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:2rem;margin-top:1.5rem">
+          <div><canvas id="revenue-chart"></canvas></div>
+          <div><canvas id="genre-chart"></canvas></div>
+          <div><canvas id="top-books-chart"></canvas></div>
+        </div>
+      </section>
+
+      <section id="view-settings" class="view" style="display:none;">
+        <div class="section-header">
+          <h2>Store Settings</h2>
+        </div>
+        <div class="card" style="padding:1rem;max-width:760px">
+          <form id="settings-form" style="display:grid;gap:0.85rem">
+            <div class="form-group">
+              <label>WhatsApp Number</label>
+              <input id="s_whatsapp" placeholder="250782781575" />
+            </div>
+            <div class="form-group">
+              <label>Instagram URL</label>
+              <input id="s_instagram" placeholder="https://instagram.com/youraccount" />
+            </div>
+            <div class="form-group">
+              <label>Facebook URL</label>
+              <input id="s_facebook" placeholder="https://facebook.com/yourpage" />
+            </div>
+            <div class="form-group">
+              <label>X (Twitter) URL</label>
+              <input id="s_x" placeholder="https://x.com/youraccount" />
+            </div>
+            <div class="form-group">
+              <label>TikTok URL</label>
+              <input id="s_tiktok" placeholder="https://tiktok.com/@youraccount" />
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Save Settings</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal" style="display:none;"></div>
+  <div id="toast-container"></div>
+  <script src="/admin.js?v=2"></script>
+</body>
+</html>
