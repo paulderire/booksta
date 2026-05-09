@@ -1924,6 +1924,104 @@ document.getElementById('header-search-form')?.addEventListener('submit', (event
   loadRoute();
 });
 
+// Mobile search open/close helpers
+function openMobileSearch() {
+  document.body.classList.add('mobile-search-open');
+  const input = document.getElementById('header-search');
+  if (input) {
+    input.focus();
+  }
+}
+
+function closeMobileSearch() {
+  document.body.classList.remove('mobile-search-open');
+}
+
+// Initialize floating draggable hamburger for mobile
+function initFloatingHamburger() {
+  const el = document.getElementById('mobile-hamburger');
+  if (!el) return;
+  el.style.touchAction = 'none';
+  // restore position
+  try {
+    const pos = JSON.parse(localStorage.getItem('mobileHamburgerPos') || 'null');
+    if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      el.style.right = 'auto';
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+      el.style.bottom = 'auto';
+      el.style.position = 'fixed';
+    }
+  } catch (e) {}
+
+  let dragging = false;
+  let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+  function onPointerDown(ev) {
+    dragging = true;
+    el.setPointerCapture?.(ev.pointerId);
+    startX = ev.clientX;
+    startY = ev.clientY;
+    origLeft = el.getBoundingClientRect().left;
+    origTop = el.getBoundingClientRect().top;
+    el.style.transition = 'none';
+  }
+
+  function onPointerMove(ev) {
+    if (!dragging) return;
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    const x = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, origLeft + dx));
+    const y = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, origTop + dy));
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  }
+
+  function onPointerUp(ev) {
+    if (!dragging) return;
+    dragging = false;
+    el.releasePointerCapture?.(ev.pointerId);
+    el.style.transition = '';
+    // save
+    const rect = el.getBoundingClientRect();
+    localStorage.setItem('mobileHamburgerPos', JSON.stringify({ x: rect.left, y: rect.top }));
+  }
+
+  el.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+
+  // wire the data-action handler too (delegated handler uses data-action)
+  // Ensure a simple click toggles the menu reliably (avoid interference from drag)
+  el.addEventListener('click', (e) => {
+    const panel = document.getElementById('mobile-menu');
+    if (!panel) return;
+    const isOpen = !panel.classList.contains('is-open');
+    panel.classList.toggle('is-open', isOpen);
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    el.setAttribute('aria-expanded', String(isOpen));
+  });
+}
+
+// wire mobile search toggle action via delegated handler
+document.addEventListener('click', (event) => {
+  const t = event.target.closest('[data-action="open-mobile-search"]');
+  if (t) {
+    openMobileSearch();
+  }
+  const c = event.target.closest('[data-action="close-mobile-search"]');
+  if (c) {
+    closeMobileSearch();
+  }
+});
+
+// init floating hamburger after DOM ready
+window.addEventListener('load', () => {
+  initFloatingHamburger();
+});
+
 app.addEventListener('change', (event) => {
   const select = event.target.closest('[data-action="sort-books"]');
   if (!select) {

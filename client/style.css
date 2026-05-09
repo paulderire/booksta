@@ -1653,6 +1653,32 @@ body.has-drawer-open {
   .auth-slot { display:flex; gap:0.3rem; }
 }
 
+/* Floating mobile hamburger and mobile-only search icon */
+.mobile-search-toggle { display: none; background: transparent; border: none; font-size: 1.15rem; padding: 0.3rem; }
+.nav-toggle { background: var(--accent); color: #fff; border: none; border-radius: 10px; cursor: pointer; }
+
+@media (max-width: 700px) {
+  /* show only search icon and hamburger in header */
+  .topbar-left > .brand, .topbar-right, .auth-slot { display: none !important; }
+  .mobile-search-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; color: var(--muted); }
+  .nav-toggle { display: none; } /* hide inline hamburger -> we'll show floating */
+  /* floating hamburger (draggable) */
+  #mobile-hamburger { display: inline-flex; position: fixed; right: 1rem; bottom: 1.4rem; z-index: 120; width: 3.6rem; height: 3.6rem; border-radius: 14px; align-items: center; justify-content: center; box-shadow: var(--shadow-deep); font-size: 1.25rem; }
+  /* make it slightly translucent so it doesn't block content */
+  #mobile-hamburger { background: linear-gradient(135deg,var(--accent),var(--accent-2)); opacity: 0.98; }
+
+  /* hide full search input by default on mobile; open when toggled */
+  .header-search { display: none !important; }
+  body.mobile-search-open .header-search { display: flex !important; }
+}
+
+/* Mobile menu overlay - links fade in */
+.mobile-menu { transition: opacity 220ms ease, transform 220ms ease; }
+.mobile-menu.is-open { opacity: 1; transform: translateY(0); }
+.mobile-menu-nav a { opacity: 0; transform: translateY(6px); display: inline-block; transition: opacity 260ms ease, transform 260ms ease; }
+.mobile-menu.is-open .mobile-menu-nav a { opacity: 1; transform: translateY(0); }
+
+
 /* Account dropdown and mobile navigation panel */
 .account-menu {
   position: relative;
