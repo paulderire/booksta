@@ -405,19 +405,25 @@ function renderChrome() {
 function syncFooterLinks() {
   const settings = state.settings || {};
   const whatsappNumber = String(settings.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
-  const links = [
-    ['footer-whatsapp-link', whatsappNumber ? `https://wa.me/${whatsappNumber}` : 'https://wa.me/250782781575', `+${whatsappNumber || '250782781575'}`],
-    ['footer-instagram-link', settings.instagramUrl || '#/social/instagram', '◆ Instagram booksta'],
-    ['footer-facebook-link', settings.facebookUrl || '#/social/facebook', '◆ Facebook booksta'],
-    ['footer-x-link', settings.xUrl || '#/social/x', '◆ X booksta'],
-    ['footer-tiktok-link', settings.tiktokUrl || '#/social/tiktok', '◆ TikTok booksta']
+  
+  // Update WhatsApp link with text
+  const whatsappNode = document.getElementById('footer-whatsapp-link');
+  if (whatsappNode) {
+    whatsappNode.href = whatsappNumber ? `https://wa.me/${whatsappNumber}` : 'https://wa.me/250782781575';
+    whatsappNode.textContent = `+${whatsappNumber || '250782781575'}`;
+  }
+  
+  // Update social links with only href, preserve emoji icons
+  const socialLinks = [
+    ['footer-instagram-link', settings.instagramUrl || '#/social/instagram'],
+    ['footer-facebook-link', settings.facebookUrl || '#/social/facebook'],
+    ['footer-x-link', settings.xUrl || '#/social/x'],
+    ['footer-tiktok-link', settings.tiktokUrl || '#/social/tiktok']
   ];
-
-  links.forEach(([id, href, text]) => {
+  
+  socialLinks.forEach(([id, href]) => {
     const node = document.getElementById(id);
-    if (!node) return;
-    node.href = href;
-    if (text) node.textContent = text;
+    if (node) node.href = href;
   });
 }
 
