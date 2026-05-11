@@ -1946,9 +1946,12 @@ function initFloatingHamburger() {
   try {
     const pos = JSON.parse(localStorage.getItem('mobileHamburgerPos') || 'null');
     if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      // clamp to viewport so button stays clickable
+      const x = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, pos.x));
+      const y = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, pos.y));
       el.style.right = 'auto';
-      el.style.left = pos.x + 'px';
-      el.style.top = pos.y + 'px';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
       el.style.bottom = 'auto';
       el.style.position = 'fixed';
     }
