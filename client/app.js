@@ -23,6 +23,24 @@ const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
 const mobileCartButton = document.getElementById('mobile-cart-button');
 const mobileCartCount = document.getElementById('mobile-cart-count');
 
+// Direct hamburger click handler - bypasses complex initialization
+const mobileHamburger = document.getElementById('mobile-hamburger');
+if (mobileHamburger) {
+  mobileHamburger.addEventListener('click', () => {
+    if (mobileMenu) {
+      const isOpen = mobileMenu.classList.toggle('is-open');
+      mobileMenu.setAttribute('aria-hidden', String(!isOpen));
+      mobileHamburger.setAttribute('aria-expanded', String(!!isOpen));
+      // Close account menu if open
+      const accountMenu = document.querySelector('[data-account-menu]');
+      if (accountMenu) {
+        accountMenu.classList.remove('is-open');
+        accountMenu.setAttribute('aria-hidden', 'true');
+      }
+    }
+  });
+}
+
 const genreSeed = ['Fiction', 'Sci-Fi', 'Fantasy', 'Thriller', 'Romance', 'Self-Help', 'History', 'Manga'];
 
 const state = {
@@ -1926,10 +1944,15 @@ document.getElementById('header-search-form')?.addEventListener('submit', (event
 
 // Mobile search open/close helpers
 function openMobileSearch() {
-  document.body.classList.add('mobile-search-open');
-  const input = document.getElementById('header-search');
-  if (input) {
-    input.focus();
+  const isOpen = document.body.classList.contains('mobile-search-open');
+  if (isOpen) {
+    closeMobileSearch();
+  } else {
+    document.body.classList.add('mobile-search-open');
+    const input = document.getElementById('header-search');
+    if (input) {
+      input.focus();
+    }
   }
 }
 
