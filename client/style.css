@@ -916,8 +916,8 @@ html[data-theme='light'] .panel {
   box-shadow: var(--shadow-deep);
   display: none;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.35rem;
+  gap: 0.25rem;
+  padding: 0.3rem;
   max-height: 38vh;
   overflow-y: auto;
   width: auto;
@@ -931,19 +931,22 @@ html[data-theme='light'] .panel {
   align-self: flex-end;
   background: rgba(99, 102, 241, 0.1);
   border: 1px solid rgba(99, 102, 241, 0.2);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--accent);
   cursor: pointer;
-  padding: 0.25rem 0.35rem;
+  padding: 0.18rem 0.25rem;
   line-height: 1;
   transition: all 0.2s ease;
-  margin-bottom: 0.15rem;
-  border-radius: 8px;
+  margin-bottom: 0;
+  margin-right: 0.05rem;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 24px;
+  min-height: 24px;
+  width: 24px;
+  height: 24px;
 }
 
 .mobile-menu-close:hover {
@@ -954,17 +957,18 @@ html[data-theme='light'] .panel {
 
 .mobile-menu-nav {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .mobile-menu-nav a {
-  padding: 0.35rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   border-radius: 8px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
   font-weight: 500;
   font-size: 0.78rem;
   transition: all 0.2s ease;
+  margin: 0;
 }
 
 .mobile-menu-nav a:hover {
