@@ -917,7 +917,7 @@ html[data-theme='light'] .panel {
   display: none;
   flex-direction: column;
   gap: 0.25rem;
-  padding: 0.3rem;
+  padding: 0.05rem 0.3rem 0.3rem 0.3rem;
   max-height: 38vh;
   overflow-y: auto;
   width: auto;
