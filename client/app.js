@@ -1108,7 +1108,6 @@ function renderAuthView(mode) {
                 <img src="assets/WhatsApp%20Image%202026-05-07%20at%2014.35.19.jpeg" alt="Booksta Online BookStore" style="height:56px;width:auto;border-radius:6px;margin-right:0.75rem" />
                 <div>
                   <strong class="auth-brand-name">Booksta Online BookStore</strong>
-                  <div class="hint">bookstore</div>
                 </div>
               </div>
               <h2 class="section-title">${isLogin ? 'Welcome back' : 'Create your account'}</h2>

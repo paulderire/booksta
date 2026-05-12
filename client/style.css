@@ -844,7 +844,7 @@ html[data-theme='light'] .panel {
 /* Auth modal styles */
 .auth-modal { position: relative; }
 .auth-modal-backdrop { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.72); backdrop-filter: blur(8px); z-index: 80; }
-.auth-modal-panel { position: fixed; left: 50%; top: 10vh; transform: translateX(-50%); z-index: 90; width: min(760px, calc(100% - 2rem)); border-radius: 22px; }
+.auth-modal-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 90; width: min(760px, calc(100% - 2rem)); border-radius: 22px; }
 .auth-modal .icon-button { position: absolute; right: 0.8rem; top: 0.8rem; }
 
 /* Auth modal grid */
@@ -878,14 +878,14 @@ html[data-theme='light'] .panel {
 .auth-form-panel.auth-large .panel { background: var(--bg-soft); border-color: var(--border); }
 
 @media (max-width: 920px) {
-  .auth-modal-panel.auth-large { width: calc(100% - 2rem); left: 1rem; transform: none; top: 6vh; }
+  .auth-modal-panel.auth-large { width: calc(100% - 2rem); left: 50%; top: 50%; transform: translate(-50%, -50%); }
   .auth-grid.auth-large { grid-template-columns: 1fr; }
   .auth-branding.auth-large { border-top-left-radius: 22px; border-top-right-radius: 22px; }
   .auth-form-panel.auth-large { border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; border-left: 0; border-top: 1px solid var(--border); }
 }
 
 @media (max-width: 700px) {
-  .auth-modal-panel.auth-large { width: calc(100% - 1.5rem) !important; padding: 0 !important; top: 3vh !important; max-height: 90vh !important; overflow-y: auto !important; }
+  .auth-modal-panel.auth-large { width: calc(100% - 1.5rem) !important; padding: 0 !important; top: 50% !important; transform: translate(-50%, -50%) !important; left: 50% !important; max-height: 90vh !important; overflow-y: auto !important; }
   .auth-grid.auth-large { gap: 0.3rem !important; }
   .auth-branding.auth-large { padding: 0.9rem 1rem 0.8rem !important; gap: 0.5rem !important; }
   .auth-form-panel.auth-large { padding: 1rem 1rem 1.2rem !important; gap: 0.6rem !important; }
