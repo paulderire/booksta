@@ -903,23 +903,24 @@ html[data-theme='light'] .panel {
   .helper-text { font-size: 0.8rem !important; margin-top: 0.4rem !important; }
 }
 
-/* Mobile menu - compact dropdown that stays in place when scrolling */
+/* Mobile menu - ultra-compact dropdown that stays in place when scrolling */
 .mobile-menu {
   position: fixed;
   top: 4.5rem;
-  left: 1.5rem;
-  right: 1.5rem;
+  left: 2rem;
+  right: 2rem;
   z-index: 98;
   background: var(--popup-bg);
   border: 1px solid var(--popup-border);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: var(--shadow-deep);
   display: none;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.4rem;
-  max-height: 45vh;
+  gap: 0.3rem;
+  padding: 0.35rem;
+  max-height: 38vh;
   overflow-y: auto;
+  width: auto;
 }
 
 .mobile-menu.is-open {
@@ -928,34 +929,47 @@ html[data-theme='light'] .panel {
 
 .mobile-menu-close {
   align-self: flex-end;
-  background: transparent;
-  border: none;
-  font-size: 1.1rem;
-  color: var(--muted);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  font-size: 0.95rem;
+  color: var(--accent);
   cursor: pointer;
-  padding: 0.2rem 0.3rem;
+  padding: 0.25rem 0.35rem;
   line-height: 1;
   transition: all 0.2s ease;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.15rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 .mobile-menu-close:hover {
-  color: var(--text);
-  transform: scale(1.15);
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: scale(1.08);
 }
 
 .mobile-menu-nav {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .mobile-menu-nav a {
-  padding: 0.45rem 0.6rem;
-  border-radius: 10px;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
   font-weight: 500;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-nav a:hover {
+  background: var(--bg-soft-2);
+  border-color: var(--accent);
 }
 
 .mobile-menu-nav a:hover {
@@ -965,20 +979,22 @@ html[data-theme='light'] .panel {
 
 .mobile-menu-actions {
   display: grid;
-  gap: 0.35rem;
-  padding-top: 0.4rem;
+  gap: 0.25rem;
+  padding-top: 0.3rem;
   border-top: 1px solid var(--border);
 }
 
 .mobile-menu-auth {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .mobile-menu-auth button {
   width: 100%;
-  font-size: 0.8rem;
-  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .nav-toggle {
