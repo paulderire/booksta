@@ -1,7 +1,7 @@
 const express = require('express');
 const { auth, requireAdmin } = require('../middleware/auth');
 const { query } = require('../db');
-const { serializeOrder } = require('../utils');
+const { serializeBook, serializeOrder } = require('../utils');
 
 const router = express.Router();
 
@@ -253,6 +253,41 @@ router.get('/inventory-alerts', async (_req, res, next) => {
       ORDER BY stock ASC
     `);
     res.json({ lowStockBooks: rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Books inventory summary for the admin books tab
+router.get('/books-summary', async (_req, res, next) => {
+  try {
+    const { rows } = await query(`
+      SELECT
+        b.*,
+        COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'completed'), 0)::int AS sold_count,
+        COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'pending'), 0)::int AS pending_count,
+        COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'cancelled'), 0)::int AS cancelled_count,
+        COALESCE(COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'completed'), 0)::int AS completed_orders,
+        COALESCE(SUM(oi.quantity * oi.unit_price) FILTER (WHERE o.status = 'completed'), 0)::numeric AS completed_revenue
+      FROM books b
+      LEFT JOIN order_items oi ON oi.book_id = b.id
+      LEFT JOIN orders o ON o.id = oi.order_id
+      GROUP BY b.id
+      ORDER BY b.created_at DESC
+    `);
+
+    res.json({
+      books: rows.map((row) => ({
+        ...serializeBook(row),
+        sold_count: Number(row.sold_count || 0),
+        pending_count: Number(row.pending_count || 0),
+        cancelled_count: Number(row.cancelled_count || 0),
+        completed_orders: Number(row.completed_orders || 0),
+        completed_revenue: Number(row.completed_revenue || 0),
+        inventory_value: Number(row.stock || 0) * Number(row.price || 0),
+        stock_status: Number(row.stock || 0) <= 5 ? 'low' : Number(row.stock || 0) <= 15 ? 'watch' : 'healthy'
+      }))
+    });
   } catch (error) {
     next(error);
   }

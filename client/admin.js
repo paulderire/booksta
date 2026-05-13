@@ -17,6 +17,16 @@
     return new Intl.NumberFormat('rw-RW', { style: 'currency', currency: 'RWF' }).format(amount||0);
   }
 
+  function formatNumber(value) {
+    return new Intl.NumberFormat('en-US').format(Number(value || 0));
+  }
+
+  function stockBadgeClass(stock) {
+    if (Number(stock) <= 5) return 'status-low';
+    if (Number(stock) <= 15) return 'status-watch';
+    return 'status-healthy';
+  }
+
   function toast(msg, type='info') {
     const container = $id('toast-container');
     const el = document.createElement('div');
@@ -90,6 +100,8 @@
 
     if (action === 'edit-book') return openBookForm(id);
     if (action === 'delete-book') return window.delBook(id);
+    if (action === 'restock-book') return window.restockBook(id, button.dataset.title || '');
+    if (action === 'toggle-featured-book') return window.toggleFeatured(id, button.dataset.featured !== 'true');
     if (action === 'remove-featured') return window.toggleFeatured(id, false);
     if (action === 'delete-review') return window.deleteReview(id);
     if (action === 'edit-promo') return window.editPromo(id);
@@ -181,21 +193,83 @@
   }
 
   // Books Management
+  let allBooks = [];
   async function loadBooks(){
-    const res = await api('/books?limit=200');
-    const list = $id('books-table'); 
-    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:0.75rem;font-weight:600">Title</th><th style="text-align:left;padding:0.75rem;font-weight:600">Author</th><th style="text-align:left;padding:0.75rem;font-weight:600">Genre</th><th style="text-align:left;padding:0.75rem;font-weight:600">Price</th><th style="text-align:left;padding:0.75rem;font-weight:600">Stock</th><th style="text-align:left;padding:0.75rem;font-weight:600">Featured</th><th style="text-align:left;padding:0.75rem;font-weight:600">Actions</th></tr></thead><tbody>';
-    (res.books || []).forEach(b=>{
-      html += `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:0.75rem;font-weight:500">${escapeHtml(b.title)}</td>
-        <td style="padding:0.75rem">${escapeHtml(b.author)}</td>
-        <td style="padding:0.75rem">${b.genre || 'N/A'}</td>
-        <td style="padding:0.75rem">${formatRWF(b.price)}</td>
-        <td style="padding:0.75rem"><span style="background:${b.stock < 5 ? 'rgba(239,68,68,0.2);color:#fca5a5' : 'rgba(34,197,94,0.2);color:#86efac'};padding:0.25rem 0.5rem;border-radius:4px;font-size:0.9rem;font-weight:600">${b.stock}</span></td>
-        <td style="padding:0.75rem">${b.featured ? '<span style="background:rgba(255,107,107,0.2);color:#fca5a5;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.9rem;font-weight:600">⭐ Yes</span>' : '—'}</td>
-        <td style="padding:0.75rem"><button class="btn-secondary" data-admin-action="edit-book" data-id="${b.id}" style="padding:0.5rem 0.75rem;font-size:0.9rem;cursor:pointer">Edit</button> <button class="btn-danger" data-admin-action="delete-book" data-id="${b.id}" style="padding:0.5rem 0.75rem;font-size:0.9rem;cursor:pointer">Delete</button></td>
-      </tr>`;
+    const res = await api('/admin/books-summary');
+    allBooks = res.books || [];
+    renderBooksTable(allBooks);
+  }
+
+  function renderBooksTable(books) {
+    const list = $id('books-table');
+    if (!list) return;
+
+    if (!books.length) {
+      list.innerHTML = '<div class="card" style="padding:1rem">No books found.</div>';
+      return;
+    }
+
+    const totals = books.reduce((acc, book) => {
+      acc.totalBooks += 1;
+      acc.totalStock += Number(book.stock || 0);
+      acc.totalSold += Number(book.sold_count || 0);
+      acc.pending += Number(book.pending_count || 0);
+      acc.lowStock += Number(book.stock || 0) <= 5 ? 1 : 0;
+      acc.inventoryValue += Number(book.inventory_value || (Number(book.stock || 0) * Number(book.price || 0)));
+      return acc;
+    }, { totalBooks: 0, totalStock: 0, totalSold: 0, pending: 0, lowStock: 0, inventoryValue: 0 });
+
+    let html = `
+      <div class="books-summary-grid">
+        <div class="stat-card"><div class="stat-label">Books</div><div class="stat-value">${formatNumber(totals.totalBooks)}</div></div>
+        <div class="stat-card"><div class="stat-label">Units Sold</div><div class="stat-value">${formatNumber(totals.totalSold)}</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value">${formatNumber(totals.pending)}</div></div>
+        <div class="stat-card"><div class="stat-label">Low Stock</div><div class="stat-value">${formatNumber(totals.lowStock)}</div></div>
+      </div>
+      <p class="books-summary-note">Inventory value: <strong>${formatRWF(totals.inventoryValue)}</strong></p>
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Genre</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Sold</th>
+            <th>Pending</th>
+            <th>Featured</th>
+            <th>Operations</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    books.forEach((book) => {
+      html += `
+        <tr>
+          <td>
+            <div class="book-title-cell">
+              <strong>${escapeHtml(book.title)}</strong>
+              <span class="small">${escapeHtml(book.author)}</span>
+            </div>
+          </td>
+          <td>${escapeHtml(book.genre || 'N/A')}</td>
+          <td>${formatRWF(book.price)}</td>
+          <td><span class="status-pill ${stockBadgeClass(book.stock)}">${formatNumber(book.stock)}</span></td>
+          <td><span class="status-pill status-sold">${formatNumber(book.sold_count)}</span></td>
+          <td><span class="status-pill status-pending">${formatNumber(book.pending_count)}</span></td>
+          <td>${book.featured ? '<span class="status-pill status-featured">Featured</span>' : '<span class="status-pill status-muted">No</span>'}</td>
+          <td>
+            <div class="book-ops">
+              <button class="btn-secondary" data-admin-action="edit-book" data-id="${book.id}">Edit</button>
+              <button class="btn-secondary" data-admin-action="restock-book" data-id="${book.id}" data-title="${escapeHtml(book.title)}">Restock</button>
+              <button class="btn-secondary" data-admin-action="toggle-featured-book" data-id="${book.id}" data-featured="${book.featured ? 'true' : 'false'}">${book.featured ? 'Unfeature' : 'Feature'}</button>
+              <button class="btn-danger" data-admin-action="delete-book" data-id="${book.id}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
     });
+
     html += '</tbody></table>';
     list.innerHTML = html;
   }
@@ -207,6 +281,23 @@
       toast('Book deleted');
       await loadBooks();
     }
+  };
+
+  window.restockBook = async (id, title) => {
+    const book = allBooks.find((entry) => entry.id === id);
+    const currentStock = Number(book?.stock || 0);
+    const response = prompt(`Restock ${title || 'this book'} by how many units?`, '5');
+    const amount = Number(response);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+
+    await api('/admin/books/' + id + '/stock', {
+      method: 'PATCH',
+      body: JSON.stringify({ stock: currentStock + amount })
+    });
+
+    toast(`${title || 'Book'} stock updated`);
+    await loadBooks();
+    await loadDashboard();
   };
 
   async function openBookForm(bookId){
@@ -293,10 +384,14 @@
   $id('new-book').addEventListener('click', () => openBookForm(null));
   $id('book-search').addEventListener('keyup', (e) => {
     const search = e.target.value.toLowerCase();
-    document.querySelectorAll('#books-table tbody tr').forEach(row => {
-      const text = row.textContent.toLowerCase();
-      row.style.display = text.includes(search) ? '' : 'none';
+    const filtered = allBooks.filter((book) => {
+      const haystack = [book.title, book.author, book.genre, String(book.stock), String(book.sold_count), String(book.pending_count)]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(search);
     });
+    renderBooksTable(filtered);
   });
 
   // Featured Books Manager
@@ -323,6 +418,7 @@
     await api('/admin/books/'+id+'/featured', { method:'PATCH', body: JSON.stringify({ featured }) });
     toast(featured ? 'Added to featured' : 'Removed from featured');
     await loadFeatured();
+    await loadBooks();
   };
 
   // Orders Management
