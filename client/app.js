@@ -1121,6 +1121,71 @@ function renderProfileView() {
   `;
 }
 
+function renderAccessDenied() {
+  return `
+    <section class="page">
+      <div class="empty-state">
+        <p>Access denied. Admin access required.</p>
+        <a class="primary-button" href="#/">Return home</a>
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminOrdersView() {
+  const orders = state.adminOrders || [];
+  const statuses = ['pending', 'completed', 'cancelled'];
+
+  if (!orders.length) {
+    return `
+      <section class="page">
+        <div class="order-head">
+          <div class="hint">Admin</div>
+          <h1 class="section-title">Order Management</h1>
+        </div>
+        <div class="empty-state"><p>No orders to manage.</p></div>
+      </section>
+    `;
+  }
+
+  const orderRows = orders.map(order => `
+    <div class="admin-order-row panel glass-card">
+      <div class="admin-order-head">
+        <div>
+          <strong>Order #${order.id.slice(0, 8)}</strong>
+          <p class="hint">${escapeHtml(order.user_name || 'Unknown')} (${escapeHtml(order.user_email || '')})</p>
+        </div>
+        <div>
+          <strong>${formatMoney(order.total)}</strong>
+          <select class="status-select" data-action="update-order-status" data-order-id="${escapeHtml(order.id)}">
+            ${statuses.map(s => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s.toUpperCase()}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="admin-order-items">
+        ${order.items.map(item => `
+          <div class="mini-item">
+            <span>${escapeHtml(item.title)} x ${item.quantity}</span>
+            <span>${formatMoney(item.unit_price * item.quantity)}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="admin-order-footer hint">${new Date(order.created_at).toLocaleString()}</div>
+    </div>
+  `).join('');
+
+  return `
+    <section class="page">
+      <div class="order-head">
+        <div class="hint">Admin</div>
+        <h1 class="section-title">Order Management</h1>
+        <p class="section-copy">Total orders: ${orders.length}</p>
+      </div>
+      <div class="admin-orders-grid">${orderRows}</div>
+    </section>
+  `;
+}
+
 function renderAuthView(mode) {
   const isLogin = mode === 'login';
   return `
@@ -1443,6 +1508,22 @@ async function loadOrdersData() {
   }
 }
 
+async function loadAdminOrdersData() {
+  state.adminOrdersLoading = true;
+  renderApp();
+  try {
+    const data = await api('/api/admin/orders');
+    state.adminOrders = data.orders || [];
+    state.adminOrdersLoading = false;
+    renderApp();
+  } catch (error) {
+    state.adminOrdersLoading = false;
+    showToast(error.message, 'error');
+    renderApp();
+  }
+}
+
+
 function renderApp() {
   try {
     state.route = getRoute();
@@ -1480,6 +1561,15 @@ function renderApp() {
 
     if (name === 'profile') {
       app.innerHTML = renderProfileView();
+      return;
+    }
+
+    if (name === 'admin-orders') {
+      if (!state.user || state.user.role !== 'admin') {
+        app.innerHTML = renderAccessDenied();
+        return;
+      }
+      app.innerHTML = renderAdminOrdersView();
       return;
     }
 
@@ -1549,6 +1639,15 @@ async function loadRoute() {
       return;
     }
     await loadOrdersData();
+    return;
+  }
+
+  if (state.route.name === 'admin-orders') {
+    if (!state.user || state.user.role !== 'admin') {
+      renderApp();
+      return;
+    }
+    await loadAdminOrdersData();
     return;
   }
 
@@ -1696,15 +1795,27 @@ function handleAction(target) {
       showToast(`Order ${order.id.slice(0, 8)} contains ${order.items.length} item(s).`, 'success');
     }
   }
+
+  if (action === 'update-order-status') {
+    updateOrderStatus(target.dataset.orderId, target.value);
+    return;
+  }
 }
 
-function closeMobileMenu() {
-  const panel = document.getElementById('mobile-menu');
-  if (!panel) return;
-  panel.classList.remove('is-open');
-  panel.setAttribute('aria-hidden', 'true');
-  const toggle = document.querySelector('[data-action="toggle-mobile-menu"]');
-  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+async function updateOrderStatus(orderId, newStatus) {
+  try {
+    const response = await api(`/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: newStatus })
+    });
+    state.adminOrders = state.adminOrders.map(o => o.id === orderId ? response.order : o);
+    showToast(`Order status updated to ${newStatus}`, 'success');
+    renderApp();
+  } catch (error) {
+    showToast(error.message, 'error');
+    // Reload to reflect current state
+    await loadAdminOrdersData();
+  }
 }
 
 function closeAccountMenu() {
@@ -1865,16 +1976,32 @@ async function handleSubmit(form) {
   if (formType === 'checkout') {
     const values = Object.fromEntries(new FormData(form).entries());
     try {
+      // Create the order with the current cart
+      const shippingAddress = {
+        line1: values.line1,
+        city: values.city,
+        country: values.country,
+        postalCode: values.postalCode || ''
+      };
+
+      const orderResponse = await api('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({ shippingAddress })
+      });
+
+      const orderId = orderResponse.order.id;
+
+      // Now send WhatsApp message with order ID
       const whatsappNumber = String(state.settings?.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
       const pricing = getOrderPricing();
       const orderLines = state.cart.map((item) => `- ${item.book.title} x ${item.quantity} (${formatMoney(item.subtotal)})`).join('\n');
       const message = [
-        'Hello, I would like to place an order from Booksta Online BookStore.',
+        'Hello, I would like to confirm my order from Booksta Online BookStore.',
         '',
+        `Order ID: ${orderId}`,
         `Name: ${state.user?.name || ''}`,
         `Email: ${state.user?.email || ''}`,
         `Address: ${values.line1}, ${values.city}, ${values.country}`,
-        `Order WhatsApp: ${whatsappNumber}`,
         pricing.promotion ? `Promotion: ${pricing.promotion.code} (-${formatMoney(pricing.discount)})` : 'Promotion: None',
         '',
         'Order details:',
@@ -1883,11 +2010,14 @@ async function handleSubmit(form) {
         `Subtotal: ${formatMoney(pricing.subtotal)}`,
         `Total after discount: ${formatMoney(pricing.total)}`,
         '',
-        'Please confirm payment instructions.'
+        'Please confirm payment instructions. Your order has been recorded and is pending confirmation.'
       ].join('\n');
       const targetNumber = whatsappNumber || '250782781575';
       openWhatsAppOrder(targetNumber, message);
-      showToast('Opening WhatsApp to confirm your order');
+      
+      // Reload orders data to show new pending order
+      await loadRoute();
+      showToast(`Order #${orderId.slice(0, 8)} created! Opening WhatsApp for payment confirmation.`);
     } catch (error) {
       showToast(error.message, 'error');
     }
