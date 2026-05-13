@@ -1474,6 +1474,11 @@ function renderApp() {
 async function loadRoute() {
   state.route = getRoute();
   renderChrome();
+  
+  // Smooth scroll to top when route changes
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Also scroll main content to top for anchored navigation
+  document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (state.route.name === 'home') {
     state.search = '';

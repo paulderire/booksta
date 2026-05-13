@@ -63,6 +63,7 @@ html[data-theme='light'] {
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
 }
 
 body {
@@ -100,6 +101,23 @@ html[data-theme='light'] body::before {
 
 body, button, input, textarea, select {
   transition: var(--transition-standard);
+}
+
+/* Smooth scroll for all scrollable containers */
+.mobile-menu,
+.drawer,
+.cart-drawer,
+main,
+.page,
+.section,
+[role="dialog"],
+.modal-card {
+  scroll-behavior: smooth;
+}
+
+/* Smooth scroll utility classes */
+.smooth-scroll {
+  scroll-behavior: smooth;
 }
 
 a {
