@@ -1977,12 +1977,14 @@ async function handleSubmit(form) {
     const values = Object.fromEntries(new FormData(form).entries());
     try {
       // Create the order with the current cart
-      const shippingAddress = {
-        line1: values.line1,
-        city: values.city,
-        country: values.country,
-        postalCode: values.postalCode || ''
-      };
+      const shippingAddress = Object.fromEntries(
+        Object.entries({
+          line1: values.line1,
+          city: values.city,
+          country: values.country,
+          postalCode: values.postalCode
+        }).filter(([, value]) => String(value || '').trim())
+      );
 
       const orderResponse = await api('/api/orders', {
         method: 'POST',
