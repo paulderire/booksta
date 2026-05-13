@@ -18,25 +18,51 @@ document.body.appendChild(overlay);
 overlay.addEventListener('click', () => setDrawerOpen(false));
 
 const mobileMenu = document.getElementById('mobile-menu');
+const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
 const mobileMenuAuth = document.getElementById('mobile-menu-auth');
 const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
 const mobileCartButton = document.getElementById('mobile-cart-button');
 const mobileCartCount = document.getElementById('mobile-cart-count');
 
+// Helper functions for mobile menu
+function openMobileMenu() {
+  if (mobileMenu) {
+    mobileMenu.classList.add('is-open');
+    mobileMenu.setAttribute('aria-hidden', 'false');
+    if (mobileMenuBackdrop) {
+      mobileMenuBackdrop.classList.add('is-open');
+      mobileMenuBackdrop.setAttribute('aria-hidden', 'true');
+    }
+    mobileHamburger?.setAttribute('aria-expanded', 'true');
+  }
+}
+
+function closeMobileMenu() {
+  if (mobileMenu) {
+    mobileMenu.classList.remove('is-open');
+    mobileMenu.setAttribute('aria-hidden', 'true');
+    if (mobileMenuBackdrop) {
+      mobileMenuBackdrop.classList.remove('is-open');
+      mobileMenuBackdrop.setAttribute('aria-hidden', 'true');
+    }
+    mobileHamburger?.setAttribute('aria-expanded', 'false');
+  }
+}
+
 // Direct hamburger click handler - bypasses complex initialization
 const mobileHamburger = document.getElementById('mobile-hamburger');
 if (mobileHamburger) {
   mobileHamburger.addEventListener('click', () => {
-    if (mobileMenu) {
-      const isOpen = mobileMenu.classList.toggle('is-open');
-      mobileMenu.setAttribute('aria-hidden', String(!isOpen));
-      mobileHamburger.setAttribute('aria-expanded', String(!!isOpen));
-      // Close account menu if open
-      const accountMenu = document.querySelector('[data-account-menu]');
-      if (accountMenu) {
-        accountMenu.classList.remove('is-open');
-        accountMenu.setAttribute('aria-hidden', 'true');
-      }
+    if (mobileMenu && mobileMenu.classList.contains('is-open')) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+    // Close account menu if open
+    const accountMenu = document.querySelector('[data-account-menu]');
+    if (accountMenu) {
+      accountMenu.classList.remove('is-open');
+      accountMenu.setAttribute('aria-hidden', 'true');
     }
   });
 }
@@ -628,7 +654,7 @@ function renderHeroTypewriter() {
 
 function renderHomeView() {
   const isSearchMode = Boolean(String(state.search || '').trim());
-  const heroBooks = state.featured.slice(0, 2);
+  const heroBooks = state.featured.slice(0, 3);
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
     : renderSkeletonGrid(4);
@@ -1547,11 +1573,11 @@ function handleAction(target) {
   const action = target.dataset.action;
 
   if (action === 'toggle-mobile-menu') {
-    const panel = document.getElementById('mobile-menu');
-    if (!panel) return;
-    const isOpen = panel.classList.toggle('is-open');
-    panel.setAttribute('aria-hidden', String(!isOpen));
-    target.setAttribute('aria-expanded', String(!!isOpen));
+    if (mobileMenu && mobileMenu.classList.contains('is-open')) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
     closeAccountMenu();
     return;
   }

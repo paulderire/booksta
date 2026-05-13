@@ -48,22 +48,47 @@
       </div>
     </header>
 
-    <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
-      <button class="mobile-menu-close" aria-label="Close menu" data-action="close-mobile-menu">✕</button>
-      <nav class="mobile-menu-nav" aria-label="Mobile navigation">
-        <a href="#/" data-action="close-mobile-menu">Home</a>
-        <a href="#/wishlist" data-action="close-mobile-menu">Wishlist</a>
-        <a href="#/orders" data-action="close-mobile-menu">Orders</a>
-        <a href="#/profile" data-action="close-mobile-menu">Profile</a>
-      </nav>
-      <div class="mobile-menu-actions">
-        <button class="icon-button" id="mobile-theme-toggle" type="button" aria-label="Toggle theme">◐ Theme</button>
-        <button class="icon-button" id="mobile-cart-button" type="button" aria-label="Open cart">
-          Cart <span class="badge" id="mobile-cart-count">0</span>
-        </button>
-        <div class="mobile-menu-auth" id="mobile-menu-auth"></div>
+    <!-- Animated overlay hamburger menu -->
+    <div class="mobile-menu-backdrop" id="mobile-menu-backdrop" aria-hidden="true" data-action="close-mobile-menu"></div>
+    <nav class="mobile-menu-overlay" id="mobile-menu" aria-hidden="true" role="navigation">
+      <div class="mobile-menu-header">
+        <h2>Menu</h2>
+        <button class="mobile-menu-close" aria-label="Close menu" data-action="close-mobile-menu">✕</button>
       </div>
-    </div>
+      <div class="mobile-menu-content">
+        <div class="mobile-menu-section">
+          <a href="#/" class="mobile-menu-item" data-action="close-mobile-menu">
+            <span class="mobile-menu-icon">🏠</span>
+            <span>Home</span>
+          </a>
+          <a href="#/wishlist" class="mobile-menu-item" data-action="close-mobile-menu">
+            <span class="mobile-menu-icon">❤️</span>
+            <span>Wishlist</span>
+          </a>
+          <a href="#/orders" class="mobile-menu-item" data-action="close-mobile-menu">
+            <span class="mobile-menu-icon">📦</span>
+            <span>Orders</span>
+          </a>
+          <a href="#/profile" class="mobile-menu-item" data-action="close-mobile-menu">
+            <span class="mobile-menu-icon">👤</span>
+            <span>Profile</span>
+          </a>
+        </div>
+        <div class="mobile-menu-divider"></div>
+        <div class="mobile-menu-section">
+          <button class="mobile-menu-item" id="mobile-theme-toggle" type="button" aria-label="Toggle theme">
+            <span class="mobile-menu-icon">◐</span>
+            <span>Theme</span>
+          </button>
+          <button class="mobile-menu-item" id="mobile-cart-button" type="button" aria-label="Open cart">
+            <span class="mobile-menu-icon">🛒</span>
+            <span>Cart <span class="badge" id="mobile-cart-count">0</span></span>
+          </button>
+        </div>
+        <div class="mobile-menu-divider"></div>
+        <div class="mobile-menu-section" id="mobile-menu-auth"></div>
+      </div>
+    </nav>
 
     <main id="app" class="app-shell" aria-live="polite"></main>
     <div id="toasts" class="toasts"></div>
