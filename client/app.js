@@ -985,10 +985,10 @@ function renderCartView() {
           <div class="hint">Checkout</div>
           <h2 class="mini-title">Shipping address</h2>
         </div>
-        <input class="text-input" name="line1" placeholder="Street address" required />
+        <input class="text-input" name="line1" placeholder="Street address" />
         <div class="checkout-row">
-          <input class="text-input" name="city" placeholder="City" required />
-          <input class="text-input" name="country" placeholder="Country" required />
+          <input class="text-input" name="city" placeholder="City" />
+          <input class="text-input" name="country" placeholder="Country" />
         </div>
         ${(() => {
           const pricing = getOrderPricing();
@@ -1995,13 +1995,14 @@ async function handleSubmit(form) {
       const whatsappNumber = String(state.settings?.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
       const pricing = getOrderPricing();
       const orderLines = state.cart.map((item) => `- ${item.book.title} x ${item.quantity} (${formatMoney(item.subtotal)})`).join('\n');
+      const addressParts = [values.line1, values.city, values.country].map((part) => String(part || '').trim()).filter(Boolean);
       const message = [
         'Hello, I would like to confirm my order from Booksta Online BookStore.',
         '',
         `Order ID: ${orderId}`,
         `Name: ${state.user?.name || ''}`,
         `Email: ${state.user?.email || ''}`,
-        `Address: ${values.line1}, ${values.city}, ${values.country}`,
+        `Address: ${addressParts.length ? addressParts.join(', ') : 'Not provided'}`,
         pricing.promotion ? `Promotion: ${pricing.promotion.code} (-${formatMoney(pricing.discount)})` : 'Promotion: None',
         '',
         'Order details:',

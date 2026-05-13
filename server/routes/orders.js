@@ -46,10 +46,7 @@ async function fetchOrderById(userId, orderId) {
 
 router.post('/', async (req, res, next) => {
   try {
-    const shippingAddress = req.body?.shippingAddress;
-    if (!shippingAddress || !shippingAddress.line1 || !shippingAddress.city || !shippingAddress.country || !shippingAddress.postalCode) {
-      return res.status(400).json({ error: 'Complete shipping address is required.' });
-    }
+    const shippingAddress = req.body?.shippingAddress || null;
 
     const order = await withTransaction(async (client) => {
       const cartResult = await client.query(
