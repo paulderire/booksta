@@ -210,6 +210,106 @@ function openWhatsAppOrder(targetNumber, message) {
   window.open(link, '_blank');
 }
 
+function buildOrderMessage({ orderId, name, email, address, promotionText, orderLines, subtotal, total }) {
+  const tiktokLink = 'https://www.tiktok.com/@booksta250?_r=1&_t=ZS-96K3GygBFIr';
+  const templates = [
+    [
+      'Hello, I would like to confirm my Booksta order.',
+      '',
+      `Order ID: ${orderId}`,
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Address: ${address}`,
+      promotionText,
+      '',
+      'Order details:',
+      orderLines,
+      '',
+      `Subtotal: ${subtotal}`,
+      `Total after discount: ${total}`,
+      '',
+      `TikTok: ${tiktokLink}`,
+      'Please confirm payment instructions. Your order has been recorded and is pending confirmation.'
+    ].join('\n'),
+    [
+      'Hi Booksta, I am placing an order and would like to confirm it.',
+      '',
+      `Order ID: ${orderId}`,
+      `Customer: ${name}`,
+      `Contact: ${email}`,
+      `Delivery details: ${address}`,
+      promotionText,
+      '',
+      'Items ordered:',
+      orderLines,
+      '',
+      `Subtotal: ${subtotal}`,
+      `Grand total: ${total}`,
+      '',
+      `TikTok: ${tiktokLink}`,
+      'Please send the next steps for payment and delivery confirmation.'
+    ].join('\n'),
+    [
+      'Booksta order confirmation request.',
+      '',
+      `Order #: ${orderId}`,
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Address: ${address}`,
+      promotionText,
+      '',
+      'Cart summary:',
+      orderLines,
+      '',
+      `Subtotal: ${subtotal}`,
+      `Total: ${total}`,
+      '',
+      `TikTok: ${tiktokLink}`,
+      'Kindly confirm the order and share payment instructions.'
+    ].join('\n'),
+    [
+      'Hello, this is my Booksta order confirmation.',
+      '',
+      `Order ID: ${orderId}`,
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Address: ${address}`,
+      promotionText,
+      '',
+      'Selected books:',
+      orderLines,
+      '',
+      `Subtotal: ${subtotal}`,
+      `Total after discount: ${total}`,
+      '',
+      `TikTok: ${tiktokLink}`,
+      'Please reply with payment instructions and confirmation.'
+    ].join('\n'),
+    [
+      'Booksta customer order details below.',
+      '',
+      `Order ID: ${orderId}`,
+      `Customer name: ${name}`,
+      `Email address: ${email}`,
+      `Shipping address: ${address}`,
+      promotionText,
+      '',
+      'Order list:',
+      orderLines,
+      '',
+      `Subtotal: ${subtotal}`,
+      `Final total: ${total}`,
+      '',
+      `TikTok: ${tiktokLink}`,
+      'Please confirm the order and provide the payment process.'
+    ].join('\n')
+  ];
+
+  const selectedTemplate = Number(localStorage.getItem('bookstaOrderMessageTemplate') || '1');
+  const index = Math.max(0, Math.min(templates.length - 1, selectedTemplate - 1));
+  return templates[index];
+}
+
 
 function isActiveRoute(name) {
   return (state.route?.name || getRoute().name) === name;
@@ -1998,23 +2098,17 @@ async function handleSubmit(form) {
       const pricing = getOrderPricing();
       const orderLines = state.cart.map((item) => `- ${item.book.title} x ${item.quantity} (${formatMoney(item.subtotal)})`).join('\n');
       const addressParts = [values.line1, values.city, values.country].map((part) => String(part || '').trim()).filter(Boolean);
-      const message = [
-        'Hello, I would like to confirm my order from Booksta Online BookStore.',
-        '',
-        `Order ID: ${orderId}`,
-        `Name: ${state.user?.name || ''}`,
-        `Email: ${state.user?.email || ''}`,
-        `Address: ${addressParts.length ? addressParts.join(', ') : 'Not provided'}`,
-        pricing.promotion ? `Promotion: ${pricing.promotion.code} (-${formatMoney(pricing.discount)})` : 'Promotion: None',
-        '',
-        'Order details:',
+      const promotionText = pricing.promotion ? `Promotion: ${pricing.promotion.code} (-${formatMoney(pricing.discount)})` : 'Promotion: None';
+      const message = buildOrderMessage({
+        orderId,
+        name: state.user?.name || '',
+        email: state.user?.email || '',
+        address: addressParts.length ? addressParts.join(', ') : 'Not provided',
+        promotionText,
         orderLines,
-        '',
-        `Subtotal: ${formatMoney(pricing.subtotal)}`,
-        `Total after discount: ${formatMoney(pricing.total)}`,
-        '',
-        'Please confirm payment instructions. Your order has been recorded and is pending confirmation.'
-      ].join('\n');
+        subtotal: formatMoney(pricing.subtotal),
+        total: formatMoney(pricing.total)
+      });
       const targetNumber = whatsappNumber || '250782781575';
       openWhatsAppOrder(targetNumber, message);
       
