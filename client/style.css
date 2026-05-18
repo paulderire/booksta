@@ -632,6 +632,150 @@ html[data-theme='light'] .panel {
   }
 }
 
+/* ========== SMOOTH SCROLL ANIMATIONS ========== */
+
+/* Scroll progress bar */
+.scroll-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  width: 0%;
+  z-index: 100;
+  box-shadow: 0 0 12px var(--shadow-glow);
+  transition: width 0.1s ease-out;
+  will-change: width;
+}
+
+/* Fade-in animation for scroll-triggered elements */
+.scroll-fade-in-trigger,
+.scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes scroll-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Stagger animation for grid items */
+.scroll-stagger-grid > * {
+  animation: scroll-stagger 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes scroll-stagger {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Parallax effect for hero sections */
+.parallax {
+  will-change: transform;
+  transition: transform 0.3s ease-out;
+}
+
+/* Apply fade-in to book cards in search results */
+.book-card {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.book-card:not(.hero-feature-grid .book-card).scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Enhanced hover effect with smooth transition */
+.book-card.scroll-fade-in:hover {
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.25);
+}
+
+/* Glass cards fade-in */
+.glass-card.scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.glass-card.scroll-fade-in:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.15);
+}
+
+/* Contact cards */
+.contact-card.scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Review cards */
+.review-card.scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Order items */
+.order-item.scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Hero sections with parallax */
+.hero.parallax {
+  animation: scroll-fade-in 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Smooth sections */
+.section.scroll-fade-in {
+  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Header hide on scroll down */
+.topbar.header-hidden {
+  transform: translateY(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced smooth scrolling with reduced motion support */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 4.5rem;
+  }
+  
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Respect user's reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  
+  .scroll-fade-in,
+  .scroll-fade-in-trigger,
+  .scroll-stagger,
+  .parallax {
+    animation: none !important;
+    transform: none !important;
+  }
+  
+  .topbar.header-hidden {
+    transform: none;
+  }
+}
+
 .hero-panel .book-card {
   padding: 0.85rem;
 }
