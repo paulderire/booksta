@@ -84,7 +84,19 @@ const schemaStatements = [
     key TEXT PRIMARY KEY,
     value TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
-  );`
+  );`,
+  // Indexes for faster queries
+  "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);",
+  "CREATE INDEX IF NOT EXISTS idx_books_genre ON books(genre);",
+  "CREATE INDEX IF NOT EXISTS idx_books_featured ON books(featured) WHERE featured = TRUE;",
+  "CREATE INDEX IF NOT EXISTS idx_reviews_book_id ON reviews(book_id);",
+  "CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_cart_items_user_id ON cart_items(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_wishlist_items_user_id ON wishlist_items(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);",
+  "CREATE INDEX IF NOT EXISTS idx_promotions_code ON promotions(code);",
+  "CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions(is_active) WHERE is_active = TRUE;"
 ];
 
 module.exports = {

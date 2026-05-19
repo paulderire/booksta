@@ -4,7 +4,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 const authRoutes = require('./routes/auth');
 const booksRoutes = require('./routes/books');
@@ -37,10 +40,23 @@ app.use(helmet({
 }));
 app.use(cors({ origin: clientUrl || true }));
 app.use(express.json({ limit: '1mb' }));
-app.use(morgan('dev'));
+app.use(compression()); // Enable gzip compression
 
-// Serve static client files early to avoid them being rate-limited
-app.use(express.static(clientDir));
+// Logging: use 'combined' in production, 'dev' in development
+app.use(morgan(isProduction ? 'combined' : 'dev'));
+
+// Serve static client files with aggressive caching
+app.use(express.static(clientDir, {
+  maxAge: isProduction ? '1y' : 0,
+  etag: false,
+  lastModified: false
+}));
+
+// Set cache headers for specific file types
+app.get('/api/*', (_req, res, next) => {
+  res.set('Cache-Control', 'private, max-age=0, must-revalidate');
+  next();
+});
 
 // Apply rate limiting only to API endpoints (avoid throttling static assets)
 app.use('/api', rateLimit({

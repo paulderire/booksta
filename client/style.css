@@ -3018,3 +3018,69 @@ body.has-drawer-open {
     width: 100%;
   }
 }
+
+/* Accessibility: Respect user's motion preferences for performance & accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable animations for scroll-triggered elements */
+  .scroll-fade-in,
+  .scroll-fade-in-trigger,
+  .scroll-stagger-grid > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .scroll-fade-in h1,
+  .scroll-fade-in h2,
+  .scroll-fade-in h3,
+  .scroll-fade-in p {
+    animation: none !important;
+    animation-delay: 0 !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Disable text-lines animation */
+  .text-lines > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Disable other animations */
+  .fade-in-animation {
+    animation: none !important;
+  }
+
+  .book-card {
+    transition: none !important;
+  }
+
+  .book-card:hover {
+    transform: none !important;
+  }
+
+  .hero-feature-grid .book-card:hover {
+    transform: none !important;
+  }
+
+  /* Keep progress bar but without animation */
+  .scroll-progress-bar {
+    transition: none !important;
+  }
+
+  /* Disable toast animations */
+  .toast {
+    animation: none !important;
+  }
+}
