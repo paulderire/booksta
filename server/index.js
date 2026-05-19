@@ -99,6 +99,13 @@ const port = process.env.PORT || 5000;
 let dbReady = false;
 
 async function waitForDatabase(maxAttempts = 120, delayMs = 1000) {
+  // Check if DATABASE_URL is set (required for production)
+  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+    console.error('✗ DATABASE_URL environment variable not set. Railway PostgreSQL plugin not detected.');
+    console.error('→ Add PostgreSQL plugin to your Railway project: Settings → Add Service → PostgreSQL');
+    return false;
+  }
+
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -110,15 +117,18 @@ async function waitForDatabase(maxAttempts = 120, delayMs = 1000) {
       return true;
     } catch (error) {
       lastError = error;
-      if (attempt % 10 === 0) {
-        console.log(`[${attempt}/${maxAttempts}] Waiting for database...`);
+      if (attempt === 1) {
+        console.log(`Attempting to connect to database (${maxAttempts} retries)...`);
+      }
+      if (attempt % 20 === 0) {
+        console.log(`[${attempt}/${maxAttempts}] Still waiting for database...`);
       }
       if (attempt < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
   }
-  console.error(`✗ Failed to connect to database after ${maxAttempts} attempts: ${lastError?.message}`);
+  console.error(`✗ Failed to connect to database after ${maxAttempts} attempts`);
   return false;
 }
 
@@ -134,6 +144,7 @@ async function initializeDatabase() {
       await seed({ closePool: false });
     }
     client.release();
+    console.log('✓ Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error.message);
   }
@@ -152,17 +163,43 @@ if (require.main === module) {
   // Start server immediately without waiting for DB
   const server = app.listen(port, () => {
     console.log(`✓ booksta server listening on port ${port}`);
+    if (process.env.NODE_ENV === 'production') {
+      console.log('→ Check http://localhost:5000/api/health for status');
+    }
   });
 
-  // Connect to database in background
-  waitForDatabase()
-    .then(() => initializeDatabase())
-    .then(() => {
-      console.log('✓ Database ready and initialized');
-    })
-    .catch((error) => {
-      console.error('⚠ Database initialization error (API may be limited):', error.message);
-    });
+  // Connect to database in background (never blocks startup)
+  (async () => {
+    try {
+      const connected = await waitForDatabase();
+      if (connected) {
+        await initializeDatabase();
+        console.log('✓ Database ready and initialized');
+      } else {
+        console.error('');
+        console.error('⚠️  DATABASE NOT CONNECTED');
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('The server is running but cannot access the database.');
+        console.error('');
+        if (process.env.NODE_ENV === 'production') {
+          console.error('ACTION REQUIRED:');
+          console.error('1. Go to your Railway project dashboard');
+          console.error('2. Click "+ Add Service"');
+          console.error('3. Select "Database" → "PostgreSQL"');
+          console.error('4. Wait 1-2 minutes for initialization');
+          console.error('5. Railway will auto-inject DATABASE_URL');
+          console.error('6. Redeploy your app');
+        } else {
+          console.error('ACTION REQUIRED:');
+          console.error('Make sure PostgreSQL is running locally on port 5432');
+        }
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('');
+      }
+    } catch (error) {
+      console.error('Unexpected error during database initialization:', error.message);
+    }
+  })();
 
   // Graceful shutdown
   process.on('SIGTERM', () => {
