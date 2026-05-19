@@ -694,7 +694,7 @@ function renderHomeView() {
       <div class="hero glass">
         <div>
           <div class="pill">A modern bookstore with a cinematic reading experience</div>
-          <h1 class="hero-title">Booksta Online BookStore for readers who want the shelf to feel alive.</h1>
+          <h1 class="hero-title">Booksta.<br>for readers who want the shelf to feel alive.</h1>
           <p class="hero-copy">
             Discover featured picks, browse by genre, keep a wishlist, manage your cart, and order books with a smooth checkout flow.
             The catalog below is powered by the live API, with search, pagination, and review-aware rating summaries.
@@ -752,7 +752,7 @@ function renderHomeView() {
       </section>
 
       <section class="section" style="padding: 4rem 0;">
-        <h2 class="section-title">Why Choose Booksta Online BookStore?</h2>
+        <h2 class="section-title">Why Choose Booksta?</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2rem;">
           <div class="panel" style="padding: 2rem; text-align: center;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">📚</div>
@@ -1216,9 +1216,9 @@ function renderAuthView(mode) {
         <div class="auth-grid auth-large">
           <div class="auth-branding auth-large">
               <div class="auth-brand-row">
-                <img src="assets/WhatsApp%20Image%202026-05-07%20at%2014.35.19.jpeg" alt="Booksta Online BookStore" style="height:56px;width:auto;border-radius:6px;margin-right:0.75rem" />
+                <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
                 <div>
-                  <strong class="auth-brand-name">Booksta Online BookStore</strong>
+                  <strong class="auth-brand-name">Booksta</strong>
                 </div>
               </div>
               <h2 class="section-title">${isLogin ? 'Welcome back' : 'Create your account'}</h2>
@@ -1230,7 +1230,7 @@ function renderAuthView(mode) {
 
           <div class="auth-form-panel auth-large">
             <div class="auth-header">
-              <div class="hint">${isLogin ? 'Welcome back' : 'Join Booksta Online BookStore'}</div>
+              <div class="hint">${isLogin ? 'Welcome back' : 'Join Booksta'}</div>
               <h2 class="section-title">${isLogin ? 'Sign in to pick up where you left off' : 'Create your account and start building a shelf'}</h2>
               <p class="section-copy">${isLogin ? 'Use your email and password to unlock cart, wishlist, reviews, and orders.' : 'Create a profile to save books, place orders, and write reviews after purchase.'}</p>
             </div>
@@ -1551,45 +1551,63 @@ function renderApp() {
 
     if (name === 'home') {
       app.innerHTML = renderHomeView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'search') {
       app.innerHTML = renderSearchView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'book') {
       app.innerHTML = renderBookView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'cart') {
       app.innerHTML = renderCartView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'wishlist') {
       app.innerHTML = renderWishlistView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'orders') {
       app.innerHTML = renderOrdersView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'profile') {
       app.innerHTML = renderProfileView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     if (name === 'admin-orders') {
       if (!state.user || state.user.role !== 'admin') {
         app.innerHTML = renderAccessDenied();
+        // Re-observe sections for scroll animations
+        setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
         return;
       }
       app.innerHTML = renderAdminOrdersView();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
@@ -1597,13 +1615,19 @@ function renderApp() {
       // Render the home background and show auth modal on top
       app.innerHTML = renderHomeView();
       app.innerHTML += renderAuthModal(name === 'login' ? 'login' : 'register');
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     app.innerHTML = '<section class="page"><div class="empty-state"><p>Page not found.</p><a class="primary-button" href="#/">Return home</a></div></section>';
+    // Re-observe sections for scroll animations
+    setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
   } catch (error) {
     console.error(error);
     app.innerHTML = `<section class="page"><div class="empty-state"><p>${escapeHtml(error?.message || String(error))}</p></div></section>`;
+    // Re-observe sections for scroll animations
+    setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
   }
 }
 

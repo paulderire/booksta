@@ -1,9 +1,7 @@
 /**
- * Smooth Scroll Animations
+ * Smooth Scroll Animations - Simplified Version
  * - Scroll progress bar
- * - Fade-in animations for elements
- * - Parallax effects for hero sections
- * - Smooth scroll-triggered animations
+ * - Scroll-triggered section reveals
  */
 
 class ScrollAnimations {
@@ -17,7 +15,6 @@ class ScrollAnimations {
     this.createProgressBar();
     this.setupScrollProgress();
     this.setupIntersectionObserver();
-    this.addScrollListeners();
   }
 
   /**
@@ -35,13 +32,16 @@ class ScrollAnimations {
    * Update progress bar width based on scroll position
    */
   setupScrollProgress() {
-    window.addEventListener('scroll', () => {
+    const updateProgress = () => {
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       const scrolled = (window.scrollY / scrollHeight) * 100;
       if (this.progressBar) {
-        this.progressBar.style.width = scrolled + '%';
+        this.progressBar.style.width = Math.min(scrolled, 100) + '%';
       }
-    }, { passive: true });
+    };
+    
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress(); // Initial call
   }
 
   /**
@@ -49,145 +49,50 @@ class ScrollAnimations {
    */
   setupIntersectionObserver() {
     const observerOptions = {
-      threshold: [0, 0.1, 0.5],
-      rootMargin: '0px 0px -50px 0px'
+      threshold: [0, 0.1, 0.25, 0.5],
+      rootMargin: '100px 0px -100px 0px'
     };
 
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          // Add animation classes
+          // Animate the element
           entry.target.classList.add('scroll-fade-in');
-          
-          // Add stagger animation to children if applicable
-          if (entry.target.classList.contains('scroll-stagger-grid')) {
-            this.addStaggerAnimation(entry.target);
-          }
-
-          // Add parallax effect
-          if (entry.target.classList.contains('parallax')) {
-            this.setupParallax(entry.target);
-          }
-
-          // Stop observing once animated
-          this.observer.unobserve(entry.target);
         }
       });
     }, observerOptions);
 
-    // Observe all elements with scroll animation classes
-    this.observeElements();
-  }
+    // Observe all section elements for scroll animation
+    document.querySelectorAll('.section').forEach((section) => {
+      this.observer.observe(section);
+    });
 
-  /**
-   * Observe elements that need scroll animations
-   */
-  observeElements() {
-    const selectors = [
-      '.scroll-fade-in-trigger',
-      '.book-card:not(.hero-feature-grid .book-card)',
-      '.glass-card',
-      '.section > .glass-card',
-      '.contact-card',
-      '.product-card',
-      '.review-card',
-      '.order-item',
-      '.hero',
-      '.scroll-stagger-grid',
-      '.parallax'
-    ];
-
-    selectors.forEach((selector) => {
-      document.querySelectorAll(selector).forEach((el) => {
-        if (!el.classList.contains('scroll-fade-in')) {
-          this.observer.observe(el);
-        }
-      });
+    // Also observe other scroll-trigger elements
+    document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
+      this.observer.observe(el);
     });
   }
 
   /**
-   * Add stagger animation to grid children
+   * Re-observe sections (call this after page renders)
    */
-  addStaggerAnimation(container) {
-    const children = container.querySelectorAll('> *');
-    children.forEach((child, index) => {
-      child.style.animation = `scroll-stagger 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both`;
-      child.style.animationDelay = `${index * 60}ms`;
+  reObserveSections() {
+    // Observe all section elements for scroll animation
+    document.querySelectorAll('.section').forEach((section) => {
+      try {
+        this.observer.observe(section);
+      } catch (e) {
+        // Already observing
+      }
     });
-  }
 
-  /**
-   * Setup parallax effect on scroll
-   */
-  setupParallax(element) {
-    const handleParallax = () => {
-      const rect = element.getBoundingClientRect();
-      const scrollPosition = window.scrollY;
-      const elementTop = rect.top + scrollPosition;
-      const offset = (scrollPosition - elementTop) * 0.5;
-      
-      if (Math.abs(offset) < 200) { // Only apply within reasonable range
-        element.style.transform = `translateY(${offset}px)`;
+    // Also observe other scroll-trigger elements
+    document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
+      try {
+        this.observer.observe(el);
+      } catch (e) {
+        // Already observing
       }
-    };
-
-    window.addEventListener('scroll', handleParallax, { passive: true });
-  }
-
-  /**
-   * Smooth scroll to element
-   */
-  scrollToElement(selector, offset = 100) {
-    const element = document.querySelector(selector);
-    if (element) {
-      const offsetTop = element.offsetTop - offset;
-      window.scrollTo({
-        top: offsetTop,
-        behavior: 'smooth'
-      });
-    }
-  }
-
-  /**
-   * Add scroll event listeners for additional effects
-   */
-  addScrollListeners() {
-    let ticking = false;
-
-    window.addEventListener('scroll', () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          this.updateScrollState();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    }, { passive: true });
-  }
-
-  /**
-   * Update scroll state and trigger effects
-   */
-  updateScrollState() {
-    const scrollTop = window.scrollY;
-    
-    // Hide header on scroll down, show on scroll up
-    const header = document.querySelector('.topbar');
-    if (header) {
-      if (this.lastScrollTop > scrollTop) {
-        header.classList.remove('header-hidden');
-      } else if (scrollTop > 100) {
-        header.classList.add('header-hidden');
-      }
-      this.lastScrollTop = scrollTop;
-    }
-
-    // Blur background elements as user scrolls
-    const bgOrbs = document.querySelectorAll('.bg-orb');
-    bgOrbs.forEach((orb) => {
-      const distance = Math.abs(scrollTop - window.innerHeight / 2) / 100;
-      orb.style.opacity = Math.max(0.1, 0.35 - distance * 0.1);
     });
   }
 
@@ -213,11 +118,15 @@ if (document.readyState === 'loading') {
   window.scrollAnimations = new ScrollAnimations();
 }
 
-// Reinitialize when app.js updates content
+// Re-initialize on page navigation
 window.addEventListener('hashchange', () => {
   if (window.scrollAnimations) {
+    // Re-observe elements for new page
     setTimeout(() => {
-      window.scrollAnimations.observeElements();
+      window.scrollAnimations.observer.disconnect();
+      window.scrollAnimations.setupIntersectionObserver();
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
   }
 });

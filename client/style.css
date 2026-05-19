@@ -198,7 +198,9 @@ img {
 .topbar-center{display:flex;flex-direction:row;align-items:center;min-width:0;flex:1 1 auto;gap:1rem}
 .topbar-right{display:flex;align-items:center;gap:0.75rem;flex:0 0 auto}
 
-.site-logo{display:block;height:48px;width:auto;object-fit:contain;object-position:left center}
+.site-logo{display:block;height:48px;width:48px;border-radius:50%;object-fit:cover;object-position:center}
+
+.footer-logo{display:block;height:48px;width:48px;border-radius:50%;object-fit:cover;object-position:center;margin-right:0.6rem}
 
 .site-name {
   display: inline-flex;
@@ -651,14 +653,14 @@ html[data-theme='light'] .panel {
 /* Fade-in animation for scroll-triggered elements */
 .scroll-fade-in-trigger,
 .scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: scroll-fade-in 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 @keyframes scroll-fade-in {
   from {
     opacity: 0;
-    transform: translateY(24px);
-    filter: blur(4px);
+    transform: translateY(32px);
+    filter: blur(6px);
   }
   to {
     opacity: 1;
@@ -667,15 +669,54 @@ html[data-theme='light'] .panel {
   }
 }
 
+/* Enhanced text reveal animation for headings and paragraphs */
+.scroll-fade-in h1,
+.scroll-fade-in h2,
+.scroll-fade-in h3,
+.scroll-fade-in p {
+  animation: text-reveal 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.scroll-fade-in h1 { animation-delay: 0ms; }
+.scroll-fade-in h2 { animation-delay: 100ms; }
+.scroll-fade-in h3 { animation-delay: 200ms; }
+.scroll-fade-in p { animation-delay: 300ms; }
+
+@keyframes text-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Highlight accent words in titles */
+.hero-title span.accent,
+.section-title span.accent,
+p span.accent {
+  color: var(--accent);
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.hero-title span.accent:hover,
+.section-title span.accent:hover,
+p span.accent:hover {
+  color: var(--accent-2);
+}
+
 /* Stagger animation for grid items */
 .scroll-stagger-grid > * {
-  animation: scroll-stagger 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: scroll-stagger 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 @keyframes scroll-stagger {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: translateY(28px) scale(0.94);
   }
   to {
     opacity: 1;
@@ -683,10 +724,119 @@ html[data-theme='light'] .panel {
   }
 }
 
-/* Parallax effect for hero sections */
+/* Enhanced line-by-line text animation */
+.text-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.text-lines > * {
+  animation: line-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes line-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(-12px) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+/* Hide sections initially - only show when scrolled */
+.section {
+  opacity: 0;
+}
+
+.section.scroll-fade-in {
+  opacity: 1;
+}
+
+/* Hero section shows immediately on load */
+.hero {
+  opacity: 1 !important;
+}
 .parallax {
   will-change: transform;
   transition: transform 0.3s ease-out;
+}
+
+/* Section label styling with "//" prefix */
+.section-label {
+  display: block;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  animation: section-label-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes section-label-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Enhanced hero title with smooth reveal */
+.hero-title {
+  position: relative;
+  overflow: hidden;
+  animation: hero-title-reveal 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes hero-title-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Section titles with enhanced animation */
+.section-title {
+  position: relative;
+  animation: title-reveal 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes title-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth paragraph animations */
+.section-copy {
+  animation: paragraph-reveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes paragraph-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Apply fade-in to book cards in search results */
