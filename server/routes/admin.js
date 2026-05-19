@@ -389,12 +389,29 @@ router.post('/promotions', async (req, res, next) => {
 router.patch('/promotions/:id', async (req, res, next) => {
   try {
     const { code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active } = req.body;
+    
+    // Only update fields that are provided
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (code !== undefined) { updates.push(`code=$${paramIndex++}`); values.push(code); }
+    if (description !== undefined) { updates.push(`description=$${paramIndex++}`); values.push(description); }
+    if (discount_type !== undefined) { updates.push(`discount_type=$${paramIndex++}`); values.push(discount_type); }
+    if (discount_value !== undefined) { updates.push(`discount_value=$${paramIndex++}`); values.push(discount_value); }
+    if (min_order_amount !== undefined) { updates.push(`min_order_amount=$${paramIndex++}`); values.push(min_order_amount); }
+    if (max_uses !== undefined) { updates.push(`max_uses=$${paramIndex++}`); values.push(max_uses); }
+    if (expires_at !== undefined) { updates.push(`expires_at=$${paramIndex++}`); values.push(expires_at); }
+    if (is_active !== undefined) { updates.push(`is_active=$${paramIndex++}`); values.push(is_active); }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    values.push(req.params.id);
     const { rows } = await query(
-      `UPDATE promotions 
-       SET code=$1, description=$2, discount_type=$3, discount_value=$4, min_order_amount=$5, max_uses=$6, expires_at=$7, is_active=$8
-       WHERE id=$9
-       RETURNING *`,
-      [code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active, req.params.id]
+      `UPDATE promotions SET ${updates.join(', ')} WHERE id=$${paramIndex} RETURNING *`,
+      values
     );
     if (!rows[0]) return res.status(404).json({ error: 'Promotion not found' });
     res.json({ promotion: rows[0] });

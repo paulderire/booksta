@@ -85,10 +85,6 @@ app.use('/api/promotions', promotionsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, status: 'healthy' });
-});
-
 app.get(/^\/(?!api).*/, (_req, res) => {
   res.sendFile(path.join(clientDir, 'index.html'));
 });
@@ -100,10 +96,36 @@ app.use((error, _req, res, _next) => {
 });
 
 const port = process.env.PORT || 5000;
+let dbReady = false;
+
+async function waitForDatabase(maxAttempts = 120, delayMs = 1000) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      dbReady = true;
+      console.log(`✓ Database connected successfully on attempt ${attempt}`);
+      return true;
+    } catch (error) {
+      lastError = error;
+      if (attempt % 10 === 0) {
+        console.log(`[${attempt}/${maxAttempts}] Waiting for database...`);
+      }
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  console.error(`✗ Failed to connect to database after ${maxAttempts} attempts: ${lastError?.message}`);
+  return false;
+}
 
 async function initializeDatabase() {
-  const client = await pool.connect();
+  if (!dbReady) return;
   try {
+    const client = await pool.connect();
     await ensureSchema(client);
     const { rows } = await client.query('SELECT COUNT(*)::int AS total FROM books');
     const bookCount = Number(rows[0]?.total || 0);
@@ -111,22 +133,45 @@ async function initializeDatabase() {
       console.log('booksta: empty database detected, seeding sample data');
       await seed({ closePool: false });
     }
-  } finally {
     client.release();
+  } catch (error) {
+    console.error('Error initializing database:', error.message);
   }
 }
 
+// Health check endpoint that indicates database status
+app.get('/api/health', (_req, res) => {
+  res.json({ 
+    ok: true, 
+    status: dbReady ? 'healthy' : 'initializing',
+    database: dbReady ? 'connected' : 'connecting'
+  });
+});
+
 if (require.main === module) {
-  initializeDatabase()
+  // Start server immediately without waiting for DB
+  const server = app.listen(port, () => {
+    console.log(`✓ booksta server listening on port ${port}`);
+  });
+
+  // Connect to database in background
+  waitForDatabase()
+    .then(() => initializeDatabase())
     .then(() => {
-      app.listen(port, () => {
-        console.log(`booksta server listening on port ${port}`);
-      });
+      console.log('✓ Database ready and initialized');
     })
     .catch((error) => {
-      console.error('booksta database initialization failed', error);
-      process.exit(1);
+      console.error('⚠ Database initialization error (API may be limited):', error.message);
     });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, closing server...');
+    server.close(() => {
+      pool.end();
+      process.exit(0);
+    });
+  });
 }
 
 module.exports = app;
