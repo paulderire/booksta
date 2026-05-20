@@ -565,31 +565,80 @@
 
     const totalRevenue = revenueRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
     const totalOrders = revenueRows.reduce((sum, row) => sum + Number(row.orders || 0), 0);
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const topGenre = genreRows[0]?.genre || 'N/A';
+    const topGenreSales = genreRows[0]?.totalsales || 0;
     const hasAnyData = revenueRows.length || genreRows.length || topBooks.length;
 
     if (!hasAnyData) {
-      view.innerHTML = '<h2>Analytics</h2><div class="card" style="padding:1.5rem;margin-top:1rem">No analytics data available yet. Create some orders and books first.</div>';
+      view.innerHTML = '<h2>📊 Analytics</h2><div class="analytics-card" style="padding:2rem;margin-top:1rem;text-align:center;border-radius:18px;background:var(--bg-soft);border:1px solid var(--border)"><div class="small" style="opacity:.6">No analytics data available yet</div><p style="margin:0.5rem 0 0 0;opacity:.5">Create some orders and books first to see analytics</p></div>';
       return;
     }
 
-    // Always render useful analytics blocks, even if charts are blocked by CSP.
+    // Advanced analytics layout with KPI cards
     view.innerHTML = `
-      <h2>Analytics</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem">
-        <div class="card" style="padding:1rem"><div class="small" style="opacity:.7">30-Day Revenue</div><div style="font-size:1.4rem;font-weight:700">${formatRWF(totalRevenue)}</div></div>
-        <div class="card" style="padding:1rem"><div class="small" style="opacity:.7">Orders (30 Days)</div><div style="font-size:1.4rem;font-weight:700">${totalOrders}</div></div>
-        <div class="card" style="padding:1rem"><div class="small" style="opacity:.7">Top Genre</div><div style="font-size:1.4rem;font-weight:700">${escapeHtml(topGenre || 'N/A')}</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h2 style="margin:0">📊 Advanced Analytics</h2>
+        <span class="small" style="opacity:.6">Last 30 days</span>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;margin-bottom:1.5rem">
+        <div class="analytics-card">
+          <div class="analytics-icon">💰</div>
+          <div class="analytics-label">Total Revenue</div>
+          <div class="analytics-value">${formatRWF(totalRevenue)}</div>
+          <div class="analytics-stat">${totalOrders} orders</div>
+        </div>
+        
+        <div class="analytics-card">
+          <div class="analytics-icon">📦</div>
+          <div class="analytics-label">Total Orders</div>
+          <div class="analytics-value">${formatNumber(totalOrders)}</div>
+          <div class="analytics-stat">Transactions</div>
+        </div>
+        
+        <div class="analytics-card">
+          <div class="analytics-icon">💸</div>
+          <div class="analytics-label">Average Order Value</div>
+          <div class="analytics-value">${formatRWF(avgOrderValue)}</div>
+          <div class="analytics-stat">Per transaction</div>
+        </div>
+        
+        <div class="analytics-card">
+          <div class="analytics-icon">📚</div>
+          <div class="analytics-label">Top Genre</div>
+          <div class="analytics-value">${escapeHtml(topGenre)}</div>
+          <div class="analytics-stat">${formatNumber(topGenreSales)} sales</div>
+        </div>
       </div>
 
-      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;margin-top:1rem">
-        <div class="card" style="padding:1rem">
-          <h3 style="margin:0 0 .6rem 0">Top Books</h3>
-          ${(topBooks.length ? `<ul style="margin:0;padding-left:1rem">${topBooks.map((b)=>`<li style="margin:.25rem 0">${escapeHtml(b.title)} <strong>(${Number(b.qtySold || 0)})</strong></li>`).join('')}</ul>` : '<p class="small" style="opacity:.7;margin:0">No top books data.</p>')}
+      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem">
+        <div class="analytics-card">
+          <h3 style="margin:0 0 1rem 0;display:flex;align-items:center;gap:0.5rem">📈 Top 5 Books</h3>
+          ${(topBooks.length ? `<div style="display:grid;gap:0.6rem">${topBooks.map((b, i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)"><span>${i+1}. ${escapeHtml(b.title)}</span><span style="font-weight:700;color:var(--accent)">${Number(b.qtySold || 0)}</span></div>`).join('')}</div>` : '<p class="small" style="opacity:.6;margin:0">No top books data</p>')}
         </div>
-        <div class="card" style="padding:1rem">
-          <h3 style="margin:0 0 .6rem 0">Sales by Genre</h3>
-          ${(genreRows.length ? `<ul style="margin:0;padding-left:1rem">${genreRows.slice(0, 6).map((g)=>`<li style="margin:.25rem 0">${escapeHtml(g.genre || 'N/A')} <strong>(${Number(g.totalsales || g.totalSales || 0)})</strong></li>`).join('')}</ul>` : '<p class="small" style="opacity:.7;margin:0">No genre sales data.</p>')}
+        
+        <div class="analytics-card">
+          <h3 style="margin:0 0 1rem 0;display:flex;align-items:center;gap:0.5rem">🎯 Genre Performance</h3>
+          ${(genreRows.length ? `<div style="display:grid;gap:0.6rem">${genreRows.slice(0, 6).map((g, i)=>{const pct = totalRevenue > 0 ? (Number(g.totalsales || 0) / totalRevenue * 100).toFixed(1) : 0; return `<div style="padding:0.7rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:0.4rem"><span>${escapeHtml(g.genre || 'N/A')}</span><span style="font-weight:700;color:var(--accent)">${pct}%</span></div><div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:2px"></div></div></div>`}).join('')}</div>` : '<p class="small" style="opacity:.6;margin:0">No genre data</p>')}
+        </div>
+        
+        <div class="analytics-card">
+          <h3 style="margin:0 0 1rem 0">📊 Quick Stats</h3>
+          <div style="display:grid;gap:0.8rem">
+            <div style="padding:0.8rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
+              <div style="opacity:.7;font-size:0.85rem">Average Daily Revenue</div>
+              <div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">${formatRWF((totalRevenue / (revenueRows.length || 1)).toFixed(0))}</div>
+            </div>
+            <div style="padding:0.8rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
+              <div style="opacity:.7;font-size:0.85rem">Total Books Sold</div>
+              <div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">${formatNumber(topBooks.reduce((sum, b) => sum + Number(b.qtySold || 0), 0))}</div>
+            </div>
+            <div style="padding:0.8rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
+              <div style="opacity:.7;font-size:0.85rem">Active Genres</div>
+              <div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">${genreRows.length}</div>
+            </div>
+          </div>
         </div>
       </div>
     `;

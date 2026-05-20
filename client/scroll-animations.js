@@ -1,13 +1,14 @@
 /**
- * Smooth Scroll Animations - Simplified Version
+ * Smooth Scroll Animations - Advanced Version
  * - Scroll progress bar
- * - Scroll-triggered section reveals
+ * - Scroll-triggered section reveals (no initial page load animation)
  */
 
 class ScrollAnimations {
   constructor() {
     this.progressBar = null;
     this.observer = null;
+    this.userHasScrolled = false;
     this.init();
   }
 
@@ -15,6 +16,18 @@ class ScrollAnimations {
     this.createProgressBar();
     this.setupScrollProgress();
     this.setupIntersectionObserver();
+    this.detectInitialScroll();
+  }
+
+  /**
+   * Detect if user has scrolled (to avoid triggering animations on page load)
+   */
+  detectInitialScroll() {
+    const handleFirstScroll = () => {
+      this.userHasScrolled = true;
+      window.removeEventListener('scroll', handleFirstScroll);
+    };
+    window.addEventListener('scroll', handleFirstScroll, { once: true, passive: true });
   }
 
   /**
@@ -45,7 +58,7 @@ class ScrollAnimations {
   }
 
   /**
-   * Setup Intersection Observer for scroll-triggered animations
+   * Setup Intersection Observer for scroll-triggered animations (only when user scrolls)
    */
   setupIntersectionObserver() {
     const observerOptions = {
@@ -55,8 +68,8 @@ class ScrollAnimations {
 
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          // Animate the element
+        // Only animate if user has scrolled (avoid page load animations)
+        if (entry.isIntersecting && this.userHasScrolled) {
           entry.target.classList.add('scroll-fade-in');
         }
       });
