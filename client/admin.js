@@ -562,111 +562,126 @@
     const revenueRows = Array.isArray(revRes?.dailyRevenue) ? revRes.dailyRevenue : [];
     const genreRows = Array.isArray(genreRes?.genreSales) ? genreRes.genreSales : [];
     const topBooks = Array.isArray(statsRes?.topBooks) ? statsRes.topBooks.slice(0, 5) : [];
+    const allUsers = statsRes?.totalUsers || 0;
+    const totalBooks = statsRes?.totalBooks || 0;
 
     const totalRevenue = revenueRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
     const totalOrders = revenueRows.reduce((sum, row) => sum + Number(row.orders || 0), 0);
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
     const topGenre = genreRows[0]?.genre || 'N/A';
-    const topGenreSales = genreRows[0]?.totalsales || 0;
     const hasAnyData = revenueRows.length || genreRows.length || topBooks.length;
 
     if (!hasAnyData) {
-      view.innerHTML = '<h2>📊 Analytics</h2><div class="analytics-card" style="padding:2rem;margin-top:1rem;text-align:center;border-radius:18px;background:var(--bg-soft);border:1px solid var(--border)"><div class="small" style="opacity:.6">No analytics data available yet</div><p style="margin:0.5rem 0 0 0;opacity:.5">Create some orders and books first to see analytics</p></div>';
+      view.innerHTML = '<h2>Analytics</h2><div class="card" style="padding:1.5rem;margin-top:1rem">No analytics data available yet. Create some orders and books first.</div>';
       return;
     }
 
-    // Advanced analytics layout with KPI cards
+    // Advanced analytics with better styling
     view.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
-        <h2 style="margin:0">📊 Advanced Analytics</h2>
-        <span class="small" style="opacity:.6">Last 30 days</span>
-      </div>
+      <h2 style="margin-bottom:0.5rem">Analytics Dashboard</h2>
+      <p style="opacity:0.6;margin-top:0;margin-bottom:1.5rem">Last 30 days performance metrics</p>
       
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;margin-bottom:1.5rem">
-        <div class="analytics-card">
-          <div class="analytics-icon">💰</div>
-          <div class="analytics-label">Total Revenue</div>
-          <div class="analytics-value">${formatRWF(totalRevenue)}</div>
-          <div class="analytics-stat">${totalOrders} orders</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;margin-bottom:2rem">
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(99,102,241,0.15) 0%,rgba(139,92,246,0.1) 100%);border-left:4px solid var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Revenue</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(totalRevenue)}</div>
+            </div>
+            <span style="font-size:1.8rem">💰</span>
+          </div>
         </div>
         
-        <div class="analytics-card">
-          <div class="analytics-icon">📦</div>
-          <div class="analytics-label">Total Orders</div>
-          <div class="analytics-value">${formatNumber(totalOrders)}</div>
-          <div class="analytics-stat">Transactions</div>
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(16,185,129,0.15) 0%,rgba(34,197,94,0.1) 100%);border-left:4px solid var(--success)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Orders</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${totalOrders}</div>
+            </div>
+            <span style="font-size:1.8rem">📦</span>
+          </div>
         </div>
         
-        <div class="analytics-card">
-          <div class="analytics-icon">💸</div>
-          <div class="analytics-label">Average Order Value</div>
-          <div class="analytics-value">${formatRWF(avgOrderValue)}</div>
-          <div class="analytics-stat">Per transaction</div>
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(59,130,246,0.15) 0%,rgba(96,165,250,0.1) 100%);border-left:4px solid #3b82f6">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Avg Order Value</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(avgOrderValue)}</div>
+            </div>
+            <span style="font-size:1.8rem">📊</span>
+          </div>
         </div>
         
-        <div class="analytics-card">
-          <div class="analytics-icon">📚</div>
-          <div class="analytics-label">Top Genre</div>
-          <div class="analytics-value">${escapeHtml(topGenre)}</div>
-          <div class="analytics-stat">${formatNumber(topGenreSales)} sales</div>
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(245,158,11,0.15) 0%,rgba(253,224,71,0.1) 100%);border-left:4px solid var(--warning)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Books Available</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${totalBooks}</div>
+            </div>
+            <span style="font-size:1.8rem">📚</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(139,92,246,0.15) 0%,rgba(168,85,247,0.1) 100%);border-left:4px solid var(--accent-2)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Users</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${allUsers}</div>
+            </div>
+            <span style="font-size:1.8rem">👥</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(236,72,153,0.15) 0%,rgba(244,114,182,0.1) 100%);border-left:4px solid #ec4899">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Top Genre</div>
+              <div style="font-size:1.3rem;font-weight:700;margin-top:0.5rem">${escapeHtml(topGenre)}</div>
+            </div>
+            <span style="font-size:1.8rem">🎯</span>
+          </div>
         </div>
       </div>
 
-      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem">
-        <div class="analytics-card">
-          <h3 style="margin:0 0 1rem 0;display:flex;align-items:center;gap:0.5rem">📈 Top 5 Books</h3>
-          ${(topBooks.length ? `<div style="display:grid;gap:0.6rem">${topBooks.map((b, i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)"><span>${i+1}. ${escapeHtml(b.title)}</span><span style="font-weight:700;color:var(--accent)">${Number(b.qtySold || 0)}</span></div>`).join('')}</div>` : '<p class="small" style="opacity:.6;margin:0">No top books data</p>')}
-        </div>
-        
-        <div class="analytics-card">
-          <h3 style="margin:0 0 1rem 0;display:flex;align-items:center;gap:0.5rem">🎯 Genre Performance</h3>
-          ${(genreRows.length ? `<div style="display:grid;gap:0.6rem">${genreRows.slice(0, 6).map((g, i)=>{const pct = totalRevenue > 0 ? (Number(g.totalsales || 0) / totalRevenue * 100).toFixed(1) : 0; return `<div style="padding:0.7rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:0.4rem"><span>${escapeHtml(g.genre || 'N/A')}</span><span style="font-weight:700;color:var(--accent)">${pct}%</span></div><div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:2px"></div></div></div>`}).join('')}</div>` : '<p class="small" style="opacity:.6;margin:0">No genre data</p>')}
-        </div>
-        
-        <div class="analytics-card">
-          <h3 style="margin:0 0 1rem 0">📊 Quick Stats</h3>
-          <div style="display:grid;gap:0.8rem">
-            <div style="padding:0.8rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
-              <div style="opacity:.7;font-size:0.85rem">Average Daily Revenue</div>
-              <div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">${formatRWF((totalRevenue / (revenueRows.length || 1)).toFixed(0))}</div>
-            </div>
-            <div style="padding:0.8rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
-              <div style="opacity:.7;font-size:0.85rem">Total Books Sold</div>
-              <div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">${formatNumber(topBooks.reduce((sum, b) => sum + Number(b.qtySold || 0), 0))}</div>
-            </div>
-            <div style="padding:0.8rem;background:var(--bg-soft);border-radius:8px;border:1px solid var(--border)">
-              <div style="opacity:.7;font-size:0.85rem">Active Genres</div>
-              <div style="font-size:1.2rem;font-weight:700;margin-top:0.3rem">${genreRows.length}</div>
-            </div>
+      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem;margin-top:1.5rem">
+        <div class="card" style="padding:1.5rem;background:var(--bg-soft)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <h3 style="margin:0;font-size:1.1rem">🏆 Top Books</h3>
+            <span style="background:var(--accent);color:white;padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600">${topBooks.length}</span>
           </div>
+          ${(topBooks.length ? `<ul style="margin:0;padding:0;list-style:none">${topBooks.map((b,i)=>\`<li style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;margin-bottom:0.5rem;background:rgba(99,102,241,0.05);border-radius:8px"><span style="background:var(--accent);color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700">\${i+1}</span><span style="flex:1"><strong>\${escapeHtml(b.title)}</strong><br><span style="font-size:0.8rem;opacity:0.6">\${Number(b.qtySold || 0)} sold</span></span></li>\`).join('')}</ul>` : '<p class="small" style="opacity:.7;margin:0;text-align:center;padding:1rem">No top books data</p>')}
+        </div>
+        
+        <div class="card" style="padding:1.5rem;background:var(--bg-soft)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <h3 style="margin:0;font-size:1.1rem">📈 Sales by Genre</h3>
+            <span style="background:var(--accent-2);color:white;padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600">${genreRows.length}</span>
+          </div>
+          ${(genreRows.length ? \`<ul style="margin:0;padding:0;list-style:none">\${genreRows.slice(0, 6).map((g)=>\`<li style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem;margin-bottom:0.5rem;background:rgba(139,92,246,0.05);border-radius:8px"><span><strong>\${escapeHtml(g.genre || 'N/A')}</strong></span><span style="background:rgba(139,92,246,0.3);color:var(--accent-2);padding:0.25rem 0.75rem;border-radius:6px;font-size:0.75rem;font-weight:600">\${Number(g.totalsales || g.totalSales || 0)} sales</span></li>\`).join('')}</ul>\` : '<p class="small" style="opacity:.7;margin:0;text-align:center;padding:1rem">No genre data</p>')}
         </div>
       </div>
     `;
 
     if (typeof Chart === 'undefined') {
-      const fallbackGrid = $id('analytics-fallback-grid');
-      if (fallbackGrid) {
-        fallbackGrid.insertAdjacentHTML('beforebegin', '<div class="card" style="padding:1rem;margin-top:1rem">Charts are disabled by current security policy, but analytics summaries are available below.</div>');
-      }
       return;
     }
 
     // Append chart canvases when Chart.js is available.
     const chartWrap = document.createElement('div');
     chartWrap.style.display = 'grid';
-    chartWrap.style.gridTemplateColumns = 'repeat(auto-fit,minmax(320px,1fr))';
-    chartWrap.style.gap = '1rem';
-    chartWrap.style.marginTop = '1rem';
-    chartWrap.innerHTML = `
-      <div class="card" style="padding:1rem"><canvas id="revenue-chart"></canvas></div>
-      <div class="card" style="padding:1rem"><canvas id="genre-chart"></canvas></div>
-      <div class="card" style="padding:1rem"><canvas id="top-books-chart"></canvas></div>
-    `;
+    chartWrap.style.gridTemplateColumns = 'repeat(auto-fit,minmax(340px,1fr))';
+    chartWrap.style.gap = '1.2rem';
+    chartWrap.style.marginTop = '2rem';
+    chartWrap.innerHTML = \`
+      <div class="card" style="padding:1.5rem"><canvas id="revenue-chart"></canvas></div>
+      <div class="card" style="padding:1.5rem"><canvas id="genre-chart"></canvas></div>
+      <div class="card" style="padding:1.5rem"><canvas id="top-books-chart"></canvas></div>
+    \`;
     view.appendChild(chartWrap);
 
     const revCtx = $id('revenue-chart').getContext('2d');
     if (revenueChart) revenueChart.destroy();
-    const revLabels = revenueRows.slice().reverse().map((r) => new Date(r.date).toLocaleDateString());
+    const revLabels = revenueRows.slice().reverse().map((r) => new Date(r.date).toLocaleDateString('en-US', {month:'short', day:'numeric'}));
     const revData = revenueRows.slice().reverse().map((r) => Number(r.revenue || 0));
     revenueChart = new Chart(revCtx, {
       type: 'line',
@@ -676,26 +691,32 @@
           label: 'Daily Revenue (RWF)',
           data: revData,
           borderColor: 'var(--accent)',
-          backgroundColor: 'rgba(99,102,241,0.1)',
+          backgroundColor: 'rgba(99,102,241,0.08)',
           tension: 0.4,
-          fill: true
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: 'var(--accent)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
         }]
       },
-      options: { responsive: true, plugins: { title: { display: true, text: 'Revenue Over Time' } } }
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, title: { display: true, text: '💹 Revenue Over Time', font: { size: 14, weight: 'bold' } } }, scales: { y: { beginAtZero: true } } }
     });
 
     const genreCtx = $id('genre-chart').getContext('2d');
     if (genreChart) genreChart.destroy();
     genreChart = new Chart(genreCtx, {
-      type: 'pie',
+      type: 'doughnut',
       data: {
         labels: genreRows.map((g) => g.genre || 'N/A'),
         datasets: [{
           data: genreRows.map((g) => Number(g.totalsales || g.totalSales || 0)),
-          backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe', '#74b9ff', '#fdcb6e']
+          backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#f87171'],
+          borderColor: 'var(--bg)',
+          borderWidth: 2
         }]
       },
-      options: { responsive: true, plugins: { title: { display: true, text: 'Sales by Genre' } } }
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' }, title: { display: true, text: '📊 Sales Distribution by Genre', font: { size: 14, weight: 'bold' } } } }
     });
 
     const booksCtx = $id('top-books-chart').getContext('2d');
@@ -703,14 +724,16 @@
     booksChart = new Chart(booksCtx, {
       type: 'bar',
       data: {
-        labels: topBooks.map((b) => b.title),
+        labels: topBooks.map((b) => b.title.substring(0, 15) + (b.title.length > 15 ? '...' : '')),
         datasets: [{
           label: 'Units Sold',
           data: topBooks.map((b) => Number(b.qtySold || 0)),
-          backgroundColor: 'var(--accent)'
+          backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'],
+          borderRadius: 8,
+          borderSkipped: false
         }]
       },
-      options: { responsive: true, indexAxis: 'y', plugins: { title: { display: true, text: 'Top Selling Books' } } }
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, title: { display: true, text: '🏆 Top Selling Books', font: { size: 14, weight: 'bold' } } }, scales: { x: { beginAtZero: true } } }
     });
   }
 

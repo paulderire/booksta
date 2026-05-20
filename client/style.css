@@ -475,7 +475,6 @@ html[data-theme='light'] .header-search{flex:1 1 36%;max-width:420px}
 .page {
   display: grid;
   gap: 1.2rem;
-  animation: fade-in 0.35s ease both;
   width: 100%;
   max-width: none;
   margin: 0 auto;
@@ -650,9 +649,13 @@ html[data-theme='light'] .panel {
   will-change: width;
 }
 
-/* Fade-in animation for scroll-triggered elements */
+/* Fade-in animation for scroll-triggered elements - only animate when class is present */
 .scroll-fade-in-trigger,
 .scroll-fade-in {
+  animation: none;
+}
+
+.scroll-fade-in.animate {
   animation: scroll-fade-in 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
@@ -670,17 +673,17 @@ html[data-theme='light'] .panel {
 }
 
 /* Enhanced text reveal animation for headings and paragraphs */
-.scroll-fade-in h1,
-.scroll-fade-in h2,
-.scroll-fade-in h3,
-.scroll-fade-in p {
+.scroll-fade-in.animate h1,
+.scroll-fade-in.animate h2,
+.scroll-fade-in.animate h3,
+.scroll-fade-in.animate p {
   animation: text-reveal 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.scroll-fade-in h1 { animation-delay: 0ms; }
-.scroll-fade-in h2 { animation-delay: 100ms; }
-.scroll-fade-in h3 { animation-delay: 200ms; }
-.scroll-fade-in p { animation-delay: 300ms; }
+.scroll-fade-in.animate h1 { animation-delay: 0ms; }
+.scroll-fade-in.animate h2 { animation-delay: 100ms; }
+.scroll-fade-in.animate h3 { animation-delay: 200ms; }
+.scroll-fade-in.animate p { animation-delay: 300ms; }
 
 @keyframes text-reveal {
   from {
@@ -749,32 +752,15 @@ p span.accent:hover {
 /* Hide sections initially - only show when scrolled */
 .section {
   opacity: 0;
-  transform: translateY(12px);
-  will-change: opacity, transform;
 }
 
 .section.scroll-fade-in {
   opacity: 1;
-  transform: translateY(0);
-  animation: section-fade-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes section-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Hero section shows immediately on load */
 .hero {
   opacity: 1 !important;
-  transform: none !important;
-  animation: none !important;
 }
 .parallax {
   will-change: transform;
@@ -1057,8 +1043,6 @@ p span.accent:hover {
   border: 1px solid transparent;
   padding: 0.9rem 1.15rem;
   font-weight: 700;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .primary-button {
@@ -1067,73 +1051,12 @@ p span.accent:hover {
   box-shadow: var(--shadow-glow);
 }
 
-.primary-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
-}
-
-.primary-button:active {
-  transform: translateY(0);
-}
-
 .secondary-button,
 .ghost-button,
 .icon-button {
   background: var(--bg-soft);
   border-color: var(--border);
   color: var(--text);
-}
-
-.secondary-button:hover,
-.ghost-button:hover,
-.icon-button:hover {
-  background: var(--bg-soft-2);
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.danger-button {
-  background: rgba(239, 68, 68, 0.14);
-  color: #fecaca;
-  border-color: rgba(239, 68, 68, 0.22);
-}
-
-.danger-button:hover {
-  background: rgba(239, 68, 68, 0.22);
-  border-color: rgba(239, 68, 68, 0.35);
-}
-
-html[data-theme='light'] .danger-button {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
-  border-color: rgba(220, 38, 38, 0.2);
-}
-
-html[data-theme='light'] .danger-button:hover {
-  background: rgba(220, 38, 38, 0.15);
-  border-color: rgba(220, 38, 38, 0.3);
-}
-
-.success-button {
-  background: rgba(16, 185, 129, 0.14);
-  color: #a7f3d0;
-  border-color: rgba(16, 185, 129, 0.22);
-}
-
-.success-button:hover {
-  background: rgba(16, 185, 129, 0.22);
-  border-color: rgba(16, 185, 129, 0.35);
-}
-
-html[data-theme='light'] .success-button {
-  background: rgba(5, 150, 105, 0.1);
-  color: #059669;
-  border-color: rgba(5, 150, 105, 0.2);
-}
-
-html[data-theme='light'] .success-button:hover {
-  background: rgba(5, 150, 105, 0.15);
-  border-color: rgba(5, 150, 105, 0.3);
 }
 
 .popup-shell {
@@ -3153,6 +3076,40 @@ body.has-drawer-open {
   .hero-feature-grid .book-card:hover {
     transform: none !important;
   }
+
+/* Smooth modal transitions - prevent blinking */
+.modal {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.modal[style*="display: flex"],
+.modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.auth-modal-backdrop {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.auth-modal-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Smooth overlay transitions */
+.drawer-overlay {
+  transition: opacity 0.2s ease;
+}
+
+/* Prevent body shift on modal open */
+body.has-modal-open {
+  overflow: hidden !important;
+}
 
   /* Keep progress bar but without animation */
   .scroll-progress-bar {

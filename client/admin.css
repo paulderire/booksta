@@ -136,169 +136,6 @@ body{
 /* responsive */
 @media (max-width:1000px){
   .dashboard-panel,.dashboard-orders,.dashboard-stock{grid-column:span 12}
-}
-
-/* ========== ADVANCED ANALYTICS STYLES ========== */
-.analytics-card {
-  padding: 1.25rem;
-  background: linear-gradient(135deg, var(--glass-strong), var(--glass));
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.analytics-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-  transition: left 0.5s ease;
-  pointer-events: none;
-}
-
-.analytics-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(124, 140, 255, 0.3);
-  box-shadow: 0 12px 32px rgba(124, 140, 255, 0.12);
-}
-
-.analytics-card:hover::before {
-  left: 100%;
-}
-
-.analytics-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.analytics-label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.6rem;
-}
-
-.analytics-value {
-  font-size: 1.6rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 0.4rem;
-}
-
-.analytics-stat {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-/* ========== SMOOTH SCROLL ANIMATIONS ========== */
-.section {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: none; /* prevent page load animation */
-}
-
-.section.scroll-fade-in {
-  opacity: 1;
-  transform: translateY(0);
-  animation: section-fade-in 0.6s ease-out forwards;
-}
-
-@keyframes section-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ========== ENHANCED BUTTON COLORS ========== */
-.btn-primary, .btn-secondary, .btn-danger, .btn-success {
-  padding: 0.65rem 1.2rem;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: white;
-  box-shadow: 0 4px 12px rgba(124, 140, 255, 0.3);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(124, 140, 255, 0.4);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-.btn-secondary {
-  background: var(--glass-strong);
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.btn-secondary:hover {
-  background: var(--glass);
-  border-color: rgba(124, 140, 255, 0.3);
-}
-
-.btn-danger {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
-  border-color: rgba(239, 68, 68, 0.25);
-}
-
-.btn-danger:hover {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: rgba(239, 68, 68, 0.35);
-}
-
-.btn-success {
-  background: rgba(16, 185, 129, 0.12);
-  color: #86efac;
-  border-color: rgba(16, 185, 129, 0.25);
-}
-
-.btn-success:hover {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: rgba(16, 185, 129, 0.35);
-}
-
-/* Light mode button colors */
-html[data-theme='light'] {
-  --btn-danger-text: #dc2626;
-  --btn-success-text: #059669;
-}
-
-html[data-theme='light'] .btn-danger {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
-}
-
-html[data-theme='light'] .btn-success {
-  background: rgba(5, 150, 105, 0.1);
-  color: #059669;
-}
   .admin-sidebar{display:none}
   .admin-layout{margin-top:84px}
 }
@@ -309,10 +146,29 @@ html[data-theme='light'] .btn-success {
 }
 
 /* utility */
-.btn-primary{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:10px}
-.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px}
-.btn-danger{background:linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.16));border:1px solid rgba(239,68,68,0.35);color:#fecaca;padding:0.5rem 0.8rem;border-radius:8px}
-.btn-danger:hover{background:linear-gradient(180deg, rgba(239,68,68,0.35), rgba(239,68,68,0.22))}
+.btn-primary{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:10px;cursor:pointer;font-weight:600;transition:all 0.2s}
+.btn-primary:hover{opacity:0.9;transform:translateY(-1px)}
+
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.btn-secondary:hover{background:var(--glass-strong);border-color:var(--accent)}
+
+.btn-danger{background:linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.16));border:1px solid rgba(239,68,68,0.35);color:#fecaca;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.btn-danger:hover{background:linear-gradient(180deg, rgba(239,68,68,0.35), rgba(239,68,68,0.22));border-color:rgba(239,68,68,0.5)}
+
+/* card improvements */
+.card{background:var(--glass);border:1px solid var(--border);border-radius:12px;backdrop-filter:blur(10px);transition:all 0.3s}
+.card:hover{border-color:var(--accent);box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+
+html[data-theme='light'] .card{background:rgba(255,255,255,0.85);border-color:rgba(15,23,42,0.1)}
+html[data-theme='light'] .card:hover{border-color:var(--accent);box-shadow:0 8px 24px rgba(15,23,42,0.08)}
+
+/* status badges improved contrast */
+.status-pill{color:inherit;font-weight:600;transition:all 0.2s}
+html[data-theme='light'] .status-pill{border-color:rgba(15,23,42,0.15)}
+html[data-theme='light'] .status-healthy{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3)}
+html[data-theme='light'] .status-watch{background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.3)}
+html[data-theme='light'] .status-low{background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)}
+html[data-theme='light'] .status-featured{background:rgba(236,72,153,0.12);border-color:rgba(236,72,153,0.3)}
 
 @media (max-width:700px){
   .admin-table{display:block;overflow-x:auto}

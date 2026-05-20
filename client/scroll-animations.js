@@ -1,14 +1,13 @@
 /**
- * Smooth Scroll Animations - Advanced Version
+ * Smooth Scroll Animations - Simplified Version
  * - Scroll progress bar
- * - Scroll-triggered section reveals (no initial page load animation)
+ * - Scroll-triggered section reveals
  */
 
 class ScrollAnimations {
   constructor() {
     this.progressBar = null;
     this.observer = null;
-    this.userHasScrolled = false;
     this.init();
   }
 
@@ -16,18 +15,6 @@ class ScrollAnimations {
     this.createProgressBar();
     this.setupScrollProgress();
     this.setupIntersectionObserver();
-    this.detectInitialScroll();
-  }
-
-  /**
-   * Detect if user has scrolled (to avoid triggering animations on page load)
-   */
-  detectInitialScroll() {
-    const handleFirstScroll = () => {
-      this.userHasScrolled = true;
-      window.removeEventListener('scroll', handleFirstScroll);
-    };
-    window.addEventListener('scroll', handleFirstScroll, { once: true, passive: true });
   }
 
   /**
@@ -58,7 +45,7 @@ class ScrollAnimations {
   }
 
   /**
-   * Setup Intersection Observer for scroll-triggered animations (only when user scrolls)
+   * Setup Intersection Observer for scroll-triggered animations
    */
   setupIntersectionObserver() {
     const observerOptions = {
@@ -68,20 +55,23 @@ class ScrollAnimations {
 
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        // Only animate if user has scrolled (avoid page load animations)
-        if (entry.isIntersecting && this.userHasScrolled) {
-          entry.target.classList.add('scroll-fade-in');
+        if (entry.isIntersecting) {
+          // Add animate class to trigger animation
+          entry.target.classList.add('animate');
+          // Don't unobserve - keep observing for consistency
         }
       });
     }, observerOptions);
 
     // Observe all section elements for scroll animation
     document.querySelectorAll('.section').forEach((section) => {
+      section.classList.add('scroll-fade-in');
       this.observer.observe(section);
     });
 
     // Also observe other scroll-trigger elements
     document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
+      el.classList.add('scroll-fade-in');
       this.observer.observe(el);
     });
   }
@@ -93,6 +83,9 @@ class ScrollAnimations {
     // Observe all section elements for scroll animation
     document.querySelectorAll('.section').forEach((section) => {
       try {
+        if (!section.classList.contains('scroll-fade-in')) {
+          section.classList.add('scroll-fade-in');
+        }
         this.observer.observe(section);
       } catch (e) {
         // Already observing
@@ -102,6 +95,9 @@ class ScrollAnimations {
     // Also observe other scroll-trigger elements
     document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
       try {
+        if (!el.classList.contains('scroll-fade-in')) {
+          el.classList.add('scroll-fade-in');
+        }
         this.observer.observe(el);
       } catch (e) {
         // Already observing
