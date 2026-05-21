@@ -700,7 +700,10 @@ function renderChatbotWidget() {
 
   return `
     <div class="chatbot-float ${state.chatbotOpen ? 'is-open' : ''}">
-      <button class="chatbot-toggle" type="button" data-action="toggle-chatbot" aria-expanded="${state.chatbotOpen ? 'true' : 'false'}">💬 Help</button>
+      <button class="chatbot-toggle" type="button" data-action="toggle-chatbot" aria-expanded="${state.chatbotOpen ? 'true' : 'false'}">
+        <span class="chatbot-toggle-icon" aria-hidden="true">💬</span>
+        <span class="chatbot-toggle-label">Help</span>
+      </button>
       <div class="chatbot-panel" aria-hidden="${state.chatbotOpen ? 'false' : 'true'}">
         <div class="chatbot-head">
           <strong>Booksta Assistant</strong>
@@ -713,6 +716,10 @@ function renderChatbotWidget() {
       </div>
     </div>
   `;
+}
+
+function syncChatbotMode() {
+  document.body.classList.toggle('is-mobile-chatbot', window.innerWidth <= 700);
 }
 
 function renderHomeView() {
@@ -1612,6 +1619,7 @@ async function loadAdminOrdersData() {
 
 function renderApp() {
   try {
+    syncChatbotMode();
     state.route = getRoute();
     const { name } = state.route;
 
@@ -2401,6 +2409,7 @@ window.addEventListener('resize', () => {
     closeMobileMenu();
     closeAccountMenu();
   }
+  syncChatbotMode();
 });
 
 window.addEventListener('keydown', (event) => {
@@ -2414,6 +2423,7 @@ window.addEventListener('keydown', (event) => {
 async function init() {
   window.__bookstaStage = 'init:start';
   setTheme(state.theme);
+  syncChatbotMode();
   window.__bookstaStage = 'init:setTheme';
   renderChrome();
   window.__bookstaStage = 'init:renderChrome';
