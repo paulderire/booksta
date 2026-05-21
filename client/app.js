@@ -68,6 +68,13 @@ if (mobileHamburger) {
 }
 
 const genreSeed = ['Fiction', 'Sci-Fi', 'Fantasy', 'Thriller', 'Romance', 'Self-Help', 'History', 'Manga'];
+const chatbotFaq = {
+  shipping: 'Delivery usually takes 1-3 business days in Kigali and 3-5 days outside Kigali.',
+  payment: 'You can place orders in app and confirm payment on WhatsApp with our team.',
+  returns: 'You can request a return within 7 days for damaged or incorrect items.',
+  promotions: 'Use active promotion codes at checkout. You can find current offers in the Promotions section.',
+  support: 'You can contact us via WhatsApp, Instagram, Facebook, X, or TikTok from the contact section.'
+};
 
 const state = {
   token: localStorage.getItem('bookstaToken'),
@@ -76,6 +83,7 @@ const state = {
   featured: [],
   promotions: [],
   genres: genreSeed,
+  genreCounts: {},
   cart: [],
   wishlist: [],
   orders: [],
@@ -97,6 +105,10 @@ const state = {
   theme: localStorage.getItem('bookstaTheme') || 'dark',
   heroTimer: null,
   searchTimer: null,
+  chatbotOpen: false,
+  chatbotMessages: [
+    { role: 'bot', text: 'Hi, I am Booksta Assistant. Pick a question below and I will help instantly.' }
+  ],
   total: 0,
   totalPages: 1,
   settings: {
@@ -148,6 +160,13 @@ function initials(name) {
 function shorten(text, max = 140) {
   const value = String(text || '');
   return value.length > max ? `${value.slice(0, max).trim()}…` : value;
+}
+
+function getBookGenres(book) {
+  if (Array.isArray(book?.genres) && book.genres.length) {
+    return book.genres.filter(Boolean);
+  }
+  return book?.genre ? [book.genre] : [];
 }
 
 function cartTotal() {
@@ -536,14 +555,14 @@ function renderRatingDistribution(reviews = []) {
 function renderBookCard(book) {
   const sale = book.original_price && Number(book.original_price) > Number(book.price);
   return `
-    <article class="book-card glass-card">
+    <article class="book-card card">
       <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         <span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : ''}
       </a>
       <div>
-        <div class="book-meta">${escapeHtml(book.genre || 'Book')}</div>
+        <div class="book-meta">${escapeHtml((book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book')}</div>
         <h3 class="book-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
         <div class="book-meta">${escapeHtml(book.author)}</div>
       </div>
@@ -567,7 +586,7 @@ function renderBookCard(book) {
 
 function renderMiniBook(item) {
   return `
-    <article class="mini-book glass-card">
+    <article class="mini-book card">
       <div class="mini-cover" style="background: linear-gradient(145deg, ${escapeHtml(item.book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
         ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
       </div>
@@ -587,14 +606,14 @@ function renderMiniBook(item) {
 
 function renderWishlistCard(item) {
   return `
-    <article class="wishlist-card glass-card">
+    <article class="wishlist-card card">
       <div class="wishlist-row">
         <div class="wishlist-thumb" style="background: linear-gradient(145deg, ${escapeHtml(item.book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9)); display:grid; place-items:center;">
           ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:18px;" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
         </div>
         <div>
           <h3 class="wishlist-title"><a href="#/book/${item.book.id}">${escapeHtml(item.book.title)}</a></h3>
-          <div class="hint">${escapeHtml(item.book.author)} · ${escapeHtml(item.book.genre || 'Book')}</div>
+          <div class="hint">${escapeHtml(item.book.author)} · ${escapeHtml((item.book.genres && item.book.genres.length ? item.book.genres.join(' • ') : item.book.genre) || 'Book')}</div>
         </div>
         <div class="mini-price"><strong>${formatMoney(item.book.price)}</strong></div>
       </div>
@@ -608,7 +627,7 @@ function renderWishlistCard(item) {
 
 function renderOrderCard(order) {
   return `
-    <article class="order-card glass-card">
+    <article class="order-card card">
       <div class="order-head">
         <div class="order-meta">${new Date(order.created_at).toLocaleString()}</div>
         <h3 class="order-title">Order ${escapeHtml(order.id.slice(0, 8))}</h3>
@@ -668,12 +687,39 @@ function renderPaginator(page, totalPages) {
 }
 
 function renderHeroTypewriter() {
-  const text = genreSeed[state.typewriterIndex % genreSeed.length];
+  const dynamicGenres = Array.isArray(state.genres) && state.genres.length ? state.genres : genreSeed;
+  const text = dynamicGenres[state.typewriterIndex % dynamicGenres.length];
   return `<span class="typewriter">${escapeHtml(text)}</span>`;
+}
+
+function renderChatbotWidget() {
+  const quickKeys = ['shipping', 'payment', 'returns', 'promotions', 'support'];
+  const messagesMarkup = state.chatbotMessages.map((message) => `
+    <div class="chatbot-msg ${message.role === 'user' ? 'is-user' : 'is-bot'}">${escapeHtml(message.text)}</div>
+  `).join('');
+
+  return `
+    <div class="chatbot-float ${state.chatbotOpen ? 'is-open' : ''}">
+      <button class="chatbot-toggle" type="button" data-action="toggle-chatbot" aria-expanded="${state.chatbotOpen ? 'true' : 'false'}">💬 Help</button>
+      <div class="chatbot-panel" aria-hidden="${state.chatbotOpen ? 'false' : 'true'}">
+        <div class="chatbot-head">
+          <strong>Booksta Assistant</strong>
+          <button class="chatbot-close" type="button" data-action="toggle-chatbot">✕</button>
+        </div>
+        <div class="chatbot-body">${messagesMarkup}</div>
+        <div class="chatbot-quick">
+          ${quickKeys.map((key) => `<button type="button" class="chatbot-chip" data-action="chatbot-quick" data-chat-key="${key}">${escapeHtml(key.charAt(0).toUpperCase() + key.slice(1))}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderHomeView() {
   const isSearchMode = Boolean(String(state.search || '').trim());
+  const whatsappNumber = String(state.settings?.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
+  const featuredCount = state.featured.length;
+  const genreCount = state.genres.length;
   const heroBooks = state.featured.slice(0, 3);
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
@@ -706,8 +752,8 @@ function renderHomeView() {
           </div>
           <div class="hero-search-hint">Use the header search to find books by title, author, or genre.</div>
           <div class="hero-stats" style="margin-top: 1rem;">
-            <div class="stat"><span class="stat-value">20</span><span class="stat-label">featured books</span></div>
-            <div class="stat"><span class="stat-value">8</span><span class="stat-label">genres</span></div>
+            <div class="stat"><span class="stat-value">${featuredCount}</span><span class="stat-label">featured books</span></div>
+            <div class="stat"><span class="stat-value">${genreCount}</span><span class="stat-label">genres</span></div>
             <div class="stat"><span class="stat-value">Secure</span><span class="stat-label">checkout flow</span></div>
           </div>
         </div>
@@ -791,13 +837,36 @@ function renderHomeView() {
         <h2 class="section-title">Browse by Genre</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
           ${state.genres.map(genre => {
-            const genreBooks = state.books.filter(b => b.genre === genre);
+            const genreBooks = Number(state.genreCounts?.[genre] || 0);
             const isActive = state.genre === genre;
             return `<button class="panel genre-card ${isActive ? 'is-active' : ''}" style="padding: 2rem; text-align: center; cursor: pointer; transition: transform 0.25s;" data-action="set-genre" data-genre="${escapeHtml(genre)}">
               <h3>${escapeHtml(genre)}</h3>
-              <p class="genre-count">${genreBooks.length} books</p>
+              <p class="genre-count">${genreBooks} books</p>
             </button>`;
           }).join('')}
+        </div>
+      </section>
+
+      <section class="section contact-section" style="padding: 4rem 0;">
+        <h2 class="section-title">Contact Booksta</h2>
+        <p class="section-copy">Need help with orders, payments, or recommendations? Reach us directly on your preferred channel.</p>
+        <div class="contact-grid">
+          <a class="panel contact-card" href="https://wa.me/${escapeHtml(whatsappNumber || '250782781575')}" target="_blank" rel="noopener noreferrer">
+            <h3>WhatsApp</h3>
+            <p>+${escapeHtml(whatsappNumber || '250782781575')}</p>
+          </a>
+          <a class="panel contact-card" href="mailto:booksta@gmail.com">
+            <h3>Email</h3>
+            <p>booksta@gmail.com</p>
+          </a>
+          <a class="panel contact-card" href="${escapeHtml(state.settings?.instagramUrl || '#/social/instagram')}" target="_blank" rel="noopener noreferrer">
+            <h3>Instagram</h3>
+            <p>Quick updates and replies</p>
+          </a>
+          <a class="panel contact-card" href="${escapeHtml(state.settings?.facebookUrl || '#/social/facebook')}" target="_blank" rel="noopener noreferrer">
+            <h3>Facebook</h3>
+            <p>Community and announcements</p>
+          </a>
         </div>
       </section>
 
@@ -828,7 +897,7 @@ function renderHomeView() {
       </section>
       ` : ''}
 
-      <!-- Contact moved to site footer -->
+      ${renderChatbotWidget()}
     </section>
   `;
 }
@@ -929,7 +998,7 @@ function renderBookView() {
 
         <div class="panel detail-book">
           <div class="detail-header">
-            <div class="pill">${escapeHtml(book.genre || 'Book')}</div>
+            <div class="pill">${escapeHtml((book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book')}</div>
             <h1 class="detail-title">${escapeHtml(book.title)}</h1>
             <div class="detail-subtitle">${escapeHtml(book.author)}</div>
             <div class="detail-price">
@@ -1368,13 +1437,6 @@ async function loadHomeData() {
     return;
   }
   state._lastHomeLoadAt = now;
-  try {
-    renderApp();
-  } catch (error) {
-    state.homeLoading = false;
-    app.innerHTML = `<section class="page"><div class="empty-state"><p>${escapeHtml(error.message)}</p></div></section>`;
-    return;
-  }
 
   try {
     const params = new URLSearchParams();
@@ -1394,7 +1456,11 @@ async function loadHomeData() {
     state.total = books.total || state.books.length;
     state.totalPages = books.totalPages || 1;
     state.featured = featured.books || [];
-    state.genres = genres.genres || genreSeed;
+    state.genreCounts = genres.counts || {};
+    const discoveredGenres = Array.isArray(genres.genres) && genres.genres.length
+      ? genres.genres
+      : Object.keys(state.genreCounts || {});
+    state.genres = discoveredGenres.length ? discoveredGenres : genreSeed;
     state.homeLoading = false;
     state._homeLoadInProgress = false;
     renderApp();
@@ -1613,8 +1679,7 @@ function renderApp() {
 
     if (name === 'login' || name === 'register') {
       // Render the home background and show auth modal on top
-      app.innerHTML = renderHomeView();
-      app.innerHTML += renderAuthModal(name === 'login' ? 'login' : 'register');
+      app.innerHTML = renderHomeView() + renderAuthModal(name === 'login' ? 'login' : 'register');
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1704,10 +1769,11 @@ function startHeroCycle() {
   }
 
   state.heroTimer = window.setInterval(() => {
-    state.typewriterIndex = (state.typewriterIndex + 1) % genreSeed.length;
+    const dynamicGenres = Array.isArray(state.genres) && state.genres.length ? state.genres : genreSeed;
+    state.typewriterIndex = (state.typewriterIndex + 1) % dynamicGenres.length;
     const typewriter = document.querySelector('.typewriter');
     if (typewriter) {
-      typewriter.textContent = genreSeed[state.typewriterIndex];
+      typewriter.textContent = dynamicGenres[state.typewriterIndex];
     }
   }, 2200);
 }
@@ -1811,6 +1877,40 @@ function handleAction(target) {
     state.genre = target.dataset.genre || '';
     state.page = 1;
     loadRoute();
+    return;
+  }
+
+  if (action === 'toggle-chatbot') {
+    state.chatbotOpen = !state.chatbotOpen;
+    const root = document.querySelector('.chatbot-float');
+    const panel = document.querySelector('.chatbot-panel');
+    if (root) root.classList.toggle('is-open', state.chatbotOpen);
+    if (panel) panel.setAttribute('aria-hidden', state.chatbotOpen ? 'false' : 'true');
+    return;
+  }
+
+  if (action === 'chatbot-quick') {
+    const key = target.dataset.chatKey;
+    const question = key ? key.charAt(0).toUpperCase() + key.slice(1) : 'Help';
+    const answer = chatbotFaq[key] || 'Please contact our support channels in the contact section.';
+    state.chatbotMessages.push({ role: 'user', text: question + '?' });
+    state.chatbotMessages.push({ role: 'bot', text: answer });
+    if (state.chatbotMessages.length > 10) {
+      state.chatbotMessages = [state.chatbotMessages[0], ...state.chatbotMessages.slice(-9)];
+    }
+    state.chatbotOpen = true;
+    const root = document.querySelector('.chatbot-float');
+    const panel = document.querySelector('.chatbot-panel');
+    const body = document.querySelector('.chatbot-body');
+    if (root) root.classList.add('is-open');
+    if (panel) panel.setAttribute('aria-hidden', 'false');
+    if (body) {
+      body.insertAdjacentHTML('beforeend', `
+        <div class="chatbot-msg is-user">${escapeHtml(question + '?')}</div>
+        <div class="chatbot-msg is-bot">${escapeHtml(answer)}</div>
+      `);
+      body.scrollTop = body.scrollHeight;
+    }
     return;
   }
 
@@ -2090,15 +2190,27 @@ app.addEventListener('click', (event) => {
 
 // Global delegated handler for elements outside #app (header auth-slot, footer)
 document.addEventListener('click', (event) => {
+  if (event.target.closest('#app')) return;
   const target = event.target.closest('[data-action]');
   if (!target) return;
   handleAction(target);
 });
 
-// Close menus when tapping outside them
+// Close menus when tapping outside them (ignore chatbot interactions)
 document.addEventListener('click', (event) => {
   const target = event.target;
-  if (target.closest('.mobile-menu') || target.closest('.account-menu') || target.closest('[data-action="toggle-mobile-menu"]') || target.closest('[data-action="toggle-account-menu"]')) {
+  // If the click is within mobile menu or account menu controls, or within the chatbot widget, ignore
+  if (
+    target.closest('.mobile-menu') ||
+    target.closest('.account-menu') ||
+    target.closest('[data-action="toggle-mobile-menu"]') ||
+    target.closest('[data-action="toggle-account-menu"]') ||
+    target.closest('.chatbot-float') ||
+    target.closest('.chatbot-panel') ||
+    target.closest('.chatbot-toggle') ||
+    target.closest('[data-action="toggle-chatbot"]') ||
+    target.closest('[data-action="chatbot-quick"]')
+  ) {
     return;
   }
   closeMobileMenu();

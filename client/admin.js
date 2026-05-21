@@ -5,10 +5,22 @@
     if (token) headers['Authorization'] = 'Bearer ' + token;
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     const normalizedPath = path.startsWith('/api/') ? path.slice(4) : path;
-    return fetch('/api' + normalizedPath, { ...opts, headers }).then(async (r) => {
-      const txt = await r.text();
-      try { return JSON.parse(txt); } catch(e){ return txt; }
-    });
+
+    const timeout = typeof opts.timeout === 'number' ? opts.timeout : 10000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    return fetch('/api' + normalizedPath, { ...opts, headers, signal: controller.signal })
+      .then(async (r) => {
+        clearTimeout(timeoutId);
+        const txt = await r.text();
+        try { return JSON.parse(txt); } catch(e){ return txt; }
+      })
+      .catch((err) => {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') throw new Error('Request timed out');
+        throw err;
+      });
   };
 
   function $id(id){return document.getElementById(id)}
@@ -76,8 +88,8 @@
   document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-      e.target.classList.add('active');
-      const view = e.target.dataset.view;
+      e.currentTarget.classList.add('active');
+      const view = e.currentTarget.dataset.view;
       document.querySelectorAll('.view').forEach(v=>v.style.display = v.id === 'view-'+view ? '' : 'none');
       if(view === 'dashboard') loadDashboard();
       if(view === 'books') loadBooks();
@@ -130,11 +142,12 @@
 
   // Dashboard
   async function loadDashboard(){
-    const [statsRes, ordersRes, alertsRes] = await Promise.all([
-      api('/admin/stats'),
-      api('/admin/orders'),
-      api('/admin/inventory-alerts')
-    ]);
+    try {
+      const [statsRes, ordersRes, alertsRes] = await Promise.all([
+        api('/admin/stats').catch(e => ({ totalUsers: 0, totalOrders: 0, totalRevenue: 0, topBooks: [] })),
+        api('/admin/orders').catch(e => ({ orders: [] })),
+        api('/admin/inventory-alerts').catch(e => ({ lowStockBooks: [] }))
+      ]);
 
     // Stats grid
     const grid = $id('stats-grid'); grid.innerHTML = '';
@@ -170,34 +183,45 @@
       $id('qa-refresh').addEventListener('click', ()=> loadDashboard());
     }
 
-    // Activity feed (recent orders)
-    const feed = $id('activity-feed');
-    if (feed) {
-      feed.innerHTML = (ordersRes.orders || []).slice(0,6).map(o => `<div class="activity-item">${new Date(o.created_at).toLocaleString()} • ${escapeHtml(o.user_name||o.user_email||'Customer')} placed order ${String(o.id).slice(0,8)} (${formatRWF(o.total)})</div>`).join('');
-    }
+      // Activity feed (recent orders)
+      const feed = $id('activity-feed');
+      if (feed) {
+        feed.innerHTML = (ordersRes.orders || []).slice(0,6).map(o => `<div class="activity-item">${new Date(o.created_at).toLocaleString()} • ${escapeHtml(o.user_name||o.user_email||'Customer')} placed order ${String(o.id).slice(0,8)} (${formatRWF(o.total)})</div>`).join('');
+      }
 
-    // Low stock alerts
-    const alerts = $id('inventory-alerts');
-    if (alertsRes.lowStockBooks && alertsRes.lowStockBooks.length) {
-      alerts.innerHTML = '';
-      alertsRes.lowStockBooks.forEach(b=>{
-        const el = document.createElement('div'); el.className='card';
-        el.innerHTML = `<h4 style="margin:0 0 0.5rem 0;font-size:0.95rem">${escapeHtml(b.title)}</h4>
-          <div class="small" style="margin-bottom:0.5rem">${escapeHtml(b.author)}</div>
-          <div style="padding:0.5rem;background:rgba(239,68,68,0.2);border-radius:6px;color:#fca5a5;font-weight:600;font-size:0.9rem">⚠️ Only ${b.stock} in stock</div>`;
-        alerts.appendChild(el);
-      });
-    } else {
-      alerts.innerHTML = '<p style="color:var(--text-muted)">All books have good stock levels ✓</p>';
+      // Low stock alerts
+      const alerts = $id('inventory-alerts');
+      if (alertsRes.lowStockBooks && alertsRes.lowStockBooks.length) {
+        alerts.innerHTML = '';
+        alertsRes.lowStockBooks.forEach(b=>{
+          const el = document.createElement('div'); el.className='card';
+          el.innerHTML = `<h4 style="margin:0 0 0.5rem 0;font-size:0.95rem">${escapeHtml(b.title)}</h4>
+            <div class="small" style="margin-bottom:0.5rem">${escapeHtml(b.author)}</div>
+            <div style="padding:0.5rem;background:rgba(239,68,68,0.2);border-radius:6px;color:#fca5a5;font-weight:600;font-size:0.9rem">⚠️ Only ${b.stock} in stock</div>`;
+          alerts.appendChild(el);
+        });
+      } else {
+        alerts.innerHTML = '<p style="color:var(--text-muted)">All books have good stock levels ✓</p>';
+      }
+    } catch (error) {
+      console.error('Dashboard error:', error);
+      toast('Dashboard load error: ' + error.message, 'error');
     }
   }
 
   // Books Management
   let allBooks = [];
   async function loadBooks(){
-    const res = await api('/admin/books-summary');
-    allBooks = res.books || [];
-    renderBooksTable(allBooks);
+    try {
+      const res = await api('/admin/books-summary').catch(e => { console.warn('Books summary error:', e); return { books: [] }; });
+      allBooks = res.books || [];
+      renderBooksTable(allBooks);
+    } catch (error) {
+      console.error('Books load error:', error);
+      toast('Books load error: ' + error.message, 'error');
+      allBooks = [];
+      renderBooksTable([]);
+    }
   }
 
   function renderBooksTable(books) {
@@ -252,7 +276,7 @@
               <span class="small">${escapeHtml(book.author)}</span>
             </div>
           </td>
-          <td>${escapeHtml(book.genre || 'N/A')}</td>
+          <td>${escapeHtml((book.genres && book.genres.length ? book.genres.join(', ') : book.genre || 'N/A'))}</td>
           <td>${formatRWF(book.price)}</td>
           <td><span class="status-pill ${stockBadgeClass(book.stock)}">${formatNumber(book.stock)}</span></td>
           <td><span class="status-pill status-sold">${formatNumber(book.sold_count)}</span></td>
@@ -301,7 +325,7 @@
   };
 
   async function openBookForm(bookId){
-    let book = { title:'', author:'', price:1000, genre:'', description:'', stock:10, pages: null, year: null, isbn: '', featured: false };
+    let book = { title:'', author:'', price:1000, genre:'', genres: [], description:'', stock:10, pages: null, year: null, isbn: '', featured: false };
     if(bookId){ const res = await api('/books/'+bookId); book = res.book; }
     const modal = $id('modal'); modal.style.display='flex';
     modal.innerHTML = `<div class='modal-panel solid'><h3>${bookId?'Edit':'New'} Book</h3>
@@ -313,7 +337,7 @@
           <img id='f_thumb_preview' src='${book.cover_url||''}' alt='' style='height:54px;display:${book.cover_url ? 'block' : 'none'};border-radius:6px;border:1px solid var(--border);object-fit:cover' />
         </div>
       </div>
-      <div class='form-group'><label>Genre</label><input id='f_genre' placeholder='Genre' value='${escapeHtml(book.genre||'')}'></div>
+      <div class='form-group'><label>Genres</label><input id='f_genres' placeholder='Fiction, Mystery, Romance' value='${escapeHtml((book.genres && book.genres.length ? book.genres.join(', ') : book.genre || ''))}'></div>
       <div class='form-group'><label>Price (RWF) *</label><input id='f_price' type='number' placeholder='Price' value='${book.price}'></div>
       <div class='form-group'><label>Stock</label><input id='f_stock' type='number' placeholder='Stock quantity' value='${book.stock}'></div>
       <div class='form-group'><label><input id='f_featured' type='checkbox' ${book.featured?'checked':''} style='margin-right:0.5rem'>Featured on hero</label></div>
@@ -347,7 +371,8 @@
       if (!title || !author) { toast('Title and author required'); return; }
       const payload = {
         title, author,
-        genre: $id('f_genre').value || null,
+        genres: $id('f_genres').value || null,
+        genre: ($id('f_genres').value || '').split(',').map((item) => item.trim()).filter(Boolean)[0] || null,
         price: parseFloat($id('f_price').value) || 1000,
         stock: parseInt($id('f_stock').value) || 0,
         featured: $id('f_featured').checked || false,
@@ -385,7 +410,7 @@
   $id('book-search').addEventListener('keyup', (e) => {
     const search = e.target.value.toLowerCase();
     const filtered = allBooks.filter((book) => {
-      const haystack = [book.title, book.author, book.genre, String(book.stock), String(book.sold_count), String(book.pending_count)]
+      const haystack = [book.title, book.author, (book.genres || []).join(' '), book.genre, String(book.stock), String(book.sold_count), String(book.pending_count)]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
@@ -396,21 +421,26 @@
 
   // Featured Books Manager
   async function loadFeatured(){
-    const res = await api('/books?limit=200');
-    const grid = $id('featured-books-grid'); grid.innerHTML = '';
-    (res.books || []).filter(b => b.featured).forEach(b=>{
-      const el = document.createElement('div'); el.className='card';
-      el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
-        <div>
-          <h3 style="margin:0 0 0.25rem 0">${escapeHtml(b.title)}</h3>
-          <div class="small">${escapeHtml(b.author)}</div>
-        </div>
-        <button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}" style="padding:0.5rem;font-size:0.9rem">Remove</button>
-      </div>`;
-      grid.appendChild(el);
-    });
-    if (!res.books.some(b => b.featured)) {
-      grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No featured books. Add by clicking Edit on any book.</p>';
+    try {
+      const res = await api('/books?limit=200').catch(e => { console.warn('Featured books error:', e); return { books: [] }; });
+      const grid = $id('featured-books-grid'); grid.innerHTML = '';
+      (res.books || []).filter(b => b.featured).forEach(b=>{
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
+          <div>
+            <h3 style="margin:0 0 0.25rem 0">${escapeHtml(b.title)}</h3>
+            <div class="small">${escapeHtml(b.author)}</div>
+          </div>
+          <button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}" style="padding:0.5rem;font-size:0.9rem">Remove</button>
+        </div>`;
+        grid.appendChild(el);
+      });
+      if (!(res.books || []).some(b => b.featured)) {
+        grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No featured books. Add by clicking Edit on any book.</p>';
+      }
+    } catch (error) {
+      console.error('Featured load error:', error);
+      toast('Featured load error: ' + error.message, 'error');
     }
   }
 
@@ -424,9 +454,16 @@
   // Orders Management
   let allOrders = [];
   async function loadOrders(){
-    const res = await api('/admin/orders');
-    allOrders = res.orders || [];
-    renderOrdersTable(allOrders);
+    try {
+      const res = await api('/admin/orders').catch(e => { console.warn('Orders error:', e); return { orders: [] }; });
+      allOrders = res.orders || [];
+      renderOrdersTable(allOrders);
+    } catch (error) {
+      console.error('Orders load error:', error);
+      toast('Orders load error: ' + error.message, 'error');
+      allOrders = [];
+      renderOrdersTable([]);
+    }
   }
 
   function renderOrdersTable(orders) {
@@ -472,9 +509,16 @@
   // Users Management
   let allUsers = [];
   async function loadUsers(){
-    const res = await api('/admin/users');
-    allUsers = res.users || [];
-    renderUsersTable(allUsers);
+    try {
+      const res = await api('/admin/users').catch(e => { console.warn('Users error:', e); return { users: [] }; });
+      allUsers = res.users || [];
+      renderUsersTable(allUsers);
+    } catch (error) {
+      console.error('Users load error:', error);
+      toast('Users load error: ' + error.message, 'error');
+      allUsers = [];
+      renderUsersTable([]);
+    }
   }
 
   function renderUsersTable(users) {
@@ -520,25 +564,30 @@
 
   // Reviews Moderation
   async function loadReviews(){
-    const res = await api('/admin/reviews');
-    const list = $id('reviews-list');
-    if (!res.reviews || !res.reviews.length) {
-      list.innerHTML = '<p style="color:var(--text-muted)">No reviews yet</p>';
-      return;
+    try {
+      const res = await api('/admin/reviews').catch(e => { console.warn('Reviews error:', e); return { reviews: [] }; });
+      const list = $id('reviews-list');
+      if (!res.reviews || !res.reviews.length) {
+        list.innerHTML = '<p style="color:var(--text-muted)">No reviews yet</p>';
+        return;
+      }
+      list.innerHTML = '';
+      res.reviews.forEach(r=>{
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <h4 style="margin:0">${escapeHtml(r.title || 'Book Review')}</h4>
+            <div class="small">${escapeHtml(r.name)} • ${'⭐'.repeat(r.rating)}</div>
+            <p style="margin:0.5rem 0 0 0;color:var(--text-muted)">"${escapeHtml(r.body)}"</p>
+          </div>
+          <button class="btn-danger" data-admin-action="delete-review" data-id="${r.id}" style="padding:0.5rem 0.75rem;white-space:nowrap">Delete</button>
+        </div>`;
+        list.appendChild(el);
+      });
+    } catch (error) {
+      console.error('Reviews load error:', error);
+      toast('Reviews load error: ' + error.message, 'error');
     }
-    list.innerHTML = '';
-    res.reviews.forEach(r=>{
-      const el = document.createElement('div'); el.className='card';
-      el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start">
-        <div>
-          <h4 style="margin:0">${escapeHtml(r.title || 'Book Review')}</h4>
-          <div class="small">${escapeHtml(r.name)} • ${'⭐'.repeat(r.rating)}</div>
-          <p style="margin:0.5rem 0 0 0;color:var(--text-muted)">"${escapeHtml(r.body)}"</p>
-        </div>
-        <button class="btn-danger" data-admin-action="delete-review" data-id="${r.id}" style="padding:0.5rem 0.75rem;white-space:nowrap">Delete</button>
-      </div>`;
-      list.appendChild(el);
-    });
   }
 
   window.deleteReview = async (id) => {
@@ -552,19 +601,23 @@
   // Analytics
   let revenueChart, genreChart, booksChart;
   async function loadAnalytics(){
-    const view = $id('view-analytics');
-    const [revRes, genreRes, statsRes] = await Promise.all([
-      api('/admin/analytics/revenue'),
-      api('/admin/analytics/genres'),
-      api('/admin/stats')
-    ]);
+    try {
+      const view = $id('view-analytics');
+      const [revRes, genreRes, statsRes] = await Promise.all([
+        api('/admin/analytics/revenue').catch(e => { console.warn('Analytics revenue error:', e); return { dailyRevenue: [] }; }),
+        api('/admin/analytics/genres').catch(e => { console.warn('Analytics genres error:', e); return { genreSales: [] }; }),
+        api('/admin/stats').catch(e => { console.warn('Analytics stats error:', e); return { totalUsers: 0, totalBooks: 0, topBooks: [] }; })
+      ]);
 
     const revenueRows = Array.isArray(revRes?.dailyRevenue) ? revRes.dailyRevenue : [];
     const genreRows = Array.isArray(genreRes?.genreSales) ? genreRes.genreSales : [];
     const topBooks = Array.isArray(statsRes?.topBooks) ? statsRes.topBooks.slice(0, 5) : [];
+    const allUsers = statsRes?.totalUsers || 0;
+    const totalBooks = statsRes?.totalBooks || 0;
 
     const totalRevenue = revenueRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
     const totalOrders = revenueRows.reduce((sum, row) => sum + Number(row.orders || 0), 0);
+    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
     const topGenre = genreRows[0]?.genre || 'N/A';
     const hasAnyData = revenueRows.length || genreRows.length || topBooks.length;
 
@@ -573,51 +626,130 @@
       return;
     }
 
-    // Always render useful analytics blocks, even if charts are blocked by CSP.
+    // Advanced analytics with better styling
+    const topBooksMarkup = topBooks.length
+      ? '<ul style="margin:0;padding:0;list-style:none">' + topBooks.map((b, index) => {
+          return '<li style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;margin-bottom:0.5rem;background:rgba(99,102,241,0.05);border-radius:8px">' +
+            '<span style="background:var(--accent);color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700">' + (index + 1) + '</span>' +
+            '<span style="flex:1"><strong>' + escapeHtml(b.title) + '</strong><br><span style="font-size:0.8rem;opacity:0.6">' + Number(b.qtySold || 0) + ' sold</span></span>' +
+          '</li>';
+        }).join('') + '</ul>'
+      : '<p class="small" style="opacity:.7;margin:0;text-align:center;padding:1rem">No top books data</p>';
+
+    const genreRowsMarkup = genreRows.length
+      ? '<ul style="margin:0;padding:0;list-style:none">' + genreRows.slice(0, 6).map((g) => {
+          return '<li style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem;margin-bottom:0.5rem;background:rgba(139,92,246,0.05);border-radius:8px">' +
+            '<span><strong>' + escapeHtml(g.genre || 'N/A') + '</strong></span>' +
+            '<span style="background:rgba(139,92,246,0.3);color:var(--accent-2);padding:0.25rem 0.75rem;border-radius:6px;font-size:0.75rem;font-weight:600">' + Number(g.totalsales || g.totalSales || 0) + ' sales</span>' +
+          '</li>';
+        }).join('') + '</ul>'
+      : '<p class="small" style="opacity:.7;margin:0;text-align:center;padding:1rem">No genre data</p>';
+
     view.innerHTML = `
-      <h2>Analytics</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem">
-        <div class="card" style="padding:1rem"><div class="small" style="opacity:.7">30-Day Revenue</div><div style="font-size:1.4rem;font-weight:700">${formatRWF(totalRevenue)}</div></div>
-        <div class="card" style="padding:1rem"><div class="small" style="opacity:.7">Orders (30 Days)</div><div style="font-size:1.4rem;font-weight:700">${totalOrders}</div></div>
-        <div class="card" style="padding:1rem"><div class="small" style="opacity:.7">Top Genre</div><div style="font-size:1.4rem;font-weight:700">${escapeHtml(topGenre || 'N/A')}</div></div>
+      <h2 style="margin-bottom:0.5rem">Analytics Dashboard</h2>
+      <p style="opacity:0.6;margin-top:0;margin-bottom:1.5rem">Last 30 days performance metrics</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;margin-bottom:2rem">
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(99,102,241,0.15) 0%,rgba(139,92,246,0.1) 100%);border-left:4px solid var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Revenue</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(totalRevenue)}</div>
+            </div>
+            <span style="font-size:1.8rem">💰</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(16,185,129,0.15) 0%,rgba(34,197,94,0.1) 100%);border-left:4px solid var(--success)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Orders</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${totalOrders}</div>
+            </div>
+            <span style="font-size:1.8rem">📦</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(59,130,246,0.15) 0%,rgba(96,165,250,0.1) 100%);border-left:4px solid #3b82f6">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Avg Order Value</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(avgOrderValue)}</div>
+            </div>
+            <span style="font-size:1.8rem">📊</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(245,158,11,0.15) 0%,rgba(253,224,71,0.1) 100%);border-left:4px solid var(--warning)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Books Available</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${totalBooks}</div>
+            </div>
+            <span style="font-size:1.8rem">📚</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(139,92,246,0.15) 0%,rgba(168,85,247,0.1) 100%);border-left:4px solid var(--accent-2)">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Users</div>
+              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${allUsers}</div>
+            </div>
+            <span style="font-size:1.8rem">👥</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(236,72,153,0.15) 0%,rgba(244,114,182,0.1) 100%);border-left:4px solid #ec4899">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Top Genre</div>
+              <div style="font-size:1.3rem;font-weight:700;margin-top:0.5rem">${escapeHtml(topGenre)}</div>
+            </div>
+            <span style="font-size:1.8rem">🎯</span>
+          </div>
+        </div>
       </div>
 
-      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;margin-top:1rem">
-        <div class="card" style="padding:1rem">
-          <h3 style="margin:0 0 .6rem 0">Top Books</h3>
-          ${(topBooks.length ? `<ul style="margin:0;padding-left:1rem">${topBooks.map((b)=>`<li style="margin:.25rem 0">${escapeHtml(b.title)} <strong>(${Number(b.qtySold || 0)})</strong></li>`).join('')}</ul>` : '<p class="small" style="opacity:.7;margin:0">No top books data.</p>')}
+      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem;margin-top:1.5rem">
+        <div class="card" style="padding:1.5rem;background:var(--bg-soft)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <h3 style="margin:0;font-size:1.1rem">🏆 Top Books</h3>
+            <span style="background:var(--accent);color:white;padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600">${topBooks.length}</span>
+          </div>
+          ${topBooksMarkup}
         </div>
-        <div class="card" style="padding:1rem">
-          <h3 style="margin:0 0 .6rem 0">Sales by Genre</h3>
-          ${(genreRows.length ? `<ul style="margin:0;padding-left:1rem">${genreRows.slice(0, 6).map((g)=>`<li style="margin:.25rem 0">${escapeHtml(g.genre || 'N/A')} <strong>(${Number(g.totalsales || g.totalSales || 0)})</strong></li>`).join('')}</ul>` : '<p class="small" style="opacity:.7;margin:0">No genre sales data.</p>')}
+
+        <div class="card" style="padding:1.5rem;background:var(--bg-soft)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <h3 style="margin:0;font-size:1.1rem">📈 Sales by Genre</h3>
+            <span style="background:var(--accent-2);color:white;padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600">${genreRows.length}</span>
+          </div>
+          ${genreRowsMarkup}
         </div>
       </div>
     `;
 
     if (typeof Chart === 'undefined') {
-      const fallbackGrid = $id('analytics-fallback-grid');
-      if (fallbackGrid) {
-        fallbackGrid.insertAdjacentHTML('beforebegin', '<div class="card" style="padding:1rem;margin-top:1rem">Charts are disabled by current security policy, but analytics summaries are available below.</div>');
-      }
       return;
     }
 
     // Append chart canvases when Chart.js is available.
     const chartWrap = document.createElement('div');
     chartWrap.style.display = 'grid';
-    chartWrap.style.gridTemplateColumns = 'repeat(auto-fit,minmax(320px,1fr))';
-    chartWrap.style.gap = '1rem';
-    chartWrap.style.marginTop = '1rem';
+    chartWrap.style.gridTemplateColumns = 'repeat(auto-fit,minmax(340px,1fr))';
+    chartWrap.style.gap = '1.2rem';
+    chartWrap.style.marginTop = '2rem';
     chartWrap.innerHTML = `
-      <div class="card" style="padding:1rem"><canvas id="revenue-chart"></canvas></div>
-      <div class="card" style="padding:1rem"><canvas id="genre-chart"></canvas></div>
-      <div class="card" style="padding:1rem"><canvas id="top-books-chart"></canvas></div>
+      <div class="card" style="padding:1.5rem"><canvas id="revenue-chart"></canvas></div>
+      <div class="card" style="padding:1.5rem"><canvas id="genre-chart"></canvas></div>
+      <div class="card" style="padding:1.5rem"><canvas id="top-books-chart"></canvas></div>
     `;
     view.appendChild(chartWrap);
 
     const revCtx = $id('revenue-chart').getContext('2d');
     if (revenueChart) revenueChart.destroy();
-    const revLabels = revenueRows.slice().reverse().map((r) => new Date(r.date).toLocaleDateString());
+    const revLabels = revenueRows.slice().reverse().map((r) => new Date(r.date).toLocaleDateString('en-US', {month:'short', day:'numeric'}));
     const revData = revenueRows.slice().reverse().map((r) => Number(r.revenue || 0));
     revenueChart = new Chart(revCtx, {
       type: 'line',
@@ -627,26 +759,32 @@
           label: 'Daily Revenue (RWF)',
           data: revData,
           borderColor: 'var(--accent)',
-          backgroundColor: 'rgba(99,102,241,0.1)',
+          backgroundColor: 'rgba(99,102,241,0.08)',
           tension: 0.4,
-          fill: true
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: 'var(--accent)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
         }]
       },
-      options: { responsive: true, plugins: { title: { display: true, text: 'Revenue Over Time' } } }
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, title: { display: true, text: '💹 Revenue Over Time', font: { size: 14, weight: 'bold' } } }, scales: { y: { beginAtZero: true } } }
     });
 
     const genreCtx = $id('genre-chart').getContext('2d');
     if (genreChart) genreChart.destroy();
     genreChart = new Chart(genreCtx, {
-      type: 'pie',
+      type: 'doughnut',
       data: {
         labels: genreRows.map((g) => g.genre || 'N/A'),
         datasets: [{
           data: genreRows.map((g) => Number(g.totalsales || g.totalSales || 0)),
-          backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe', '#74b9ff', '#fdcb6e']
+          backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#f87171'],
+          borderColor: 'var(--bg)',
+          borderWidth: 2
         }]
       },
-      options: { responsive: true, plugins: { title: { display: true, text: 'Sales by Genre' } } }
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' }, title: { display: true, text: '📊 Sales Distribution by Genre', font: { size: 14, weight: 'bold' } } } }
     });
 
     const booksCtx = $id('top-books-chart').getContext('2d');
@@ -654,15 +792,21 @@
     booksChart = new Chart(booksCtx, {
       type: 'bar',
       data: {
-        labels: topBooks.map((b) => b.title),
+        labels: topBooks.map((b) => b.title.substring(0, 15) + (b.title.length > 15 ? '...' : '')),
         datasets: [{
           label: 'Units Sold',
           data: topBooks.map((b) => Number(b.qtySold || 0)),
-          backgroundColor: 'var(--accent)'
+          backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'],
+          borderRadius: 8,
+          borderSkipped: false
         }]
       },
-      options: { responsive: true, indexAxis: 'y', plugins: { title: { display: true, text: 'Top Selling Books' } } }
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, title: { display: true, text: '🏆 Top Selling Books', font: { size: 14, weight: 'bold' } } }, scales: { x: { beginAtZero: true } } }
     });
+    } catch (error) {
+      console.error('Analytics load error:', error);
+      toast('Analytics load error: ' + error.message, 'error');
+    }
   }
 
   // CSV Export

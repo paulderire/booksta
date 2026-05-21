@@ -6,6 +6,18 @@ function toNumber(value, fallback = null) {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
+function normalizeGenres(value) {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((genre) => String(genre || '').trim()).filter(Boolean))];
+  }
+
+  if (typeof value === 'string') {
+    return [...new Set(value.split(',').map((genre) => genre.trim()).filter(Boolean))];
+  }
+
+  return [];
+}
+
 function serializeUser(user) {
   if (!user) {
     return null;
@@ -21,6 +33,8 @@ function serializeUser(user) {
 }
 
 function serializeBook(book) {
+  const genres = normalizeGenres(book.genres);
+  const primaryGenre = book.genre || genres[0] || null;
   return {
     id: book.id,
     title: book.title,
@@ -29,7 +43,8 @@ function serializeBook(book) {
     cover_url: book.cover_url,
     cover_color: book.cover_color,
     emoji: book.emoji,
-    genre: book.genre,
+    genre: primaryGenre,
+    genres: genres.length ? genres : (primaryGenre ? [primaryGenre] : []),
     price: toNumber(book.price, 0),
     original_price: toNumber(book.original_price, null),
     stock: toNumber(book.stock, 0),
@@ -78,6 +93,7 @@ module.exports = {
   serializeBook,
   serializeOrder,
   serializeUser,
+  normalizeGenres,
   toNumber,
   formatCurrency
 };

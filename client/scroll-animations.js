@@ -56,19 +56,22 @@ class ScrollAnimations {
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          // Animate the element
-          entry.target.classList.add('scroll-fade-in');
+          // Add animate class to trigger animation
+          entry.target.classList.add('animate');
+          // Don't unobserve - keep observing for consistency
         }
       });
     }, observerOptions);
 
     // Observe all section elements for scroll animation
     document.querySelectorAll('.section').forEach((section) => {
+      section.classList.add('scroll-fade-in');
       this.observer.observe(section);
     });
 
     // Also observe other scroll-trigger elements
     document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
+      el.classList.add('scroll-fade-in');
       this.observer.observe(el);
     });
   }
@@ -80,6 +83,9 @@ class ScrollAnimations {
     // Observe all section elements for scroll animation
     document.querySelectorAll('.section').forEach((section) => {
       try {
+        if (!section.classList.contains('scroll-fade-in')) {
+          section.classList.add('scroll-fade-in');
+        }
         this.observer.observe(section);
       } catch (e) {
         // Already observing
@@ -89,6 +95,9 @@ class ScrollAnimations {
     // Also observe other scroll-trigger elements
     document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
       try {
+        if (!el.classList.contains('scroll-fade-in')) {
+          el.classList.add('scroll-fade-in');
+        }
         this.observer.observe(el);
       } catch (e) {
         // Already observing

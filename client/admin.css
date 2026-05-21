@@ -146,10 +146,29 @@ body{
 }
 
 /* utility */
-.btn-primary{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:10px}
-.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px}
-.btn-danger{background:linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.16));border:1px solid rgba(239,68,68,0.35);color:#fecaca;padding:0.5rem 0.8rem;border-radius:8px}
-.btn-danger:hover{background:linear-gradient(180deg, rgba(239,68,68,0.35), rgba(239,68,68,0.22))}
+.btn-primary{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:10px;cursor:pointer;font-weight:600;transition:all 0.2s}
+.btn-primary:hover{opacity:0.9;transform:translateY(-1px)}
+
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.btn-secondary:hover{background:var(--glass-strong);border-color:var(--accent)}
+
+.btn-danger{background:linear-gradient(180deg, rgba(239,68,68,0.25), rgba(239,68,68,0.16));border:1px solid rgba(239,68,68,0.35);color:#fecaca;padding:0.5rem 0.8rem;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.btn-danger:hover{background:linear-gradient(180deg, rgba(239,68,68,0.35), rgba(239,68,68,0.22));border-color:rgba(239,68,68,0.5)}
+
+/* card improvements */
+.card{background:var(--glass);border:1px solid var(--border);border-radius:12px;backdrop-filter:blur(10px);transition:all 0.3s}
+.card:hover{border-color:var(--accent);box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+
+html[data-theme='light'] .card{background:rgba(255,255,255,0.85);border-color:rgba(15,23,42,0.1)}
+html[data-theme='light'] .card:hover{border-color:var(--accent);box-shadow:0 8px 24px rgba(15,23,42,0.08)}
+
+/* status badges improved contrast */
+.status-pill{color:inherit;font-weight:600;transition:all 0.2s}
+html[data-theme='light'] .status-pill{border-color:rgba(15,23,42,0.15)}
+html[data-theme='light'] .status-healthy{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3)}
+html[data-theme='light'] .status-watch{background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.3)}
+html[data-theme='light'] .status-low{background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3)}
+html[data-theme='light'] .status-featured{background:rgba(236,72,153,0.12);border-color:rgba(236,72,153,0.3)}
 
 @media (max-width:700px){
   .admin-table{display:block;overflow-x:auto}
