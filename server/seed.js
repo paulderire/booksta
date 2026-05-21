@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 
 const { pool } = require('./db');
 const { schemaStatements } = require('./schema');
+const { normalizeGenres } = require('./utils');
 
 const adminSeedUsers = [
   { name: 'Avery Cole', email: 'admin1@folio.dev', password: 'AdminPass123!' },
@@ -334,6 +335,23 @@ async function ensureSchema(client) {
   for (const statement of schemaStatements) {
     await client.query(statement);
   }
+
+  await client.query(`
+    ALTER TABLE books
+    ADD COLUMN IF NOT EXISTS genres TEXT[] DEFAULT '{}'::text[]
+  `);
+
+  await client.query(`
+    UPDATE books
+    SET genres = CASE
+      WHEN genres IS NULL OR cardinality(genres) = 0 THEN ARRAY_REMOVE(ARRAY[genre], NULL)
+      ELSE genres
+    END
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_books_genres ON books USING GIN (genres)
+  `);
 }
 
 async function seed(options = {}) {
@@ -390,6 +408,7 @@ async function seed(options = {}) {
           cover_color,
           emoji,
           genre,
+          genres,
           price,
           original_price,
           stock,
@@ -407,6 +426,7 @@ async function seed(options = {}) {
           book.cover_color,
           book.emoji,
           book.genre,
+          normalizeGenres(book.genres || book.genre),
           book.price,
           book.original_price,
           book.stock,

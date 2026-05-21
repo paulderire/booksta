@@ -247,7 +247,7 @@ router.delete('/reviews/:id', async (req, res, next) => {
 router.get('/inventory-alerts', async (_req, res, next) => {
   try {
     const { rows } = await query(`
-      SELECT id, title, author, stock, genre, cover_url
+      SELECT id, title, author, stock, genre, genres, cover_url
       FROM books
       WHERE stock < 5
       ORDER BY stock ASC
@@ -338,11 +338,12 @@ router.get('/analytics/revenue', async (_req, res, next) => {
 router.get('/analytics/genres', async (_req, res, next) => {
   try {
     const { rows } = await query(`
-      SELECT b.genre, COUNT(oi.id)::int as totalSales, COALESCE(SUM(o.total), 0)::numeric as revenue
+      SELECT g.genre, COUNT(oi.id)::int as totalSales, COALESCE(SUM(o.total), 0)::numeric as revenue
       FROM books b
+      JOIN LATERAL unnest(CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END) AS g(genre) ON true
       LEFT JOIN order_items oi ON oi.book_id = b.id
       LEFT JOIN orders o ON o.id = oi.order_id
-      GROUP BY b.genre
+      GROUP BY g.genre
       ORDER BY totalSales DESC
     `);
     res.json({ genreSales: rows });

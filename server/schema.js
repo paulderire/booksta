@@ -18,6 +18,7 @@ const schemaStatements = [
     cover_color VARCHAR(20),
     emoji VARCHAR(10),
     genre VARCHAR(50),
+    genres TEXT[] DEFAULT '{}'::text[],
     price NUMERIC(10,2) NOT NULL,
     original_price NUMERIC(10,2),
     stock INTEGER DEFAULT 0,

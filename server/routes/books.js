@@ -1,7 +1,7 @@
 const express = require('express');
 const { query } = require('../db');
 const { auth, requireAdmin } = require('../middleware/auth');
-const { serializeBook } = require('../utils');
+const { serializeBook, normalizeGenres } = require('../utils');
 
 const router = express.Router();
 
@@ -27,10 +27,11 @@ function buildFilters({ genre, search }) {
   const clauses = [];
   const values = [];
   const normalizedSearch = typeof search === 'string' ? search.trim() : '';
+  const genresExpr = "CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END";
 
   if (genre) {
     values.push(genre);
-    clauses.push(`b.genre = $${values.length}`);
+    clauses.push(`$${values.length} = ANY(${genresExpr})`);
   }
 
   if (normalizedSearch) {
@@ -40,6 +41,11 @@ function buildFilters({ genre, search }) {
       OR b.author ILIKE $${values.length}
       OR b.description ILIKE $${values.length}
       OR b.genre ILIKE $${values.length}
+      OR EXISTS (
+        SELECT 1
+        FROM unnest(${genresExpr}) AS g(genre)
+        WHERE g.genre ILIKE $${values.length}
+      )
       OR COALESCE(b.isbn, '') ILIKE $${values.length}
     )`);
   }
@@ -59,7 +65,23 @@ async function getBooks(req, res, extraWhere = [], extraValues = [], extraOrder 
 
   const booksQuery = `
     SELECT
-      b.*,
+      b.id,
+      b.title,
+      b.author,
+      b.description,
+      b.cover_url,
+      b.cover_color,
+      b.emoji,
+      b.genre,
+      b.genres,
+      b.price,
+      b.original_price,
+      b.stock,
+      b.pages,
+      b.year,
+      b.isbn,
+      b.featured,
+      b.created_at,
       COALESCE(ROUND(AVG(r.rating)::numeric, 1), 0) AS avg_rating,
       COUNT(r.id)::int AS review_count
     FROM books b
@@ -70,7 +92,7 @@ async function getBooks(req, res, extraWhere = [], extraValues = [], extraOrder 
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}
   `;
 
-  const countQuery = `SELECT COUNT(*)::int AS total FROM books b ${whereSql}`;
+  const countQuery = `SELECT COUNT(DISTINCT b.id)::int AS total FROM books b LEFT JOIN reviews r ON r.book_id = b.id ${whereSql}`;
 
   const [booksResult, countResult] = await Promise.all([
     query(booksQuery, [...params, limit, offset]),
@@ -117,10 +139,21 @@ router.get('/featured', async (_req, res, next) => {
 router.get('/genres', async (_req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT DISTINCT genre FROM books WHERE genre IS NOT NULL ORDER BY genre ASC',
+      `SELECT genre, COUNT(*)::int AS book_count
+       FROM (
+         SELECT b.id, unnest(CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END) AS genre
+         FROM books b
+       ) genre_values
+       WHERE genre IS NOT NULL AND genre <> ''
+       GROUP BY genre
+       ORDER BY genre ASC`,
       []
     );
-    res.json({ genres: rows.map((row) => row.genre) });
+    const counts = rows.reduce((acc, row) => {
+      acc[row.genre] = Number(row.book_count || 0);
+      return acc;
+    }, {});
+    res.json({ genres: rows.map((row) => row.genre), counts });
   } catch (error) {
     next(error);
   }
@@ -149,9 +182,12 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', auth, requireAdmin, async (req, res, next) => {
   try {
-    const fields = ['title', 'author', 'description', 'cover_url', 'cover_color', 'emoji', 'genre', 'price', 'original_price', 'stock', 'pages', 'year', 'isbn', 'featured'];
+    const genres = normalizeGenres(req.body?.genres || req.body?.genre);
+    const fields = ['title', 'author', 'description', 'cover_url', 'cover_color', 'emoji', 'genre', 'genres', 'price', 'original_price', 'stock', 'pages', 'year', 'isbn', 'featured'];
     const values = fields.map((field) => req.body?.[field] ?? null);
-    if (!values[0] || !values[1] || values[7] === null) {
+    values[6] = values[6] || genres[0] || null;
+    values[7] = genres;
+    if (!values[0] || !values[1] || values[8] === null) {
       return res.status(400).json({ error: 'Title, author, and price are required.' });
     }
 
@@ -171,11 +207,20 @@ router.post('/', auth, requireAdmin, async (req, res, next) => {
 
 router.patch('/:id', auth, requireAdmin, async (req, res, next) => {
   try {
-    const allowed = ['title', 'author', 'description', 'cover_url', 'cover_color', 'emoji', 'genre', 'price', 'original_price', 'stock', 'pages', 'year', 'isbn', 'featured'];
+    const allowed = ['title', 'author', 'description', 'cover_url', 'cover_color', 'emoji', 'genre', 'genres', 'price', 'original_price', 'stock', 'pages', 'year', 'isbn', 'featured'];
     const updates = [];
     const values = [];
 
+    if (req.body?.genres !== undefined || req.body?.genre !== undefined) {
+      const genres = normalizeGenres(req.body?.genres || req.body?.genre);
+      values.push(genres[0] || null);
+      updates.push(`genre = $${values.length}`);
+      values.push(genres);
+      updates.push(`genres = $${values.length}`);
+    }
+
     allowed.forEach((field) => {
+      if (field === 'genre' || field === 'genres') return;
       if (req.body?.[field] !== undefined) {
         values.push(req.body[field]);
         updates.push(`${field} = $${values.length}`);
