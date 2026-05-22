@@ -424,19 +424,40 @@
     try {
       const res = await api('/books?limit=200').catch(e => { console.warn('Featured books error:', e); return { books: [] }; });
       const grid = $id('featured-books-grid'); grid.innerHTML = '';
-      (res.books || []).filter(b => b.featured).forEach(b=>{
-        const el = document.createElement('div'); el.className='card';
-        el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
-          <div>
-            <h3 style="margin:0 0 0.25rem 0">${escapeHtml(b.title)}</h3>
-            <div class="small">${escapeHtml(b.author)}</div>
+      const featuredBooks = (res.books || []).filter(b => b.featured);
+      const totals = featuredBooks.reduce((acc, book) => {
+        acc.count += 1;
+        acc.stock += Number(book.stock || 0);
+        acc.price += Number(book.price || 0);
+        acc.heroReady += book.cover_url ? 1 : 0;
+        return acc;
+      }, { count: 0, stock: 0, price: 0, heroReady: 0 });
+      const averagePrice = totals.count ? totals.price / totals.count : 0;
+
+      // Render only the featured cards; summary stat-cards removed per request.
+      grid.innerHTML = '';
+
+      featuredBooks.forEach(b=>{
+        const el = document.createElement('div'); el.className='card featured-card';
+        const cover = b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="${escapeHtml(b.title)}" class="featured-thumb" />` : `<div class="featured-thumb placeholder">📚</div>`;
+        const genres = (b.genres && b.genres.length) ? b.genres.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join(' ') : `<span class="genre-badge muted">${escapeHtml(b.genre || 'Uncategorized')}</span>`;
+        el.innerHTML = `
+          <div class="featured-left">${cover}</div>
+          <div class="featured-meta">
+            <h3 class="featured-title">${escapeHtml(b.title)}</h3>
+            <div class="small featured-author">${escapeHtml(b.author)}</div>
+            <div class="featured-genres">${genres}</div>
           </div>
-          <button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}" style="padding:0.5rem;font-size:0.9rem">Remove</button>
-        </div>`;
+          <div class="featured-right">
+            <div class="featured-price">${formatRWF(b.price)}</div>
+            <div class="featured-stock"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></div>
+            <div class="featured-actions"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></div>
+          </div>
+        `;
         grid.appendChild(el);
       });
-      if (!(res.books || []).some(b => b.featured)) {
-        grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No featured books. Add by clicking Edit on any book.</p>';
+      if (!featuredBooks.length) {
+        grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:1.25rem;color:var(--text-muted)">No featured books. Add by clicking Edit on any book.</div>`;
       }
     } catch (error) {
       console.error('Featured load error:', error);
