@@ -106,6 +106,14 @@ const state = {
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,
+  chatbotDrag: {
+    active: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    originLeft: 0,
+    originTop: 0
+  },
   chatbotMessages: [
     { role: 'bot', text: 'Hi, I am Booksta Assistant. Pick a question below and I will help instantly.' }
   ],
@@ -718,8 +726,111 @@ function renderChatbotWidget() {
   `;
 }
 
+function renderFloatingUi() {
+  const mount = document.getElementById('floating-ui');
+  if (!mount) return;
+  mount.innerHTML = state.route?.name === 'home' ? renderChatbotWidget() : '';
+  if (state.route?.name === 'home') {
+    setTimeout(positionChatbotFromStorage, 0);
+  }
+}
+
 function syncChatbotMode() {
   document.body.classList.toggle('is-mobile-chatbot', window.innerWidth <= 700);
+}
+
+function getChatbotNode() {
+  return document.querySelector('.chatbot-float');
+}
+
+function positionChatbotFromStorage() {
+  const root = getChatbotNode();
+  if (!root) return;
+
+  try {
+    const stored = JSON.parse(localStorage.getItem('bookstaChatbotPos') || 'null');
+    if (!stored || typeof stored.left !== 'number' || typeof stored.top !== 'number') {
+      return;
+    }
+
+    // Ensure the root has a usable width. Some browsers report 0 when
+    // children are absolutely positioned or the element is freshly mounted.
+    if (!root.offsetWidth || root.getBoundingClientRect().width === 0) {
+      const toggle = root.querySelector('.chatbot-toggle');
+      const fallback = (toggle && toggle.getBoundingClientRect && toggle.getBoundingClientRect().width) || 52;
+      root.style.minWidth = `${Math.ceil(fallback)}px`;
+      // Force a reflow so offsetWidth becomes available for calculations
+      // below.
+      // eslint-disable-next-line no-unused-expressions
+      root.offsetWidth;
+    }
+
+    const maxLeft = Math.max(8, window.innerWidth - root.offsetWidth - 8);
+    const maxTop = Math.max(8, window.innerHeight - root.offsetHeight - 8);
+    const left = Math.max(8, Math.min(maxLeft, stored.left));
+    const top = Math.max(8, Math.min(maxTop, stored.top));
+
+    root.style.left = `${left}px`;
+    root.style.top = `${top}px`;
+    root.style.right = 'auto';
+    root.style.bottom = 'auto';
+  } catch (error) {
+    console.warn('chatbot position restore failed', error);
+  }
+}
+
+function startChatbotDrag(event) {
+  const root = getChatbotNode();
+  if (!root || (event.pointerType === 'mouse' && event.button !== 0)) return;
+
+  event.preventDefault();
+  state.chatbotDrag.active = true;
+  state.chatbotDrag.moved = false;
+  state.chatbotDrag.startX = event.clientX;
+  state.chatbotDrag.startY = event.clientY;
+
+  const rect = root.getBoundingClientRect();
+  state.chatbotDrag.originLeft = rect.left;
+  state.chatbotDrag.originTop = rect.top;
+  root.style.transition = 'none';
+  root.setPointerCapture?.(event.pointerId);
+}
+
+function moveChatbotDrag(event) {
+  if (!state.chatbotDrag.active) return;
+
+  const root = getChatbotNode();
+  if (!root) return;
+
+  const dx = event.clientX - state.chatbotDrag.startX;
+  const dy = event.clientY - state.chatbotDrag.startY;
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+    state.chatbotDrag.moved = true;
+  }
+
+  const maxLeft = Math.max(8, window.innerWidth - root.offsetWidth - 8);
+  const maxTop = Math.max(8, window.innerHeight - root.offsetHeight - 8);
+  const left = Math.max(8, Math.min(maxLeft, state.chatbotDrag.originLeft + dx));
+  const top = Math.max(8, Math.min(maxTop, state.chatbotDrag.originTop + dy));
+
+  root.style.left = `${left}px`;
+  root.style.top = `${top}px`;
+  root.style.right = 'auto';
+  root.style.bottom = 'auto';
+}
+
+function endChatbotDrag(event) {
+  if (!state.chatbotDrag.active) return;
+
+  const root = getChatbotNode();
+  state.chatbotDrag.active = false;
+
+  if (root) {
+    root.style.transition = '';
+    const rect = root.getBoundingClientRect();
+    localStorage.setItem('bookstaChatbotPos', JSON.stringify({ left: rect.left, top: rect.top }));
+    root.releasePointerCapture?.(event.pointerId);
+  }
 }
 
 function renderHomeView() {
@@ -904,7 +1015,6 @@ function renderHomeView() {
       </section>
       ` : ''}
 
-      ${renderChatbotWidget()}
     </section>
   `;
 }
@@ -1625,6 +1735,7 @@ function renderApp() {
 
     if (name === 'home') {
       app.innerHTML = renderHomeView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1632,6 +1743,7 @@ function renderApp() {
 
     if (name === 'search') {
       app.innerHTML = renderSearchView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1639,6 +1751,7 @@ function renderApp() {
 
     if (name === 'book') {
       app.innerHTML = renderBookView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1646,6 +1759,7 @@ function renderApp() {
 
     if (name === 'cart') {
       app.innerHTML = renderCartView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1653,6 +1767,7 @@ function renderApp() {
 
     if (name === 'wishlist') {
       app.innerHTML = renderWishlistView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1660,6 +1775,7 @@ function renderApp() {
 
     if (name === 'orders') {
       app.innerHTML = renderOrdersView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1667,6 +1783,7 @@ function renderApp() {
 
     if (name === 'profile') {
       app.innerHTML = renderProfileView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1675,11 +1792,13 @@ function renderApp() {
     if (name === 'admin-orders') {
       if (!state.user || state.user.role !== 'admin') {
         app.innerHTML = renderAccessDenied();
+        renderFloatingUi();
         // Re-observe sections for scroll animations
         setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
         return;
       }
       app.innerHTML = renderAdminOrdersView();
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -1688,17 +1807,20 @@ function renderApp() {
     if (name === 'login' || name === 'register') {
       // Render the home background and show auth modal on top
       app.innerHTML = renderHomeView() + renderAuthModal(name === 'login' ? 'login' : 'register');
+      renderFloatingUi();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
 
     app.innerHTML = '<section class="page"><div class="empty-state"><p>Page not found.</p><a class="primary-button" href="#/">Return home</a></div></section>';
+    renderFloatingUi();
     // Re-observe sections for scroll animations
     setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
   } catch (error) {
     console.error(error);
     app.innerHTML = `<section class="page"><div class="empty-state"><p>${escapeHtml(error?.message || String(error))}</p></div></section>`;
+    renderFloatingUi();
     // Re-observe sections for scroll animations
     setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
   }
@@ -1889,6 +2011,10 @@ function handleAction(target) {
   }
 
   if (action === 'toggle-chatbot') {
+    if (state.chatbotDrag.moved) {
+      state.chatbotDrag.moved = false;
+      return;
+    }
     state.chatbotOpen = !state.chatbotOpen;
     const root = document.querySelector('.chatbot-float');
     const panel = document.querySelector('.chatbot-panel');
@@ -2410,6 +2536,27 @@ window.addEventListener('resize', () => {
     closeAccountMenu();
   }
   syncChatbotMode();
+  positionChatbotFromStorage();
+});
+
+document.addEventListener('pointerdown', (event) => {
+  const toggle = event.target.closest('.chatbot-toggle');
+  if (toggle) startChatbotDrag(event);
+});
+
+document.addEventListener('pointermove', (event) => {
+  if (!state.chatbotDrag.active) return;
+  moveChatbotDrag(event);
+});
+
+document.addEventListener('pointerup', (event) => {
+  if (!state.chatbotDrag.active) return;
+  endChatbotDrag(event);
+});
+
+document.addEventListener('pointercancel', (event) => {
+  if (!state.chatbotDrag.active) return;
+  endChatbotDrag(event);
 });
 
 window.addEventListener('keydown', (event) => {
@@ -2439,6 +2586,7 @@ async function init() {
   window.__bookstaStage = 'init:startHeroCycle';
   await loadRoute();
   window.__bookstaStage = 'init:loadRoute';
+  positionChatbotFromStorage();
 }
 
 try {

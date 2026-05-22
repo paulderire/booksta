@@ -1,6 +1,6 @@
 body.is-mobile-chatbot .chatbot-float {
-  width: auto;
-  min-width: 0;
+  width: max-content;
+  min-width: max-content;
   right: 0.65rem;
   left: auto;
   bottom: 0.65rem;
@@ -36,6 +36,17 @@ body.is-mobile-chatbot .chatbot-chip {
   font-size: 0.86rem;
   padding: 0.62rem 0.78rem;
 }
+
+#floating-ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 120;
+}
+
+#floating-ui .chatbot-float {
+  pointer-events: auto;
+}
 /* Booksta UI overrides: larger helper, calmer page-load, stronger admin cards */
 
 /* Larger chatbot helper */
@@ -46,8 +57,8 @@ body.is-mobile-chatbot .chatbot-chip {
   align-items: flex-end;
   right: 1.25rem;
   bottom: 1.25rem;
-  width: fit-content;
-  min-width: 18rem;
+  width: max-content;
+  min-width: max-content;
   max-width: min(30rem, calc(100vw - 1.5rem));
   z-index: 120;
   transform: none;
@@ -179,8 +190,8 @@ body.is-mobile-chatbot .chatbot-chip {
 
 @media (max-width: 700px) {
   .chatbot-float {
-    width: auto;
-    min-width: 0;
+    width: max-content;
+    min-width: max-content;
     right: 0.65rem;
     left: auto;
     bottom: 0.65rem;
