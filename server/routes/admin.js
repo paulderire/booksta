@@ -89,7 +89,7 @@ router.get('/orders.csv', async (_req, res, next) => {
 // Admin stats
 router.get('/stats', async (_req, res, next) => {
   try {
-    const [{ rows: urows }, { rows: orows }, { rows: brows }] = await Promise.all([
+    const [{ rows: urows }, { rows: orows }, { rows: brows }, { rows: totalBooksRows }, { rows: uniqueAuthorsRows }] = await Promise.all([
       query('SELECT COUNT(*)::int AS total_users FROM users', []),
       query('SELECT COUNT(*)::int AS total_orders, COALESCE(SUM(total),0)::numeric AS total_revenue FROM orders', []),
       query(`SELECT b.id, b.title, COALESCE(SUM(oi.quantity),0)::int AS qty_sold
@@ -97,13 +97,17 @@ router.get('/stats', async (_req, res, next) => {
              LEFT JOIN order_items oi ON oi.book_id = b.id
              GROUP BY b.id, b.title
              ORDER BY qty_sold DESC
-             LIMIT 5`, [])
+             LIMIT 5`, []),
+      query('SELECT COUNT(*)::int AS total_books FROM books', []),
+      query('SELECT COUNT(DISTINCT LOWER(TRIM(author)))::int AS unique_authors FROM books WHERE author IS NOT NULL AND author != \'\'', [])
     ]);
 
     res.json({
       totalUsers: urows[0].total_users,
       totalOrders: orows[0].total_orders,
       totalRevenue: parseFloat(orows[0].total_revenue),
+      totalBooks: totalBooksRows[0].total_books,
+      uniqueAuthors: uniqueAuthorsRows[0].unique_authors,
       topBooks: brows.map(r => ({ id: r.id, title: r.title, qtySold: r.qty_sold }))
     });
   } catch (error) {

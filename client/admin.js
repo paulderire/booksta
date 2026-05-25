@@ -422,9 +422,14 @@
   // Featured Books Manager
   async function loadFeatured(){
     try {
-      const res = await api('/books?limit=200').catch(e => { console.warn('Featured books error:', e); return { books: [] }; });
-      const grid = $id('featured-books-grid'); grid.innerHTML = '';
-      const featuredBooks = (res.books || []).filter(b => b.featured);
+      const [booksRes, statsRes] = await Promise.all([
+        api('/books?limit=200').catch(e => { console.warn('Featured books error:', e); return { books: [] }; }),
+        api('/admin/stats').catch(e => { console.warn('Stats error:', e); return { totalBooks: 0, uniqueAuthors: 0 }; })
+      ]);
+      
+      const grid = $id('featured-books-grid');
+      grid.innerHTML = '';
+      const featuredBooks = (booksRes.books || []).filter(b => b.featured);
       const totals = featuredBooks.reduce((acc, book) => {
         acc.count += 1;
         acc.stock += Number(book.stock || 0);
@@ -434,9 +439,38 @@
       }, { count: 0, stock: 0, price: 0, heroReady: 0 });
       const averagePrice = totals.count ? totals.price / totals.count : 0;
 
-      // Render only the featured cards; summary stat-cards removed per request.
-      grid.innerHTML = '';
+      // Render library stats cards at the top
+      const statsHtml = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 15%, transparent), var(--bg-soft)); border-left: 4px solid var(--accent);">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Total Books in Library</div>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--accent);">${formatNumber(statsRes.totalBooks || 0)}</div>
+                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">1000+ books available</div>
+              </div>
+              <span style="font-size: 2.5rem; opacity: 0.3;">📚</span>
+            </div>
+          </div>
+          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-2) 15%, transparent), var(--bg-soft)); border-left: 4px solid var(--accent-2);">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Famous Authors</div>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--accent-2);">${formatNumber(statsRes.uniqueAuthors || 0)}</div>
+                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">100+ famous authors</div>
+              </div>
+              <span style="font-size: 2.5rem; opacity: 0.3;">✍️</span>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Insert stats before featured cards
+      const statsContainer = document.createElement('div');
+      statsContainer.innerHTML = statsHtml;
+      grid.parentNode.insertBefore(statsContainer, grid);
 
+      // Render featured book cards
       featuredBooks.forEach(b=>{
         const el = document.createElement('div'); el.className='card featured-card';
         const cover = b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="${escapeHtml(b.title)}" class="featured-thumb" />` : `<div class="featured-thumb placeholder">📚</div>`;
