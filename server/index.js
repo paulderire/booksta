@@ -85,6 +85,88 @@ app.use('/api/promotions', promotionsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
 
+// Sitemap for SEO - dynamic XML generation
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    const client = await pool.connect();
+    const { rows: books } = await client.query('SELECT id, created_at FROM books ORDER BY id');
+    client.release();
+
+    const siteUrl = process.env.SITE_URL || 'https://booksta.com';
+    const baseUrl = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+    
+    // Static pages
+    const staticPages = [
+      { url: '/', priority: 1.0, changefreq: 'daily' },
+      { url: '/#/search', priority: 0.9, changefreq: 'daily' },
+      { url: '/#/wishlist', priority: 0.7, changefreq: 'weekly' },
+      { url: '/#/orders', priority: 0.7, changefreq: 'weekly' },
+      { url: '/#/profile', priority: 0.6, changefreq: 'monthly' },
+    ];
+
+    // Dynamic book pages
+    const bookPages = books.map(book => ({
+      url: `/#/book/${book.id}`,
+      priority: 0.8,
+      changefreq: 'weekly',
+      lastmod: new Date(book.created_at).toISOString().split('T')[0]
+    }));
+
+    // Combine all pages
+    const allPages = [...staticPages, ...bookPages];
+
+    // Generate XML
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+    
+    allPages.forEach(page => {
+      xml += '  <url>\n';
+      xml += `    <loc>${escapeXml(`${baseUrl}${page.url}`)}</loc>\n`;
+      if (page.lastmod) {
+        xml += `    <lastmod>${page.lastmod}</lastmod>\n`;
+      }
+      xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+      xml += `    <priority>${page.priority}</priority>\n`;
+      xml += '  </url>\n';
+    });
+    
+    xml += '</urlset>';
+
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.send(xml);
+  } catch (error) {
+    console.error('Sitemap generation error:', error);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
+// robots.txt for SEO
+app.get('/robots.txt', (_req, res) => {
+  const siteUrl = process.env.SITE_URL || 'https://booksta.com';
+  const robotsTxt = `User-agent: *
+Allow: /
+Allow: /#/
+
+Disallow: /api/
+Disallow: /admin.html
+
+Sitemap: ${siteUrl.endsWith('/') ? siteUrl : siteUrl + '/'}sitemap.xml
+`;
+  res.set('Content-Type', 'text/plain; charset=utf-8');
+  res.send(robotsTxt);
+});
+
+// Helper function to escape XML special characters
+function escapeXml(unsafe) {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 app.get(/^\/(?!api).*/, (_req, res) => {
   res.sendFile(path.join(clientDir, 'index.html'));
 });

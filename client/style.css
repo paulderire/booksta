@@ -3261,3 +3261,381 @@ body.has-modal-open {
     padding: 0.35rem 0.6rem;
     font-size: 0.82rem;
   }
+
+/* ========== COMPREHENSIVE RESPONSIVE DESIGN ========== */
+/* These media queries ensure Booksta works perfectly on all devices worldwide */
+
+/* Extra small phones (320px - 374px) */
+@media (max-width: 374px) {
+  .app-shell {
+    padding: 0.5rem;
+    width: 100vw;
+  }
+  
+  .topbar {
+    margin: 0.3rem;
+    padding: 0.4rem;
+    gap: 0.25rem;
+  }
+  
+  .hero {
+    padding: 0.8rem;
+    gap: 0.8rem;
+  }
+  
+  .books-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .book-card {
+    border-radius: 12px;
+  }
+  
+  button, .primary-button, .secondary-button {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.7rem;
+    min-height: 36px;
+  }
+  
+  .site-logo {
+    height: 28px;
+  }
+  
+  h1, h2 {
+    font-size: 1.2rem;
+  }
+}
+
+/* Small phones (375px - 424px) */
+@media (max-width: 424px) and (min-width: 375px) {
+  .books-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+  
+  .hero {
+    padding: 0.9rem;
+  }
+  
+  .hero-title {
+    font-size: 1.5rem;
+  }
+  
+  .section-title {
+    font-size: 1.1rem;
+  }
+}
+
+/* Medium phones (425px - 599px) */
+@media (max-width: 599px) and (min-width: 425px) {
+  .books-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.7rem;
+  }
+  
+  .book-card {
+    border-radius: 14px;
+  }
+}
+
+/* Large phones / small tablets (600px - 699px) */
+@media (max-width: 699px) and (min-width: 600px) {
+  .books-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.8rem;
+  }
+}
+
+/* Tablets portrait (700px - 899px) */
+@media (max-width: 899px) and (min-width: 700px) {
+  .books-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  
+  .drawer {
+    width: 100%;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    border-radius: 20px 20px 0 0;
+  }
+  
+  .drawer.is-open {
+    transform: translateY(0);
+  }
+}
+
+/* Tablets landscape (900px - 1023px) */
+@media (min-width: 900px) and (max-width: 1023px) {
+  .books-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .app-shell {
+    width: min(100vw - 2rem, 900px);
+  }
+}
+
+/* Small desktops (1024px - 1279px) */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .books-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Standard desktops (1280px - 1439px) */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .books-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Large desktops (1440px - 1919px) */
+@media (min-width: 1440px) and (max-width: 1919px) {
+  .books-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+/* Extra large desktops (1920px+) */
+@media (min-width: 1920px) {
+  .books-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  
+  .app-shell {
+    max-width: 1600px;
+  }
+}
+
+/* Ultra-wide displays (2560px+) */
+@media (min-width: 2560px) {
+  .app-shell {
+    max-width: 2000px;
+  }
+  
+  .books-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+  
+  h1, h2 {
+    font-size: 1.8rem;
+  }
+  
+  body {
+    font-size: 1.1rem;
+  }
+}
+
+/* Floating chatbot responsive positioning for all devices */
+@media (max-width: 480px) {
+  .chatbot-float {
+    right: 0.8rem !important;
+    bottom: 0.8rem !important;
+  }
+  
+  .chatbot-toggle {
+    min-width: 5.5rem;
+    min-height: 3rem;
+    padding: 0.75rem 0.9rem;
+  }
+  
+  .chatbot-panel {
+    max-width: calc(100vw - 1.6rem);
+    width: max-content;
+  }
+}
+
+@media (max-width: 600px) {
+  .chatbot-float {
+    right: 0.75rem !important;
+    bottom: 0.75rem !important;
+  }
+  
+  body.is-mobile-chatbot .chatbot-float {
+    right: 0.65rem !important;
+    bottom: 0.65rem !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .chatbot-float {
+    right: 1.5rem !important;
+    bottom: 1.5rem !important;
+  }
+}
+
+/* Tables and modals responsive */
+@media (max-width: 768px) {
+  .table-list {
+    font-size: 0.9rem;
+  }
+  
+  .detail-book,
+  .order-card,
+  .wishlist-card {
+    grid-template-columns: auto 1fr;
+  }
+  
+  .review-card {
+    gap: 0.5rem;
+  }
+}
+
+/* Footer responsive */
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .footer-newsletter,
+  .footer-contact {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .footer-links h4,
+  .footer-contact h4,
+  .footer-newsletter h4 {
+    font-size: 0.95rem;
+  }
+  
+  .newsletter-form {
+    flex-direction: column;
+  }
+  
+  .newsletter-form button {
+    width: 100%;
+  }
+}
+
+/* Admin panel responsive */
+@media (max-width: 768px) {
+  .admin-layout {
+    padding: 0.8rem;
+  }
+  
+  .stat-card {
+    min-height: auto;
+  }
+  
+  .dashboard-panel {
+    padding: 0.8rem;
+  }
+  
+  .featured-card {
+    gap: 0.6rem;
+  }
+}
+
+/* Contact section responsive */
+@media (max-width: 768px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .contact-card {
+    gap: 0.75rem;
+  }
+}
+
+/* Ensure all forms are mobile friendly */
+@media (max-width: 768px) {
+  .auth-grid,
+  .checkout-grid,
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  input, textarea, select {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Horizontal scroll adjustments for mobile */
+@media (max-width: 600px) {
+  .filter-pill-row {
+    gap: 0.4rem;
+    padding: 0.1rem 0.5rem 0.25rem 0;
+  }
+  
+  .pagination {
+    gap: 0.4rem;
+  }
+  
+  .page-number {
+    min-width: 2rem;
+    height: 2rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Ensure modals work on all sizes */
+@media (max-width: 480px) {
+  .modal-card {
+    width: calc(100vw - 1rem);
+    max-height: 90vh;
+  }
+  
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+}
+
+/* Navigation responsive tweaks */
+@media (max-width: 700px) {
+  .topnav {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .topnav a {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+/* Print styles for receipts and invoices */
+@media print {
+  .chatbot-float,
+  .drawer-overlay,
+  .toasts,
+  #floating-ui,
+  .nav-toggle,
+  .theme-toggle {
+    display: none !important;
+  }
+  
+  .app-shell {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .order-card,
+  .invoice {
+    page-break-inside: avoid;
+  }
+}

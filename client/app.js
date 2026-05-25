@@ -2536,28 +2536,28 @@ window.addEventListener('resize', () => {
     closeAccountMenu();
   }
   syncChatbotMode();
-  positionChatbotFromStorage();
+  // Dragging disabled - skip position restore
+  // // Dragging disabled - skip position restore
+  // positionChatbotFromStorage();
 });
 
-document.addEventListener('pointerdown', (event) => {
-  const toggle = event.target.closest('.chatbot-toggle');
-  if (toggle) startChatbotDrag(event);
-});
-
-document.addEventListener('pointermove', (event) => {
-  if (!state.chatbotDrag.active) return;
-  moveChatbotDrag(event);
-});
-
-document.addEventListener('pointerup', (event) => {
-  if (!state.chatbotDrag.active) return;
-  endChatbotDrag(event);
-});
-
-document.addEventListener('pointercancel', (event) => {
-  if (!state.chatbotDrag.active) return;
-  endChatbotDrag(event);
-});
+// Dragging disabled - floating button now stays in fixed position
+// document.addEventListener('pointerdown', (event) => {
+//   const toggle = event.target.closest('.chatbot-toggle');
+//   if (toggle) startChatbotDrag(event);
+// });
+// document.addEventListener('pointermove', (event) => {
+//   if (!state.chatbotDrag.active) return;
+//   moveChatbotDrag(event);
+// });
+// document.addEventListener('pointerup', (event) => {
+//   if (!state.chatbotDrag.active) return;
+//   endChatbotDrag(event);
+// });
+// document.addEventListener('pointercancel', (event) => {
+//   if (!state.chatbotDrag.active) return;
+//   endChatbotDrag(event);
+// });
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
