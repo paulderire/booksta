@@ -2386,7 +2386,7 @@ headerSearchInput?.addEventListener('input', async (event) => {
   try {
     // Fetch suggestions from search API
     const res = await api(`/books?limit=8&search=${encodeURIComponent(query)}`).catch(() => ({ books: [] }));
-    const books = res.books || [];
+    const books = (res && res.books) || [];
     
     if (books.length === 0) {
       suggestionsDiv.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.9rem;">No results found</div>';
@@ -2442,6 +2442,7 @@ headerSearchInput?.addEventListener('input', async (event) => {
     });
   } catch (error) {
     console.warn('Search suggestions error:', error);
+    suggestionsDiv.style.display = 'none';
   }
 
   state.search = query;
@@ -2452,7 +2453,7 @@ headerSearchInput?.addEventListener('input', async (event) => {
 document.addEventListener('click', (e) => {
   const searchForm = document.getElementById('header-search-form');
   const suggestionsDiv = document.getElementById('search-suggestions');
-  if (!searchForm?.contains(e.target)) {
+  if (searchForm && !searchForm.contains(e.target)) {
     suggestionsDiv.style.display = 'none';
   }
 });
