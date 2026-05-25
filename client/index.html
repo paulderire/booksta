@@ -26,7 +26,11 @@
 
       <div class="topbar-center">
         <form class="header-search" id="header-search-form" role="search">
-          <input id="header-search" type="search" placeholder="Search books, authors, genres" aria-label="Search books" />
+          <div style="position: relative; width: 100%;">
+            <input id="header-search" type="search" placeholder="Search books, authors, genres" aria-label="Search books" />
+            <div id="search-suggestions" class="search-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-soft); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 8px 16px rgba(0,0,0,0.15);">
+            </div>
+          </div>
           <button type="submit" aria-label="Search books">Search</button>
         </form>
       </div>

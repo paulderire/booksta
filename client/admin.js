@@ -428,36 +428,30 @@
       ]);
       
       const grid = $id('featured-books-grid');
-      grid.innerHTML = '';
       const featuredBooks = (booksRes.books || []).filter(b => b.featured);
-      const totals = featuredBooks.reduce((acc, book) => {
-        acc.count += 1;
-        acc.stock += Number(book.stock || 0);
-        acc.price += Number(book.price || 0);
-        acc.heroReady += book.cover_url ? 1 : 0;
-        return acc;
-      }, { count: 0, stock: 0, price: 0, heroReady: 0 });
-      const averagePrice = totals.count ? totals.price / totals.count : 0;
-
-      // Render library stats cards at the top
-      const statsHtml = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 15%, transparent), var(--bg-soft)); border-left: 4px solid var(--accent);">
+      
+      // Build complete grid HTML with stats header and featured books
+      let gridHtml = '';
+      
+      // Add stats header (spans full width)
+      gridHtml += `
+        <div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, rgba(124,140,255,0.15), var(--bg-soft)); border-left: 4px solid var(--accent);">
             <div style="display: flex; justify-content: space-between; align-items: start;">
               <div>
-                <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Total Books in Library</div>
+                <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Total Books</div>
                 <div style="font-size: 2rem; font-weight: 700; color: var(--accent);">${formatNumber(statsRes.totalBooks || 0)}</div>
-                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">1000+ books available</div>
+                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">in library</div>
               </div>
               <span style="font-size: 2.5rem; opacity: 0.3;">📚</span>
             </div>
           </div>
-          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-2) 15%, transparent), var(--bg-soft)); border-left: 4px solid var(--accent-2);">
+          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, rgba(34,211,238,0.15), var(--bg-soft)); border-left: 4px solid var(--accent-2);">
             <div style="display: flex; justify-content: space-between; align-items: start;">
               <div>
                 <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Famous Authors</div>
                 <div style="font-size: 2rem; font-weight: 700; color: var(--accent-2);">${formatNumber(statsRes.uniqueAuthors || 0)}</div>
-                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">100+ famous authors</div>
+                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">curated collection</div>
               </div>
               <span style="font-size: 2.5rem; opacity: 0.3;">✍️</span>
             </div>
@@ -465,34 +459,32 @@
         </div>
       `;
       
-      // Insert stats before featured cards
-      const statsContainer = document.createElement('div');
-      statsContainer.innerHTML = statsHtml;
-      grid.parentNode.insertBefore(statsContainer, grid);
-
-      // Render featured book cards
+      // Add featured books
       featuredBooks.forEach(b=>{
-        const el = document.createElement('div'); el.className='card featured-card';
         const cover = b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="${escapeHtml(b.title)}" class="featured-thumb" />` : `<div class="featured-thumb placeholder">📚</div>`;
         const genres = (b.genres && b.genres.length) ? b.genres.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join(' ') : `<span class="genre-badge muted">${escapeHtml(b.genre || 'Uncategorized')}</span>`;
-        el.innerHTML = `
-          <div class="featured-left">${cover}</div>
-          <div class="featured-meta">
-            <h3 class="featured-title">${escapeHtml(b.title)}</h3>
-            <div class="small featured-author">${escapeHtml(b.author)}</div>
-            <div class="featured-genres">${genres}</div>
-          </div>
-          <div class="featured-right">
-            <div class="featured-price">${formatRWF(b.price)}</div>
-            <div class="featured-stock"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></div>
-            <div class="featured-actions"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></div>
+        gridHtml += `
+          <div class="card featured-card">
+            <div class="featured-left">${cover}</div>
+            <div class="featured-meta">
+              <h3 class="featured-title">${escapeHtml(b.title)}</h3>
+              <div class="small featured-author">${escapeHtml(b.author)}</div>
+              <div class="featured-genres">${genres}</div>
+            </div>
+            <div class="featured-right">
+              <div class="featured-price">${formatRWF(b.price)}</div>
+              <div class="featured-stock"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></div>
+              <div class="featured-actions"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></div>
+            </div>
           </div>
         `;
-        grid.appendChild(el);
       });
+      
       if (!featuredBooks.length) {
-        grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:1.25rem;color:var(--text-muted)">No featured books. Add by clicking Edit on any book.</div>`;
+        gridHtml += `<div class="card" style="grid-column:1/-1;padding:1.25rem;color:var(--text-muted)">No featured books. Add by clicking Edit on any book.</div>`;
       }
+      
+      grid.innerHTML = gridHtml;
     } catch (error) {
       console.error('Featured load error:', error);
       toast('Featured load error: ' + error.message, 'error');

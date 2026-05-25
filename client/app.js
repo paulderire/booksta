@@ -2374,17 +2374,87 @@ app.addEventListener('input', (event) => {
   }, 300);
 });
 
-headerSearchInput?.addEventListener('input', (event) => {
-  state.search = event.target.value;
-  state.page = 1;
-  window.clearTimeout(state.searchTimer);
-  state.searchTimer = window.setTimeout(() => {
-    if (!isActiveRoute('search')) {
-      window.location.hash = '#/search?q=' + encodeURIComponent(state.search || '');
+headerSearchInput?.addEventListener('input', async (event) => {
+  const query = event.target.value.trim();
+  const suggestionsDiv = document.getElementById('search-suggestions');
+  
+  if (!query || query.length < 2) {
+    suggestionsDiv.style.display = 'none';
+    return;
+  }
+
+  try {
+    // Fetch suggestions from search API
+    const res = await api(`/books?limit=8&search=${encodeURIComponent(query)}`).catch(() => ({ books: [] }));
+    const books = res.books || [];
+    
+    if (books.length === 0) {
+      suggestionsDiv.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.9rem;">No results found</div>';
+      suggestionsDiv.style.display = 'block';
       return;
     }
-    loadRoute();
-  }, 260);
+
+    // Group suggestions by type
+    const suggestions = books.map(b => ({
+      title: b.title,
+      author: b.author,
+      type: 'book',
+      id: b.id,
+      cover: b.cover_url
+    }));
+
+    // Build suggestions HTML
+    let html = '';
+    suggestions.forEach((s, idx) => {
+      const highlight = query.toLowerCase();
+      const titleMatch = s.title.toLowerCase().includes(highlight);
+      const authorMatch = s.author.toLowerCase().includes(highlight);
+      
+      html += `
+        <div class="search-suggestion-item" data-index="${idx}" data-id="${s.id}" style="padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 0.75rem; align-items: center; transition: background 0.15s;">
+          ${s.cover ? `<img src="${escapeHtml(s.cover)}" alt="" style="width: 32px; height: 48px; object-fit: cover; border-radius: 4px;">` : `<div style="width: 32px; height: 48px; background: var(--bg-hard); border-radius: 4px; display: flex; align-items: center; justify-content: center;">📚</div>`}
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(s.title)}</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">by ${escapeHtml(s.author)}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    suggestionsDiv.innerHTML = html;
+    suggestionsDiv.style.display = 'block';
+
+    // Add click listeners to suggestions
+    document.querySelectorAll('.search-suggestion-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const bookId = item.dataset.id;
+        window.location.hash = `#/book/${bookId}`;
+        suggestionsDiv.style.display = 'none';
+        headerSearchInput.value = '';
+      });
+      item.addEventListener('mouseover', () => {
+        document.querySelectorAll('.search-suggestion-item').forEach(i => i.style.background = 'transparent');
+        item.style.background = 'rgba(124, 140, 255, 0.1)';
+      });
+      item.addEventListener('mouseout', () => {
+        item.style.background = 'transparent';
+      });
+    });
+  } catch (error) {
+    console.warn('Search suggestions error:', error);
+  }
+
+  state.search = query;
+  state.page = 1;
+});
+
+// Hide search suggestions when clicking outside
+document.addEventListener('click', (e) => {
+  const searchForm = document.getElementById('header-search-form');
+  const suggestionsDiv = document.getElementById('search-suggestions');
+  if (!searchForm?.contains(e.target)) {
+    suggestionsDiv.style.display = 'none';
+  }
 });
 
 document.getElementById('header-search-form')?.addEventListener('submit', (event) => {
