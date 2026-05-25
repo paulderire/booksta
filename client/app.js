@@ -1034,18 +1034,6 @@ function renderSearchView() {
 
   return `
     <section class="page search-page full-width">
-      <div class="search-hero glass">
-        <div>
-          <div class="pill">Search library</div>
-          <h1 class="hero-title">Results for "${escapeHtml(query || 'all books')}"</h1>
-          <p class="hero-copy">Showing ${resultCount} matching book(s). Search runs across titles, authors, genres, descriptions, and ISBNs.</p>
-        </div>
-        <div class="search-summary panel">
-          <div class="hint">Query</div>
-          <strong>${escapeHtml(query || 'Empty search')}</strong>
-          </div>
-      </div>
-
       <section class="section">
         <div class="toolbar">
           <div>
@@ -2389,7 +2377,7 @@ headerSearchInput?.addEventListener('input', async (event) => {
     const books = (res && res.books) || [];
     
     if (books.length === 0) {
-      suggestionsDiv.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.9rem;">No results found</div>';
+      suggestionsDiv.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.9rem; text-align: center;">Press <kbd>Enter</kbd> to search</div>';
       suggestionsDiv.style.display = 'block';
       return;
     }
