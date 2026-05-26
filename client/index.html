@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Syne:wght@700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=8" />
-    <link rel="stylesheet" href="ui-overrides.css?v=1" />
+    <link rel="stylesheet" href="style.css?v=9" />
+    <link rel="stylesheet" href="ui-overrides.css?v=2" />
   </head>
   <body>
     <div class="bg-orb bg-orb-a"></div>
@@ -26,13 +26,18 @@
 
       <div class="topbar-center">
         <form class="header-search" id="header-search-form" role="search">
-          <input id="header-search" type="search" placeholder="Search books, authors, genres" aria-label="Search books" />
-          <button type="submit" aria-label="Search books">Search</button>
+          <div style="position: relative; width: 100%;">
+            <input id="header-search" type="search" placeholder="Search books, authors, genres" aria-label="Search books" />
+            <button type="button" id="search-close-btn" aria-label="Close search" style="display: none;">✕</button>
+            <div id="search-suggestions" class="search-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-soft); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 8px 16px rgba(0,0,0,0.15);">
+            </div>
+          </div>
+          <button type="submit" aria-label="Search books" class="search-submit-btn">Search</button>
         </form>
       </div>
 
       <div class="topbar-right topbar-actions">
-        <nav class="topnav">
+        <nav class="topnav" aria-label="Primary navigation">
           <a href="#/">Home</a>
           <a href="#/wishlist">Wishlist</a>
           <a href="#/orders">Orders</a>
@@ -40,6 +45,9 @@
         </nav>
         <!-- Mobile-only search icon -->
         <button class="mobile-search-toggle" aria-label="Open search" data-action="open-mobile-search">🔍</button>
+        <button class="icon-button notification-button" id="notification-button" type="button" aria-label="Open notifications" data-action="open-notifications">
+          🔔 <span class="badge" id="notification-count">0</span>
+        </button>
         <button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
         <button class="icon-button" id="cart-button" type="button" aria-label="Open cart">
           Cart <span class="badge" id="cart-count">0</span>
@@ -70,6 +78,10 @@
           <a href="#/orders" class="mobile-menu-item" data-action="close-mobile-menu">
             <span class="mobile-menu-icon">📦</span>
             <span>Orders</span>
+          </a>
+          <a href="#/notifications" class="mobile-menu-item" data-action="close-mobile-menu">
+            <span class="mobile-menu-icon">🔔</span>
+            <span>Notifications</span>
           </a>
           <a href="#/profile" class="mobile-menu-item" data-action="close-mobile-menu">
             <span class="mobile-menu-icon">👤</span>

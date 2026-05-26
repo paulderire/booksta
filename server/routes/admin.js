@@ -2,6 +2,7 @@ const express = require('express');
 const { auth, requireAdmin } = require('../middleware/auth');
 const { query } = require('../db');
 const { serializeBook, serializeOrder } = require('../utils');
+const { createBackInStockNotifications } = require('../personalization');
 
 const router = express.Router();
 
@@ -89,7 +90,7 @@ router.get('/orders.csv', async (_req, res, next) => {
 // Admin stats
 router.get('/stats', async (_req, res, next) => {
   try {
-    const [{ rows: urows }, { rows: orows }, { rows: brows }] = await Promise.all([
+    const [{ rows: urows }, { rows: orows }, { rows: brows }, { rows: totalBooksRows }, { rows: uniqueAuthorsRows }] = await Promise.all([
       query('SELECT COUNT(*)::int AS total_users FROM users', []),
       query('SELECT COUNT(*)::int AS total_orders, COALESCE(SUM(total),0)::numeric AS total_revenue FROM orders', []),
       query(`SELECT b.id, b.title, COALESCE(SUM(oi.quantity),0)::int AS qty_sold
@@ -97,13 +98,17 @@ router.get('/stats', async (_req, res, next) => {
              LEFT JOIN order_items oi ON oi.book_id = b.id
              GROUP BY b.id, b.title
              ORDER BY qty_sold DESC
-             LIMIT 5`, [])
+             LIMIT 5`, []),
+      query('SELECT COUNT(*)::int AS total_books FROM books', []),
+      query('SELECT COUNT(DISTINCT LOWER(TRIM(author)))::int AS unique_authors FROM books WHERE author IS NOT NULL AND author != \'\'', [])
     ]);
 
     res.json({
       totalUsers: urows[0].total_users,
       totalOrders: orows[0].total_orders,
       totalRevenue: parseFloat(orows[0].total_revenue),
+      totalBooks: totalBooksRows[0].total_books,
+      uniqueAuthors: uniqueAuthorsRows[0].unique_authors,
       topBooks: brows.map(r => ({ id: r.id, title: r.title, qtySold: r.qty_sold }))
     });
   } catch (error) {
@@ -208,8 +213,36 @@ router.patch('/orders/:id', async (req, res, next) => {
 // List users (admin)
 router.get('/users', async (_req, res, next) => {
   try {
-    const { rows } = await query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC', []);
-    res.json({ users: rows });
+    const { rows } = await query(`
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.created_at,
+        COALESCE(COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'completed'), 0)::int AS completed_orders,
+        COALESCE(COUNT(DISTINCT o.id), 0)::int AS total_orders,
+        COALESCE(SUM(o.total) FILTER (WHERE o.status = 'completed'), 0)::numeric AS total_spent,
+        COALESCE(AVG(o.total) FILTER (WHERE o.status = 'completed'), 0)::numeric AS avg_order_value,
+        MAX(o.created_at) AS last_purchase_at
+      FROM users u
+      LEFT JOIN orders o ON o.user_id = u.id
+      GROUP BY u.id
+      ORDER BY total_spent DESC, completed_orders DESC, u.created_at DESC
+    `, []);
+
+    const ranked = rows.map((row, index) => ({
+      ...row,
+      completed_orders: Number(row.completed_orders || 0),
+      total_orders: Number(row.total_orders || 0),
+      total_spent: Number(row.total_spent || 0),
+      avg_order_value: Number(row.avg_order_value || 0),
+      buyer_rank: index + 1,
+      buyer_score: Math.min(100, Math.round((Number(row.total_spent || 0) / 1000) + (Number(row.completed_orders || 0) * 8))),
+      customer_tier: Number(row.total_spent || 0) >= 100000 ? 'vip' : Number(row.total_spent || 0) >= 50000 ? 'gold' : Number(row.total_spent || 0) >= 20000 ? 'silver' : 'standard'
+    }));
+
+    res.json({ users: ranked });
   } catch (error) {
     next(error);
   }
@@ -310,8 +343,12 @@ router.patch('/books/:id/stock', async (req, res, next) => {
   try {
     const { stock } = req.body;
     if (stock === undefined) return res.status(400).json({ error: 'Stock is required.' });
+    const previous = await query('SELECT id, title, author, genre, genres, stock, cover_url, cover_color, emoji FROM books WHERE id = $1', [req.params.id]);
     const { rows } = await query('UPDATE books SET stock = $1 WHERE id = $2 RETURNING id, title, stock', [stock, req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Book not found.' });
+    if (previous.rows[0]) {
+      await createBackInStockNotifications(previous.rows[0], Number(previous.rows[0].stock || 0), Number(stock || 0));
+    }
     res.json({ book: rows[0] });
   } catch (error) {
     next(error);

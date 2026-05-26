@@ -18,8 +18,42 @@ const reviewsRoutes = require('./routes/reviews');
 const promotionsRoutes = require('./routes/promotions');
 const adminRoutes = require('./routes/admin');
 const settingsRoutes = require('./routes/settings');
+const personalizationRoutes = require('./routes/personalization');
 const { pool } = require('./db');
 const { ensureSchema, seed } = require('./seed');
+
+// Improve diagnostics: handle pool errors and log resource usage periodically
+if (pool && typeof pool.on === 'function') {
+  pool.on('error', (err) => {
+    console.error('Postgres pool error event:', err && err.stack ? err.stack : err);
+  });
+}
+
+// Process-level error handlers to avoid silent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err && err.stack ? err.stack : err);
+  // In production you might want to exit and let a process manager restart the app
+});
+
+function logResourceUsage() {
+  try {
+    const mem = process.memoryUsage();
+    const usage = {
+      rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+      external: Math.round(mem.external / 1024 / 1024) + 'MB'
+    };
+    const poolStats = pool ? { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount } : {};
+    console.log('resource-usage', { usage, pool: poolStats });
+  } catch (e) {
+    console.warn('resource logging failed', e);
+  }
+}
+setInterval(logResourceUsage, 60 * 1000); // log every minute
 
 const app = express();
 const clientDir = path.resolve(process.cwd(), 'client');
@@ -84,6 +118,11 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api', personalizationRoutes);
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, status: 'healthy' });
+});
 
 app.get(/^\/(?!api).*/, (_req, res) => {
   res.sendFile(path.join(clientDir, 'index.html'));
@@ -96,46 +135,10 @@ app.use((error, _req, res, _next) => {
 });
 
 const port = process.env.PORT || 5000;
-let dbReady = false;
-
-async function waitForDatabase(maxAttempts = 120, delayMs = 1000) {
-  // Check if DATABASE_URL is set (required for production)
-  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    console.error('✗ DATABASE_URL environment variable not set. Railway PostgreSQL plugin not detected.');
-    console.error('→ Add PostgreSQL plugin to your Railway project: Settings → Add Service → PostgreSQL');
-    return false;
-  }
-
-  let lastError;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const client = await pool.connect();
-      await client.query('SELECT 1');
-      client.release();
-      dbReady = true;
-      console.log(`✓ Database connected successfully on attempt ${attempt}`);
-      return true;
-    } catch (error) {
-      lastError = error;
-      if (attempt === 1) {
-        console.log(`Attempting to connect to database (${maxAttempts} retries)...`);
-      }
-      if (attempt % 20 === 0) {
-        console.log(`[${attempt}/${maxAttempts}] Still waiting for database...`);
-      }
-      if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-  console.error(`✗ Failed to connect to database after ${maxAttempts} attempts`);
-  return false;
-}
 
 async function initializeDatabase() {
-  if (!dbReady) return;
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
     await ensureSchema(client);
     const { rows } = await client.query('SELECT COUNT(*)::int AS total FROM books');
     const bookCount = Number(rows[0]?.total || 0);
@@ -143,72 +146,22 @@ async function initializeDatabase() {
       console.log('booksta: empty database detected, seeding sample data');
       await seed({ closePool: false });
     }
+  } finally {
     client.release();
-    console.log('✓ Database initialized successfully');
-  } catch (error) {
-    console.error('Error initializing database:', error.message);
   }
 }
 
-// Health check endpoint that indicates database status
-app.get('/api/health', (_req, res) => {
-  res.json({ 
-    ok: true, 
-    status: dbReady ? 'healthy' : 'initializing',
-    database: dbReady ? 'connected' : 'connecting'
-  });
-});
-
 if (require.main === module) {
-  // Start server immediately without waiting for DB
-  const server = app.listen(port, () => {
-    console.log(`✓ booksta server listening on port ${port}`);
-    if (process.env.NODE_ENV === 'production') {
-      console.log('→ Check http://localhost:5000/api/health for status');
-    }
-  });
-
-  // Connect to database in background (never blocks startup)
-  (async () => {
-    try {
-      const connected = await waitForDatabase();
-      if (connected) {
-        await initializeDatabase();
-        console.log('✓ Database ready and initialized');
-      } else {
-        console.error('');
-        console.error('⚠️  DATABASE NOT CONNECTED');
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.error('The server is running but cannot access the database.');
-        console.error('');
-        if (process.env.NODE_ENV === 'production') {
-          console.error('ACTION REQUIRED:');
-          console.error('1. Go to your Railway project dashboard');
-          console.error('2. Click "+ Add Service"');
-          console.error('3. Select "Database" → "PostgreSQL"');
-          console.error('4. Wait 1-2 minutes for initialization');
-          console.error('5. Railway will auto-inject DATABASE_URL');
-          console.error('6. Redeploy your app');
-        } else {
-          console.error('ACTION REQUIRED:');
-          console.error('Make sure PostgreSQL is running locally on port 5432');
-        }
-        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.error('');
-      }
-    } catch (error) {
-      console.error('Unexpected error during database initialization:', error.message);
-    }
-  })();
-
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM received, closing server...');
-    server.close(() => {
-      pool.end();
-      process.exit(0);
+  initializeDatabase()
+    .then(() => {
+      app.listen(port, () => {
+        console.log(`booksta server listening on port ${port}`);
+      });
+    })
+    .catch((error) => {
+      console.error('booksta database initialization failed', error);
+      process.exit(1);
     });
-  });
 }
 
 module.exports = app;

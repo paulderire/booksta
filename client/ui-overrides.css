@@ -1,20 +1,52 @@
 body.is-mobile-chatbot .chatbot-float {
   width: max-content;
   min-width: max-content;
-  right: 0.65rem;
+  right: 1rem;
   left: auto;
-  bottom: 0.65rem;
+  bottom: 1rem;
   display: inline-flex;
 }
 
 body.is-mobile-chatbot .chatbot-toggle {
-  width: 3.25rem;
-  height: 3.25rem;
-  min-width: 3.25rem;
-  min-height: 3.25rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  min-width: 3.5rem;
+  min-height: 3.5rem;
   padding: 0;
   border-radius: 999px;
   justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  position: relative;
+  animation: floatingButton 3s ease-in-out infinite;
+}
+
+body.is-mobile-chatbot .chatbot-toggle::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2), transparent);
+  border-radius: 999px;
+  animation: pulseRing 2s ease-out infinite;
+  pointer-events: none;
+}
+
+body.is-mobile-chatbot .chatbot-toggle:active {
+  transform: scale(0.95);
+}
+
+@keyframes floatingButton {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(99, 102, 241, 0);
+  }
 }
 
 body.is-mobile-chatbot .chatbot-toggle-label {
@@ -23,18 +55,23 @@ body.is-mobile-chatbot .chatbot-toggle-label {
 
 body.is-mobile-chatbot .chatbot-toggle-icon {
   display: inline;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
   line-height: 1;
+  position: relative;
+  z-index: 1;
 }
 
 body.is-mobile-chatbot .chatbot-panel {
-  max-height: 68vh;
-  width: min(22rem, calc(100vw - 1.3rem));
+  max-height: 70vh;
+  width: min(20rem, calc(100vw - 2rem));
+  position: fixed;
+  bottom: 5rem;
+  right: 1rem;
 }
 
 body.is-mobile-chatbot .chatbot-chip {
-  font-size: 0.86rem;
-  padding: 0.62rem 0.78rem;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.7rem;
 }
 
 #floating-ui {
@@ -49,34 +86,128 @@ body.is-mobile-chatbot .chatbot-chip {
 }
 /* Booksta UI overrides: larger helper, calmer page-load, stronger admin cards */
 
-/* Larger chatbot helper */
+/* Larger chatbot helper - modern floating widget */
 .chatbot-float {
   position: fixed !important;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  right: 1.25rem;
-  bottom: 1.25rem;
+  right: 1.5rem;
+  bottom: 1.5rem;
   width: max-content;
   min-width: max-content;
-  max-width: min(30rem, calc(100vw - 1.5rem));
+  max-width: min(32rem, calc(100vw - 2rem));
   z-index: 120;
   transform: none;
   will-change: auto;
+  font-family: var(--font-body);
 }
 
 .chatbot-toggle {
-  min-width: 7rem;
-  min-height: 3.4rem;
-  padding: 0.9rem 1.1rem;
-  font-size: 1rem;
+  min-width: 5.5rem;
+  min-height: 3rem;
+  padding: 0.8rem 1.2rem;
+  font-size: 0.95rem;
   border-radius: 999px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.chatbot-toggle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.chatbot-toggle:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+}
+
+.chatbot-toggle:hover::before {
+  opacity: 1;
+}
+
+.chatbot-toggle:active {
+  transform: translateY(-2px);
 }
 
 .chatbot-panel {
   width: 100%;
-  max-height: min(36rem, 70vh);
+  max-height: min(36rem, 75vh);
   overflow: hidden;
+  display: none;
+  margin-top: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chatbot-float.is-open .chatbot-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.chatbot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 20px 20px 0 0;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.chatbot-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  opacity: 0.9;
+}
+
+.chatbot-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 1;
+  transform: scale(1.05);
 }
 
 .chatbot-body {
@@ -84,22 +215,106 @@ body.is-mobile-chatbot .chatbot-chip {
   max-height: 24rem;
   overflow-y: auto;
   scroll-behavior: smooth;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--bg-elevated);
+  flex-grow: 1;
+}
+
+.chatbot-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatbot-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatbot-body::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+.chatbot-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 .chatbot-msg {
-  font-size: 0.98rem;
-  line-height: 1.55;
-  padding: 0.85rem 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  max-width: 85%;
+  word-wrap: break-word;
+  animation: fadeInUp 0.25s ease 0.05s both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chatbot-msg.is-user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+  border-radius: 20px 4px 20px 20px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.chatbot-msg.is-bot {
+  align-self: flex-start;
+  background: var(--bg-soft-2);
+  color: var(--text);
+  border-radius: 4px 20px 20px 20px;
+}
+
+.chatbot-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.2rem;
+  border-top: 1px solid var(--border);
+  background: rgba(99, 102, 241, 0.02);
+  flex-shrink: 0;
+  justify-content: flex-start;
 }
 
 .chatbot-chip {
-  padding: 0.7rem 0.85rem;
+  padding: 0.6rem 1rem;
   border-radius: 999px;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--bg-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.chatbot-chip:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .chatbot-toggle-icon {
   display: none;
+}
+
+.chatbot-toggle-label {
+  display: inline;
+  font-size: 0.95rem;
 }
 
 /* Calm down initial page-load animations; keep scroll-triggered animations intact */
@@ -150,6 +365,95 @@ body.is-mobile-chatbot .chatbot-chip {
   border-color: rgba(99, 102, 241, 0.45);
   box-shadow: 0 18px 42px rgba(99, 102, 241, 0.16);
 }
+
+/* Keep header single-row on larger screens, but allow stacking on small devices.
+   This restores the original mobile/tablet responsiveness while keeping
+   a compact single-row layout for desktops and wider tablets. */
+@media (min-width: 1200px) {
+  .topbar {
+    flex-wrap: nowrap !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  .topbar-left, .topbar-center, .topbar-right {
+    min-width: 0 !important;
+  }
+  .topbar-center {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    gap: 0.75rem !important;
+    order: 1 !important;
+    margin-left: 3.5rem !important; /* increased spacing from logo */
+  }
+  .topbar-left { order: 0 !important; }
+  .topbar-left { margin-right: 1.5rem !important; }
+    .topbar-right { order: 2 !important; margin-left: 0.5rem !important; }
+
+  /* Allow the search to shrink on larger viewports */
+    .header-search { flex: 1 1 40% !important; min-width: 120px !important; max-width: 60% !important; }
+  .header-search input { min-width: 0 !important; }
+
+  /* Keep nav inline and hide hamburger */
+  .nav-toggle { display: none !important; }
+  .topnav { display: flex !important; white-space: nowrap !important; gap: 0.2rem !important; }
+}
+@media (min-width: 1200px) {
+  /* Desktop: use a 3-column grid so the search centers between brand and actions */
+  .topbar {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    align-items: center !important;
+    gap: 1rem !important;
+  }
+
+  .topbar-left { justify-self: start !important; margin-left: 1rem !important; }
+
+  .topbar-center {
+    justify-self: center !important;
+    margin-left: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  /* Narrow the search a bit and cap its max width so it appears centered like the screenshot */
+  .header-search { flex: 0 1 60% !important; min-width: 240px !important; max-width: 640px !important; }
+  .header-search input { min-width: 0 !important; }
+
+  .topbar-right { justify-self: end !important; margin-right: 1rem !important; display: flex !important; align-items: center !important; gap: 0.6rem !important; }
+
+  /* Keep nav inline and hide hamburger */
+  .nav-toggle { display: none !important; }
+  .topnav { display: flex !important; white-space: nowrap !important; gap: 0.5rem !important; }
+}
+
+@media (min-width: 700px) and (max-width: 1199px) {
+  /* Tablet / Nest Hub: restore a compact row layout and compress the brand/search/actions. */
+  .topbar { flex-direction: row !important; align-items: center !important; flex-wrap: nowrap !important; gap: 0.75rem !important; }
+  .topbar-left { flex: 0 0 auto !important; }
+  .topbar-center { flex: 1 1 auto !important; display: flex !important; align-items: center !important; gap: 0.75rem !important; min-width: 0 !important; margin-left: 2rem !important; }
+  .topbar-right { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; min-width: 0 !important; margin-left: auto !important; }
+  .header-search { flex: 1 1 auto !important; min-width: 0 !important; max-width: 100% !important; }
+  .header-search input { min-width: 0 !important; }
+  .topnav { display: none !important; }
+  .nav-toggle { display: inline-flex !important; }
+  .site-logo { height: 42px !important; width: 42px !important; }
+  .site-name { font-size: 0.82rem !important; font-weight: 700 !important; max-width: 8rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  .site-name small { display: none !important; }
+  .topbar-right .icon-button,
+  .topbar-right .nav-toggle,
+  .topbar-right .mobile-search-toggle { padding-inline: 0.45rem !important; }
+}
+
+@media (max-width: 429px) {
+  /* Restore stacked header behavior for small phones only */
+  .nav-toggle { display: inline-flex !important; }
+  .topbar { flex-direction: column !important; align-items: stretch !important; flex-wrap: wrap !important; }
+  .topbar-center { display: block !important; width: 100% !important; }
+  .header-search { width: 100% !important; max-width: none !important; }
+  .site-name small { display: inline !important; }
+}
+
 
 .admin-layout .stat-card {
   padding: 1.15rem 1.2rem;
@@ -226,5 +530,101 @@ body.is-mobile-chatbot .chatbot-chip {
   .chatbot-chip {
     font-size: 0.86rem;
     padding: 0.62rem 0.78rem;
+  }
+}
+
+/* Notifications and recommendations */
+.notification-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.notification-button .badge {
+  position: static;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  line-height: 1.3rem;
+}
+
+.notification-page .section-header {
+  margin-bottom: 1rem;
+}
+
+.notification-summary {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.profile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.notification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.notification-card {
+  padding: 1rem 1.05rem;
+  border-radius: 18px;
+}
+
+.notification-card.is-unread {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 16px 36px rgba(99, 102, 241, 0.12);
+}
+
+.notification-card.is-read {
+  opacity: 0.88;
+}
+
+.notification-meta,
+.recommendation-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.recommendation-strip {
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  align-items: center;
+}
+
+.recommended-grid {
+  margin-bottom: 1rem;
+}
+
+.notification-page .books-grid,
+.notification-page .recommended-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+@media (max-width: 700px) {
+  .notification-summary,
+  .recommendation-strip,
+  .notification-meta {
+    flex-direction: column;
+  }
+
+  .profile-chip-row {
+    justify-content: flex-start;
   }
 }

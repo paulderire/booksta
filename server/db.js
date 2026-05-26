@@ -11,18 +11,17 @@ const ssl = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('local
     : false;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/booksta',
+  connectionString: process.env.DATABASE_URL,
   ssl,
   // Production connection pooling optimizations
   max: isProduction ? 20 : 10,
   idleTimeoutMillis: isProduction ? 10000 : 30000,
-  connectionTimeoutMillis: isProduction ? 5000 : 5000,
-  statement_timeout: isProduction ? 30000 : 30000,
+  connectionTimeoutMillis: isProduction ? 2000 : 5000,
   maxUses: isProduction ? 7500 : undefined,
   // Enable client connection recovery
   errorHandler: (err, _client) => {
     if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
-      console.error('Database connection error:', err.message);
+      console.error('Database connection error:', err);
     }
   }
 });

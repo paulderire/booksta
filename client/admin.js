@@ -215,11 +215,13 @@
     try {
       const res = await api('/admin/books-summary').catch(e => { console.warn('Books summary error:', e); return { books: [] }; });
       allBooks = res.books || [];
-      renderBooksTable(allBooks);
+      populateFilterOptions();
+      applyFilters();
     } catch (error) {
       console.error('Books load error:', error);
       toast('Books load error: ' + error.message, 'error');
       allBooks = [];
+      populateFilterOptions();
       renderBooksTable([]);
     }
   }
@@ -327,8 +329,10 @@
   async function openBookForm(bookId){
     let book = { title:'', author:'', price:1000, genre:'', genres: [], description:'', stock:10, pages: null, year: null, isbn: '', featured: false };
     if(bookId){ const res = await api('/books/'+bookId); book = res.book; }
-    const modal = $id('modal'); modal.style.display='flex';
-    modal.innerHTML = `<div class='modal-panel solid'><h3>${bookId?'Edit':'New'} Book</h3>
+    const modal = $id('modal'); modal.style.display='flex'; modal.classList.add('side');
+    modal.innerHTML = `<div class='modal-panel solid'>
+      <button id='close-modal-btn' class='modal-close' aria-label='Close'>&times;</button>
+      <h3 style="margin-top:0">${bookId?'Edit':'New'} Book</h3>
       <div class='form-group'><label>Title *</label><input id='f_title' placeholder='Book title' value='${escapeHtml(book.title)}'></div>
       <div class='form-group'><label>Author *</label><input id='f_author' placeholder='Author name' value='${escapeHtml(book.author)}'></div>
       <div class='form-group'><label>Thumbnail</label>
@@ -346,12 +350,18 @@
       <div class='form-group'><label>Year</label><input id='f_year' type='number' placeholder='Publication year' value='${book.year||''}'></div>
       <div class='form-group'><label>ISBN</label><input id='f_isbn' placeholder='ISBN' value='${escapeHtml(book.isbn||'')}'></div>
       <div class='form-actions'>
-        <button id='close-modal' class='btn-secondary'>Cancel</button>
+        <button id='cancel-book' class='btn-secondary'>Cancel</button>
         <button id='save-book' class='btn-primary'>Save Book</button>
       </div>
     </div>`;
 
-    $id('close-modal').addEventListener('click', ()=>{ modal.style.display='none'; modal.innerHTML=''; });
+    // Close handlers for both the top close button and the cancel action
+    const closeModal = () => { modal.style.display='none'; modal.innerHTML=''; modal.classList.remove('side'); document.removeEventListener('keydown', escHandler); };
+    const topClose = $id('close-modal-btn'); if (topClose) topClose.addEventListener('click', closeModal);
+    const cancelBtn = $id('cancel-book'); if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    // Escape key closes modal
+    const escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
+    document.addEventListener('keydown', escHandler, { once: false });
     // handle thumbnail preview
     const thumbInput = $id('f_thumb');
     if (thumbInput) {
@@ -400,65 +410,183 @@
       } catch(e) { console.warn('thumbnail read failed', e); }
       if(bookId) await api('/books/'+bookId, { method:'PATCH', body: JSON.stringify(payload)});
       else await api('/books', { method:'POST', body: JSON.stringify(payload)});
-      modal.style.display='none'; modal.innerHTML='';
+      modal.style.display='none'; modal.innerHTML=''; modal.classList.remove('side');
+      document.removeEventListener('keydown', escHandler);
       toast(bookId ? 'Book updated' : 'Book created');
       await loadBooks();
     });
   }
 
   $id('new-book').addEventListener('click', () => openBookForm(null));
-  $id('book-search').addEventListener('keyup', (e) => {
-    const search = e.target.value.toLowerCase();
-    const filtered = allBooks.filter((book) => {
-      const haystack = [book.title, book.author, (book.genres || []).join(' '), book.genre, String(book.stock), String(book.sold_count), String(book.pending_count)]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(search);
+  // Advanced filtering utilities
+  function populateFilterOptions() {
+    const genreEl = $id('filter-genre');
+    if (!genreEl) return;
+    const genres = new Set();
+    allBooks.forEach(b => {
+      (b.genres || []).forEach(g => { if (g) genres.add(g); });
+      if (b.genre) genres.add(b.genre);
     });
+    // keep current selection if present
+    const current = genreEl.value;
+    genreEl.innerHTML = '<option value="">All genres</option>' + Array.from(genres).sort().map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+    if (current) genreEl.value = current;
+  }
+
+  function applyFilters() {
+    const q = ($id('book-search').value || '').toLowerCase().trim();
+    const genre = ($id('filter-genre').value || '').trim();
+    const minP = Number($id('filter-min-price').value || 0) || 0;
+    const maxP = Number($id('filter-max-price').value || 0) || 0;
+    const stock = $id('filter-stock').value || '';
+    const featuredOnly = $id('filter-featured').checked;
+    const sort = $id('filter-sort').value || 'created_desc';
+
+    let filtered = allBooks.filter(book => {
+      // text search
+      const haystack = [book.title, book.author, (book.genres || []).join(' '), book.genre]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (q && !haystack.includes(q)) return false;
+      // genre
+      if (genre) {
+        const bookGenres = (book.genres || []).map(g => (g||'').toLowerCase());
+        if (book.genre && book.genre.toLowerCase() === genre.toLowerCase()) return true;
+        if (!bookGenres.some(g => g === genre.toLowerCase())) return false;
+      }
+      // price
+      const price = Number(book.price || 0);
+      if (minP && price < minP) return false;
+      if (maxP && maxP > 0 && price > maxP) return false;
+      // stock
+      if (stock) {
+        if (stock === 'low' && Number(book.stock) > 5) return false;
+        if (stock === 'watch' && (Number(book.stock) < 6 || Number(book.stock) > 15)) return false;
+        if (stock === 'healthy' && Number(book.stock) < 16) return false;
+      }
+      if (featuredOnly && !book.featured) return false;
+      return true;
+    });
+
+    // sorting
+    switch (sort) {
+      case 'price_asc': filtered.sort((a,b) => (Number(a.price)||0) - (Number(b.price)||0)); break;
+      case 'price_desc': filtered.sort((a,b) => (Number(b.price)||0) - (Number(a.price)||0)); break;
+      case 'sold_desc': filtered.sort((a,b) => (Number(b.sold_count)||0) - (Number(a.sold_count)||0)); break;
+      case 'title_asc': filtered.sort((a,b) => String(a.title||'').localeCompare(String(b.title||''))); break;
+      case 'created_desc':
+      default: filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)); break;
+    }
+
     renderBooksTable(filtered);
+  }
+
+  // Wire up filter controls
+  const filterIds = ['book-search','filter-genre','filter-min-price','filter-max-price','filter-stock','filter-featured','filter-sort'];
+  filterIds.forEach(id => {
+    const el = $id(id);
+    if (!el) return;
+    el.addEventListener(['book-search'].includes(id) ? 'keyup' : 'change', applyFilters);
+    // allow enter on price inputs to trigger
+    if (id === 'filter-min-price' || id === 'filter-max-price') el.addEventListener('keyup', (e) => { if (e.key === 'Enter') applyFilters(); });
+  });
+  const resetBtn = $id('filter-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      $id('book-search').value = '';
+      $id('filter-genre').value = '';
+      $id('filter-min-price').value = '';
+      $id('filter-max-price').value = '';
+      $id('filter-stock').value = '';
+      $id('filter-featured').checked = false;
+      $id('filter-sort').value = 'created_desc';
+      renderBooksTable(allBooks);
+      applyFilters();
+    });
+  }
+
+  // shared filter event delegation so the controls still work after rerenders
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('#filter-reset');
+    if (!button) return;
+    event.preventDefault();
+    $id('book-search').value = '';
+    $id('filter-genre').value = '';
+    $id('filter-min-price').value = '';
+    $id('filter-max-price').value = '';
+    $id('filter-stock').value = '';
+    $id('filter-featured').checked = false;
+    $id('filter-sort').value = 'created_desc';
+    renderBooksTable(allBooks);
+    applyFilters();
   });
 
   // Featured Books Manager
   async function loadFeatured(){
     try {
-      const res = await api('/books?limit=200').catch(e => { console.warn('Featured books error:', e); return { books: [] }; });
-      const grid = $id('featured-books-grid'); grid.innerHTML = '';
-      const featuredBooks = (res.books || []).filter(b => b.featured);
-      const totals = featuredBooks.reduce((acc, book) => {
-        acc.count += 1;
-        acc.stock += Number(book.stock || 0);
-        acc.price += Number(book.price || 0);
-        acc.heroReady += book.cover_url ? 1 : 0;
-        return acc;
-      }, { count: 0, stock: 0, price: 0, heroReady: 0 });
-      const averagePrice = totals.count ? totals.price / totals.count : 0;
-
-      // Render only the featured cards; summary stat-cards removed per request.
-      grid.innerHTML = '';
-
+      const [booksRes, statsRes] = await Promise.all([
+        api('/books?limit=200').catch(e => { console.warn('Featured books error:', e); return { books: [] }; }),
+        api('/admin/stats').catch(e => { console.warn('Stats error:', e); return { totalBooks: 0, uniqueAuthors: 0 }; })
+      ]);
+      
+      const grid = $id('featured-books-grid');
+      const featuredBooks = (booksRes.books || []).filter(b => b.featured);
+      
+      // Build complete grid HTML with stats header and featured books
+      let gridHtml = '';
+      
+      // Add stats header (spans full width)
+      gridHtml += `
+        <div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, rgba(124,140,255,0.15), var(--bg-soft)); border-left: 4px solid var(--accent);">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Total Books</div>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--accent);">${formatNumber(statsRes.totalBooks || 0)}</div>
+                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">in library</div>
+              </div>
+              <span style="font-size: 2.5rem; opacity: 0.3;">📚</span>
+            </div>
+          </div>
+          <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, rgba(34,211,238,0.15), var(--bg-soft)); border-left: 4px solid var(--accent-2);">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                <div class="small" style="opacity: 0.7; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Famous Authors</div>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--accent-2);">${formatNumber(statsRes.uniqueAuthors || 0)}</div>
+                <div style="opacity: 0.6; font-size: 0.9rem; margin-top: 0.25rem;">curated collection</div>
+              </div>
+              <span style="font-size: 2.5rem; opacity: 0.3;">✍️</span>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Add featured books
       featuredBooks.forEach(b=>{
-        const el = document.createElement('div'); el.className='card featured-card';
         const cover = b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="${escapeHtml(b.title)}" class="featured-thumb" />` : `<div class="featured-thumb placeholder">📚</div>`;
         const genres = (b.genres && b.genres.length) ? b.genres.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join(' ') : `<span class="genre-badge muted">${escapeHtml(b.genre || 'Uncategorized')}</span>`;
-        el.innerHTML = `
-          <div class="featured-left">${cover}</div>
-          <div class="featured-meta">
-            <h3 class="featured-title">${escapeHtml(b.title)}</h3>
-            <div class="small featured-author">${escapeHtml(b.author)}</div>
-            <div class="featured-genres">${genres}</div>
-          </div>
-          <div class="featured-right">
-            <div class="featured-price">${formatRWF(b.price)}</div>
-            <div class="featured-stock"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></div>
-            <div class="featured-actions"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></div>
+        gridHtml += `
+          <div class="card featured-card">
+            <div class="featured-left">${cover}</div>
+            <div class="featured-meta">
+              <h3 class="featured-title">${escapeHtml(b.title)}</h3>
+              <div class="small featured-author">${escapeHtml(b.author)}</div>
+              <div class="featured-genres">${genres}</div>
+            </div>
+            <div class="featured-right">
+              <div class="featured-price">${formatRWF(b.price)}</div>
+              <div class="featured-stock"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></div>
+              <div class="featured-actions"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></div>
+            </div>
           </div>
         `;
-        grid.appendChild(el);
       });
+      
       if (!featuredBooks.length) {
-        grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:1.25rem;color:var(--text-muted)">No featured books. Add by clicking Edit on any book.</div>`;
+        gridHtml += `<div class="card" style="grid-column:1/-1;padding:1.25rem;color:var(--text-muted)">No featured books. Add by clicking Edit on any book.</div>`;
       }
+      
+      grid.innerHTML = gridHtml;
     } catch (error) {
       console.error('Featured load error:', error);
       toast('Featured load error: ' + error.message, 'error');
@@ -533,23 +661,95 @@
     try {
       const res = await api('/admin/users').catch(e => { console.warn('Users error:', e); return { users: [] }; });
       allUsers = res.users || [];
-      renderUsersTable(allUsers);
+      populateUserFilterHints();
+      applyUserFilters();
     } catch (error) {
       console.error('Users load error:', error);
       toast('Users load error: ' + error.message, 'error');
       allUsers = [];
+      populateUserFilterHints();
       renderUsersTable([]);
     }
   }
 
+  function populateUserFilterHints() {
+    const domainEl = $id('user-domain-filter');
+    if (!domainEl) return;
+    const current = domainEl.value;
+    const domains = Array.from(new Set(
+      allUsers
+        .map((user) => String(user.email || '').split('@')[1] || '')
+        .filter(Boolean)
+    )).sort();
+    domainEl.setAttribute('list', 'user-domain-list');
+    let datalist = $id('user-domain-list');
+    if (!datalist) {
+      datalist = document.createElement('datalist');
+      datalist.id = 'user-domain-list';
+      document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = domains.map((domain) => `<option value="${escapeHtml(domain)}"></option>`).join('');
+    if (current) domainEl.value = current;
+  }
+
+  function applyUserFilters() {
+    const search = ($id('user-search').value || '').toLowerCase().trim();
+    const role = $id('user-role-filter').value || '';
+    const tier = $id('user-tier-filter').value || '';
+    const minOrders = Number($id('user-min-orders').value || 0) || 0;
+    const minSpend = Number($id('user-min-spend').value || 0) || 0;
+    const dateWindow = Number($id('user-date-filter').value || 0) || 0;
+    const sort = $id('user-sort').value || 'score_desc';
+    const domain = ($id('user-domain-filter').value || '').toLowerCase().trim();
+
+    let filtered = allUsers.filter((user) => {
+      const haystack = [user.name, user.email, user.role].filter(Boolean).join(' ').toLowerCase();
+      if (search && !haystack.includes(search)) return false;
+      if (role && user.role !== role) return false;
+      if (tier && String(user.customer_tier || '').toLowerCase() !== tier) return false;
+      if (minOrders && Number(user.completed_orders || 0) < minOrders) return false;
+      if (minSpend && Number(user.total_spent || 0) < minSpend) return false;
+      if (domain) {
+        const userDomain = String(user.email || '').split('@')[1] || '';
+        if (!userDomain.toLowerCase().includes(domain)) return false;
+      }
+      if (dateWindow) {
+        const createdAt = new Date(user.created_at).getTime();
+        const cutoff = Date.now() - (dateWindow * 24 * 60 * 60 * 1000);
+        if (createdAt < cutoff) return false;
+      }
+      return true;
+    });
+
+    switch (sort) {
+      case 'score_desc': filtered.sort((a, b) => Number(b.buyer_score || 0) - Number(a.buyer_score || 0)); break;
+      case 'spend_desc': filtered.sort((a, b) => Number(b.total_spent || 0) - Number(a.total_spent || 0)); break;
+      case 'orders_desc': filtered.sort((a, b) => Number(b.completed_orders || 0) - Number(a.completed_orders || 0)); break;
+      case 'rank_asc': filtered.sort((a, b) => Number(a.buyer_rank || 9999) - Number(b.buyer_rank || 9999)); break;
+      case 'joined_asc': filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break;
+      case 'name_asc': filtered.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))); break;
+      case 'email_asc': filtered.sort((a, b) => String(a.email || '').localeCompare(String(b.email || ''))); break;
+      case 'joined_desc':
+      default: filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
+    }
+
+    renderUsersTable(filtered);
+  }
+
   function renderUsersTable(users) {
     const list = $id('users-table');
-    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:0.75rem;font-weight:600">Name</th><th style="text-align:left;padding:0.75rem;font-weight:600">Email</th><th style="text-align:left;padding:0.75rem;font-weight:600">Role</th><th style="text-align:left;padding:0.75rem;font-weight:600">Joined</th><th style="text-align:left;padding:0.75rem;font-weight:600">Action</th></tr></thead><tbody>';
+    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:0.75rem;font-weight:600">Rank</th><th style="text-align:left;padding:0.75rem;font-weight:600">Name</th><th style="text-align:left;padding:0.75rem;font-weight:600">Email</th><th style="text-align:left;padding:0.75rem;font-weight:600">Role</th><th style="text-align:left;padding:0.75rem;font-weight:600">Orders</th><th style="text-align:left;padding:0.75rem;font-weight:600">Spent</th><th style="text-align:left;padding:0.75rem;font-weight:600">Tier</th><th style="text-align:left;padding:0.75rem;font-weight:600">Joined</th><th style="text-align:left;padding:0.75rem;font-weight:600">Action</th></tr></thead><tbody>';
     users.forEach(u=>{
+      const tier = String(u.customer_tier || 'standard');
+      const score = Number(u.buyer_score || 0);
       html += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:0.75rem;font-family:JetBrains Mono,monospace;font-weight:700;color:var(--accent)">#${Number(u.buyer_rank || 0) || '—'}</td>
         <td style="padding:0.75rem;font-weight:500">${escapeHtml(u.name)}</td>
         <td style="padding:0.75rem">${escapeHtml(u.email)}</td>
         <td style="padding:0.75rem"><span style="background:${u.role==='admin'?'rgba(99,102,241,0.2);color:#c7d2fe':'rgba(107,114,128,0.2);color:#d1d5db'};padding:0.25rem 0.5rem;border-radius:4px;font-size:0.9rem;font-weight:600">${u.role}</span></td>
+        <td style="padding:0.75rem;font-weight:600">${formatNumber(u.completed_orders || 0)}</td>
+        <td style="padding:0.75rem;font-weight:600">${formatRWF(u.total_spent || 0)}</td>
+        <td style="padding:0.75rem"><span class="status-pill status-${tier}">${tier} • ${score}/100</span></td>
         <td style="padding:0.75rem;color:var(--text-muted);font-size:0.9rem">${new Date(u.created_at).toLocaleDateString()}</td>
         <td style="padding:0.75rem;display:flex;gap:0.5rem;align-items:center"><select data-admin-action="user-role" data-id="${u.id}" style="padding:0.4rem;border-radius:4px;border:1px solid var(--border);background:var(--glass);color:inherit">
           <option${u.role==='customer'?' selected':''}>customer</option>
@@ -578,10 +778,32 @@
     }
   };
 
-  $id('user-search').addEventListener('keyup', (e) => {
-    const search = e.target.value.toLowerCase();
-    renderUsersTable(allUsers.filter(u => u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search)));
+  ['user-search', 'user-role-filter', 'user-date-filter', 'user-sort', 'user-domain-filter'].forEach((id) => {
+    const el = $id(id);
+    if (!el) return;
+    el.addEventListener(id === 'user-search' || id === 'user-domain-filter' ? 'keyup' : 'change', applyUserFilters);
   });
+  ['user-tier-filter', 'user-min-orders', 'user-min-spend'].forEach((id) => {
+    const el = $id(id);
+    if (!el) return;
+    el.addEventListener(id.includes('min-') ? 'keyup' : 'change', applyUserFilters);
+  });
+
+  const userResetBtn = $id('user-filter-reset');
+  if (userResetBtn) {
+    userResetBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      $id('user-search').value = '';
+      $id('user-role-filter').value = '';
+      $id('user-tier-filter').value = '';
+      $id('user-min-orders').value = '';
+      $id('user-min-spend').value = '';
+      $id('user-date-filter').value = '';
+      $id('user-sort').value = 'score_desc';
+      $id('user-domain-filter').value = '';
+      applyUserFilters();
+    });
+  }
 
   // Reviews Moderation
   async function loadReviews(){

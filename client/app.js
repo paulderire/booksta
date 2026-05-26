@@ -6,6 +6,7 @@ const API_BASE_URL = localStorage.getItem('API_BASE_URL') || document.querySelec
 const app = document.getElementById('app');
 const authSlot = document.getElementById('auth-slot');
 const cartCount = document.getElementById('cart-count');
+const notificationCount = document.getElementById('notification-count');
 const toasts = document.getElementById('toasts');
 const drawer = document.getElementById('cart-drawer');
 const themeToggle = document.getElementById('theme-toggle');
@@ -87,6 +88,11 @@ const state = {
   cart: [],
   wishlist: [],
   orders: [],
+  notifications: [],
+  recommendations: [],
+  featuredAuthors: [],
+  recommendationProfile: null,
+  unreadNotifications: 0,
   currentBook: null,
   currentReviews: [],
   route: null,
@@ -175,6 +181,21 @@ function getBookGenres(book) {
     return book.genres.filter(Boolean);
   }
   return book?.genre ? [book.genre] : [];
+}
+
+function getTopAuthors(books = [], limit = 6) {
+  const counts = new Map();
+
+  books.forEach((book) => {
+    const author = String(book?.author || '').trim();
+    if (!author) return;
+    counts.set(author, (counts.get(author) || 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, limit);
 }
 
 function cartTotal() {
@@ -301,6 +322,10 @@ function getRoute() {
     return { name: 'profile', params: params };
   }
 
+  if (segments[0] === 'notifications') {
+    return { name: 'notifications', params: params };
+  }
+
   if (segments[0] === 'login') {
     return { name: 'login', params: params };
   }
@@ -408,8 +433,18 @@ function renderChrome() {
     cartCount.textContent = String(cartQuantity);
   }
 
+  if (notificationCount) {
+    notificationCount.textContent = String(state.unreadNotifications || 0);
+    notificationCount.style.display = state.user ? 'inline-flex' : 'none';
+  }
+
   if (mobileCartCount) {
     mobileCartCount.textContent = String(cartQuantity);
+  }
+
+  const notificationButton = document.getElementById('notification-button');
+  if (notificationButton) {
+    notificationButton.style.display = state.user ? 'inline-flex' : 'none';
   }
 
   if (authSlot) {
@@ -592,6 +627,36 @@ function renderBookCard(book) {
   `;
 }
 
+function renderFeaturedAuthorsStrip(authors = []) {
+  if (!authors.length) {
+    return '';
+  }
+
+  return `
+    <section class="section featured-authors-section">
+      <div class="toolbar featured-authors-toolbar">
+        <div>
+          <h2 class="section-title">Featured authors</h2>
+          <p class="section-copy">Top authors by number of books in the catalog.</p>
+        </div>
+        <div class="hint">Top 6</div>
+      </div>
+      <div class="featured-authors-row" role="list" aria-label="Featured authors">
+        ${authors.map((author) => `
+          <a class="author-card panel" href="#/search?q=${encodeURIComponent(author.name)}" role="listitem">
+            <span class="author-avatar">${escapeHtml(initials(author.name))}</span>
+            <span class="author-copy">
+              <strong>${escapeHtml(author.name)}</strong>
+              <small>${Number(author.count || 0)} books</small>
+            </span>
+            <span class="author-arrow">→</span>
+          </a>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
 function renderMiniBook(item) {
   return `
     <article class="mini-book card">
@@ -729,10 +794,8 @@ function renderChatbotWidget() {
 function renderFloatingUi() {
   const mount = document.getElementById('floating-ui');
   if (!mount) return;
-  mount.innerHTML = state.route?.name === 'home' ? renderChatbotWidget() : '';
-  if (state.route?.name === 'home') {
-    setTimeout(positionChatbotFromStorage, 0);
-  }
+  mount.innerHTML = renderChatbotWidget();
+  setTimeout(positionChatbotFromStorage, 0);
 }
 
 function syncChatbotMode() {
@@ -838,6 +901,7 @@ function renderHomeView() {
   const whatsappNumber = String(state.settings?.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
   const featuredCount = state.featured.length;
   const genreCount = state.genres.length;
+  const featuredAuthors = state.featuredAuthors || [];
   const heroBooks = state.featured.slice(0, 3);
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
@@ -890,7 +954,20 @@ function renderHomeView() {
         </div>
       </section>
 
+      ${!isSearchMode ? renderFeaturedAuthorsStrip(featuredAuthors) : ''}
+
       <section class="section">
+        ${state.user && state.recommendations.length ? `
+          <div class="panel recommendation-strip">
+            <div>
+              <div class="hint">Personalized</div>
+              <h2 class="section-title" style="margin:0.2rem 0 0.4rem 0;">Recommended for you</h2>
+              <p class="section-copy" style="margin:0;">Matched from your views, wishlist, reviews, and purchases.</p>
+            </div>
+            <a class="secondary-button" href="#/notifications">See all recommendations</a>
+          </div>
+          <div class="books-grid recommended-grid">${state.recommendations.slice(0, 4).map(renderBookCard).join('')}</div>
+        ` : ''}
         <div class="toolbar">
           <div>
             <h2 class="section-title">Explore books</h2>
@@ -954,10 +1031,10 @@ function renderHomeView() {
       <section class="section" style="padding: 4rem 0;">
         <h2 class="section-title">Browse by Genre</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
-          ${state.genres.map(genre => {
+          ${state.genres.slice(0, 8).map(genre => {
             const genreBooks = Number(state.genreCounts?.[genre] || 0);
             const isActive = state.genre === genre;
-            return `<button class="panel genre-card ${isActive ? 'is-active' : ''}" style="padding: 2rem; text-align: center; cursor: pointer; transition: transform 0.25s;" data-action="set-genre" data-genre="${escapeHtml(genre)}">
+            return `<button class="genre-card ${isActive ? 'is-active' : ''}" style="padding: 2rem; text-align: center; cursor: pointer; transition: transform 0.25s, background 0.25s; border: none; background: transparent; border-radius: 18px;" data-action="set-genre" data-genre="${escapeHtml(genre)}">
               <h3>${escapeHtml(genre)}</h3>
               <p class="genre-count">${genreBooks} books</p>
             </button>`;
@@ -1034,18 +1111,6 @@ function renderSearchView() {
 
   return `
     <section class="page search-page full-width">
-      <div class="search-hero glass">
-        <div>
-          <div class="pill">Search library</div>
-          <h1 class="hero-title">Results for "${escapeHtml(query || 'all books')}"</h1>
-          <p class="hero-copy">Showing ${resultCount} matching book(s). Search runs across titles, authors, genres, descriptions, and ISBNs.</p>
-        </div>
-        <div class="search-summary panel">
-          <div class="hint">Query</div>
-          <strong>${escapeHtml(query || 'Empty search')}</strong>
-          </div>
-      </div>
-
       <section class="section">
         <div class="toolbar">
           <div>
@@ -1153,6 +1218,86 @@ function renderBookView() {
           <div class="panel">${reviewsMarkup}</div>
           ${reviewFormMarkup}
         </div>
+      </section>
+
+      ${state.recommendations.length ? `
+        <section class="section">
+          <h2 class="section-title">More books you may like</h2>
+          <div class="books-grid">${state.recommendations.slice(0, 4).map(renderBookCard).join('')}</div>
+        </section>
+      ` : ''}
+    </section>
+  `;
+}
+
+function renderNotificationItem(notification) {
+  const isRead = Boolean(notification.read_at);
+  return `
+    <article class="notification-card card ${isRead ? 'is-read' : 'is-unread'}">
+      <div class="notification-meta">
+        <div>
+          <div class="hint">${escapeHtml(notification.type.replaceAll('_', ' '))}</div>
+          <h3 class="mini-title">${escapeHtml(notification.title)}</h3>
+        </div>
+        <span class="pill">${new Date(notification.created_at).toLocaleDateString()}</span>
+      </div>
+      <p class="section-copy" style="margin:0.4rem 0 0.8rem 0;">${escapeHtml(notification.body)}</p>
+      <div class="notification-actions">
+        ${notification.book ? `<a class="secondary-button" href="#/book/${notification.book.id}">Open book</a>` : ''}
+        ${isRead ? '<span class="pill">Read</span>' : `<button class="primary-button" type="button" data-action="mark-notification-read" data-notification-id="${escapeHtml(notification.id)}">Mark read</button>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderNotificationsView() {
+  if (!state.user) {
+    return `
+      <section class="page">
+        <div class="empty-state">
+          <p>Sign in to see notifications and recommendations.</p>
+          <a class="primary-button" href="#/login">Login</a>
+        </div>
+      </section>
+    `;
+  }
+
+  const notificationsMarkup = state.notifications.length
+    ? state.notifications.map(renderNotificationItem).join('')
+    : '<div class="empty-state"><p>No notifications yet.</p><span class="pill">We will alert you when liked books return.</span></div>';
+
+  const recommendationsMarkup = state.recommendations.length
+    ? `<div class="books-grid">${state.recommendations.map(renderBookCard).join('')}</div>`
+    : '<div class="empty-state"><p>No recommendations available yet.</p><span class="pill">Read, wish list, and review books to improve suggestions.</span></div>';
+
+  const profile = state.recommendationProfile || {};
+
+  return `
+    <section class="page notification-page">
+      <div class="section-header">
+        <h1 class="section-title">Notifications & Recommendations</h1>
+        <button class="secondary-button" type="button" data-action="mark-all-notifications-read">Mark all as read</button>
+      </div>
+
+      <section class="notification-summary panel glass-card">
+        <div>
+          <div class="hint">Your reading profile</div>
+          <h2 class="mini-title">Built from views, wishlists, reviews, and purchases</h2>
+        </div>
+        <div class="profile-chip-row">
+          ${(profile.favoriteGenres || []).slice(0, 3).map((item) => `<span class="pill">${escapeHtml(item.name)} · ${Number(item.score || 0)}</span>`).join('')}
+          ${(profile.favoriteAuthors || []).slice(0, 3).map((item) => `<span class="pill">${escapeHtml(item.name)} · ${Number(item.score || 0)}</span>`).join('')}
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Alerts</h2>
+        <div class="notification-grid">${notificationsMarkup}</div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Recommended for you</h2>
+        ${recommendationsMarkup}
       </section>
     </section>
   `;
@@ -1464,6 +1609,7 @@ async function refreshSession() {
     const data = await api('/api/auth/me');
     state.user = data.user;
     renderChrome();
+    await refreshPersonalization();
   } catch (error) {
     clearSession(false);
   }
@@ -1502,6 +1648,52 @@ async function refreshWishlist() {
   } catch (error) {
     state.wishlistLoading = false;
     showToast(error.message, 'error');
+  }
+}
+
+async function refreshPersonalization() {
+  if (!state.user) {
+    state.notifications = [];
+    state.recommendations = [];
+    state.recommendationProfile = null;
+    state.unreadNotifications = 0;
+    renderChrome();
+    return;
+  }
+
+  try {
+    const [notificationsData, recommendationsData] = await Promise.all([
+      api('/api/notifications?limit=20').catch(() => ({ notifications: [], unreadCount: 0 })),
+      api('/api/recommendations?limit=8').catch(() => ({ books: [], profile: null }))
+    ]);
+
+    state.notifications = notificationsData.notifications || [];
+    state.unreadNotifications = Number(notificationsData.unreadCount || 0);
+    state.recommendations = recommendationsData.books || [];
+    state.recommendationProfile = recommendationsData.profile || null;
+    renderChrome();
+  } catch (error) {
+    state.notifications = [];
+    state.recommendations = [];
+    state.recommendationProfile = null;
+    state.unreadNotifications = 0;
+    renderChrome();
+  }
+}
+
+async function recordReadingEvent(bookId, source = 'book-detail') {
+  if (!state.user || !bookId) return;
+  const viewKey = `booksta:viewed:${bookId}`;
+  const lastSeen = Number(localStorage.getItem(viewKey) || '0');
+  if (Date.now() - lastSeen < 60 * 1000) return;
+  localStorage.setItem(viewKey, String(Date.now()));
+  try {
+    await api('/api/reading-events', {
+      method: 'POST',
+      body: JSON.stringify({ bookId, eventType: 'view', source })
+    });
+  } catch (error) {
+    // Non-blocking tracking.
   }
 }
 
@@ -1574,6 +1766,15 @@ async function loadHomeData() {
     state.totalPages = books.totalPages || 1;
     state.featured = featured.books || [];
     state.genreCounts = genres.counts || {};
+    // Load top authors separately so a failing authors endpoint doesn't block the home render
+    try {
+      const authors = await api('/api/books/authors/top?limit=6');
+      state.featuredAuthors = Array.isArray(authors.authors) && authors.authors.length
+        ? authors.authors
+        : getTopAuthors(state.books, 6);
+    } catch (err) {
+      state.featuredAuthors = getTopAuthors(state.books, 6);
+    }
     const discoveredGenres = Array.isArray(genres.genres) && genres.genres.length
       ? genres.genres
       : Object.keys(state.genreCounts || {});
@@ -1601,6 +1802,8 @@ async function loadBookData(id) {
     state.currentBook = bookResponse.book;
     state.currentReviews = reviewResponse.reviews || [];
     state.bookLoading = false;
+    recordReadingEvent(id, 'book-detail');
+    refreshPersonalization();
     renderApp();
   } catch (error) {
     state.bookLoading = false;
@@ -1740,6 +1943,12 @@ function renderApp() {
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
+    if (name === 'notifications') {
+      app.innerHTML = renderNotificationsView();
+      renderFloatingUi();
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+      return;
+    }
 
     if (name === 'search') {
       app.innerHTML = renderSearchView();
@@ -1785,6 +1994,13 @@ function renderApp() {
       app.innerHTML = renderProfileView();
       renderFloatingUi();
       // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+      return;
+    }
+
+    if (name === 'notifications') {
+      app.innerHTML = renderNotificationsView();
+      renderFloatingUi();
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
@@ -1881,6 +2097,16 @@ async function loadRoute() {
     return;
   }
 
+  if (state.route.name === 'notifications') {
+    if (!state.user) {
+      renderApp();
+      return;
+    }
+    await refreshPersonalization();
+    renderApp();
+    return;
+  }
+
   if (state.route.name === 'admin-orders') {
     if (!state.user || state.user.role !== 'admin') {
       renderApp();
@@ -1923,6 +2149,12 @@ function handleAction(target) {
 
   if (action === 'close-mobile-menu') {
     closeMobileMenu();
+    return;
+  }
+
+  if (action === 'open-notifications') {
+    closeMobileMenu();
+    window.location.hash = '#/notifications';
     return;
   }
 
@@ -2020,6 +2252,35 @@ function handleAction(target) {
     const panel = document.querySelector('.chatbot-panel');
     if (root) root.classList.toggle('is-open', state.chatbotOpen);
     if (panel) panel.setAttribute('aria-hidden', state.chatbotOpen ? 'false' : 'true');
+    if (state.chatbotOpen && panel) {
+      // Scroll to bottom when opening
+      setTimeout(() => {
+        const body = panel.querySelector('.chatbot-body');
+        if (body) body.scrollTop = body.scrollHeight;
+      }, 0);
+    }
+    return;
+  }
+
+  if (action === 'mark-notification-read') {
+    const notificationId = target.dataset.notificationId;
+    if (!notificationId) return;
+    api(`/api/notifications/${notificationId}/read`, { method: 'POST' })
+      .then(() => refreshPersonalization())
+      .then(() => {
+        if (isActiveRoute('notifications')) renderApp();
+      })
+      .catch((error) => showToast(error.message, 'error'));
+    return;
+  }
+
+  if (action === 'mark-all-notifications-read') {
+    api('/api/notifications/read-all', { method: 'POST' })
+      .then(() => refreshPersonalization())
+      .then(() => {
+        if (isActiveRoute('notifications')) renderApp();
+      })
+      .catch((error) => showToast(error.message, 'error'));
     return;
   }
 
@@ -2164,6 +2425,7 @@ async function toggleWishlist(bookId) {
     const response = await api(`/api/wishlist/${bookId}`, { method: 'POST' });
     showToast(response.added ? 'Added to wishlist' : 'Removed from wishlist');
     await refreshWishlist();
+    await refreshPersonalization();
     if (isActiveRoute('wishlist')) {
       await loadWishlistData();
     }
@@ -2187,6 +2449,7 @@ async function handleSubmit(form) {
       await refreshCart();
       await refreshWishlist();
       await refreshOrders();
+      await refreshPersonalization();
       // Auto-redirect admin users to admin dashboard
       if (response.user && response.user.role === 'admin') {
         window.location.href = '/admin.html';
@@ -2212,6 +2475,7 @@ async function handleSubmit(form) {
       await refreshCart();
       await refreshWishlist();
       await refreshOrders();
+      await refreshPersonalization();
       window.location.hash = '#/';
       await loadRoute();
     } catch (error) {
@@ -2229,6 +2493,7 @@ async function handleSubmit(form) {
       });
       state.user = response.user;
       renderChrome();
+      await refreshPersonalization();
       showToast('Profile updated');
     } catch (error) {
       showToast(error.message, 'error');
@@ -2292,6 +2557,7 @@ async function handleSubmit(form) {
       
       // Reload orders data to show new pending order
       await loadRoute();
+      await refreshPersonalization();
       showToast(`Order #${orderId.slice(0, 8)} created! Opening WhatsApp for payment confirmation.`);
     } catch (error) {
       showToast(error.message, 'error');
@@ -2308,6 +2574,7 @@ async function handleSubmit(form) {
       });
       showToast('Review posted');
       await loadBookData(form.dataset.bookId);
+      await refreshPersonalization();
     } catch (error) {
       showToast(error.message, 'error');
     }
@@ -2374,18 +2641,120 @@ app.addEventListener('input', (event) => {
   }, 300);
 });
 
-headerSearchInput?.addEventListener('input', (event) => {
-  state.search = event.target.value;
-  state.page = 1;
-  window.clearTimeout(state.searchTimer);
-  state.searchTimer = window.setTimeout(() => {
-    if (!isActiveRoute('search')) {
-      window.location.hash = '#/search?q=' + encodeURIComponent(state.search || '');
+headerSearchInput?.addEventListener('input', async (event) => {
+  const query = event.target.value.trim();
+  const suggestionsDiv = document.getElementById('search-suggestions');
+  const searchCloseBtn = document.getElementById('search-close-btn');
+  
+  // Show/hide close button based on search input
+  if (searchCloseBtn) {
+    searchCloseBtn.style.display = query ? 'block' : 'none';
+  }
+  
+  if (!query || query.length < 2) {
+    suggestionsDiv.style.display = 'none';
+    return;
+  }
+
+  try {
+    // Fetch suggestions from search API
+    const res = await api(`/api/books?limit=8&search=${encodeURIComponent(query)}`).catch((err) => {
+      console.error('Search suggestion error:', err);
+      return null;
+    });
+    const books = (res?.books) || [];
+    
+    if (books.length === 0) {
+      suggestionsDiv.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--muted); font-size: 0.9rem; text-align: center;">Press <kbd>Enter</kbd> to search</div>';
+      suggestionsDiv.style.display = 'block';
       return;
     }
-    loadRoute();
-  }, 260);
+
+    // Group suggestions by type
+    const suggestions = books.map(b => ({
+      title: b.title,
+      author: b.author,
+      type: 'book',
+      id: b.id,
+      cover: b.cover_url
+    }));
+
+    // Build suggestions HTML
+    let html = '';
+    suggestions.forEach((s, idx) => {
+      const highlight = query.toLowerCase();
+      const titleMatch = s.title.toLowerCase().includes(highlight);
+      const authorMatch = s.author.toLowerCase().includes(highlight);
+      
+      html += `
+        <div class="search-suggestion-item" data-index="${idx}" data-id="${s.id}" style="padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 0.75rem; align-items: center; transition: background 0.15s;">
+          ${s.cover ? `<img src="${escapeHtml(s.cover)}" alt="" style="width: 32px; height: 48px; object-fit: cover; border-radius: 4px;">` : `<div style="width: 32px; height: 48px; background: var(--bg-soft); border-radius: 4px; display: flex; align-items: center; justify-content: center;">📚</div>`}
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(s.title)}</div>
+            <div style="font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">by ${escapeHtml(s.author)}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    suggestionsDiv.innerHTML = html;
+    suggestionsDiv.style.display = 'block';
+
+    // Add click listeners to suggestions
+    document.querySelectorAll('.search-suggestion-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const bookId = item.dataset.id;
+        window.location.hash = `#/book/${bookId}`;
+        suggestionsDiv.style.display = 'none';
+        headerSearchInput.value = '';
+      });
+      item.addEventListener('mouseover', () => {
+        document.querySelectorAll('.search-suggestion-item').forEach(i => i.style.background = 'transparent');
+        item.style.background = 'rgba(124, 140, 255, 0.1)';
+      });
+      item.addEventListener('mouseout', () => {
+        item.style.background = 'transparent';
+      });
+    });
+  } catch (error) {
+    console.warn('Search suggestions error:', error);
+    suggestionsDiv.style.display = 'none';
+  }
+
+  state.search = query;
+  state.page = 1;
 });
+
+// Hide search suggestions when clicking outside
+document.addEventListener('click', (e) => {
+  const searchForm = document.getElementById('header-search-form');
+  const suggestionsDiv = document.getElementById('search-suggestions');
+  if (searchForm && !searchForm.contains(e.target)) {
+    suggestionsDiv.style.display = 'none';
+  }
+});
+
+// Handle search close button - clear search and navigate to home
+const searchCloseBtn = document.getElementById('search-close-btn');
+if (searchCloseBtn) {
+  searchCloseBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Clear search input
+    headerSearchInput.value = '';
+    // Hide suggestions
+    const suggestionsDiv = document.getElementById('search-suggestions');
+    if (suggestionsDiv) {
+      suggestionsDiv.style.display = 'none';
+    }
+    // Close mobile search if open
+    closeMobileSearch();
+    // Hide close button
+    searchCloseBtn.style.display = 'none';
+    // Navigate to home
+    window.location.hash = '#/';
+  });
+}
 
 document.getElementById('header-search-form')?.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -2417,63 +2786,16 @@ function closeMobileSearch() {
 function initFloatingHamburger() {
   const el = document.getElementById('mobile-hamburger');
   if (!el) return;
-  el.style.touchAction = 'none';
-  // restore position
-  try {
-    const pos = JSON.parse(localStorage.getItem('mobileHamburgerPos') || 'null');
-    if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
-      // clamp to viewport so button stays clickable
-      const x = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, pos.x));
-      const y = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, pos.y));
-      el.style.right = 'auto';
-      el.style.left = x + 'px';
-      el.style.top = y + 'px';
-      el.style.bottom = 'auto';
-      el.style.position = 'fixed';
-    }
-  } catch (e) {}
-
-  let dragging = false;
-  let startX = 0, startY = 0, origLeft = 0, origTop = 0;
-
-  function onPointerDown(ev) {
-    dragging = true;
-    el.setPointerCapture?.(ev.pointerId);
-    startX = ev.clientX;
-    startY = ev.clientY;
-    origLeft = el.getBoundingClientRect().left;
-    origTop = el.getBoundingClientRect().top;
-    el.style.transition = 'none';
-  }
-
-  function onPointerMove(ev) {
-    if (!dragging) return;
-    const dx = ev.clientX - startX;
-    const dy = ev.clientY - startY;
-    const x = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, origLeft + dx));
-    const y = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, origTop + dy));
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    el.style.right = 'auto';
-    el.style.bottom = 'auto';
-  }
-
-  function onPointerUp(ev) {
-    if (!dragging) return;
-    dragging = false;
-    el.releasePointerCapture?.(ev.pointerId);
-    el.style.transition = '';
-    // save
-    const rect = el.getBoundingClientRect();
-    localStorage.setItem('mobileHamburgerPos', JSON.stringify({ x: rect.left, y: rect.top }));
-  }
-
-  el.addEventListener('pointerdown', onPointerDown);
-  window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp);
+  el.style.touchAction = 'manipulation';
+  el.style.position = 'static';
+  el.style.left = '';
+  el.style.top = '';
+  el.style.right = '';
+  el.style.bottom = '';
+  localStorage.removeItem('mobileHamburgerPos');
 
   // wire the data-action handler too (delegated handler uses data-action)
-  // Ensure a simple click toggles the menu reliably (avoid interference from drag)
+  // Ensure a simple click toggles the menu reliably
   el.addEventListener('click', (e) => {
     const panel = document.getElementById('mobile-menu');
     if (!panel) return;
@@ -2536,28 +2858,28 @@ window.addEventListener('resize', () => {
     closeAccountMenu();
   }
   syncChatbotMode();
-  positionChatbotFromStorage();
+  // Dragging disabled - skip position restore
+  // // Dragging disabled - skip position restore
+  // positionChatbotFromStorage();
 });
 
-document.addEventListener('pointerdown', (event) => {
-  const toggle = event.target.closest('.chatbot-toggle');
-  if (toggle) startChatbotDrag(event);
-});
-
-document.addEventListener('pointermove', (event) => {
-  if (!state.chatbotDrag.active) return;
-  moveChatbotDrag(event);
-});
-
-document.addEventListener('pointerup', (event) => {
-  if (!state.chatbotDrag.active) return;
-  endChatbotDrag(event);
-});
-
-document.addEventListener('pointercancel', (event) => {
-  if (!state.chatbotDrag.active) return;
-  endChatbotDrag(event);
-});
+// Dragging disabled - floating button now stays in fixed position
+// document.addEventListener('pointerdown', (event) => {
+//   const toggle = event.target.closest('.chatbot-toggle');
+//   if (toggle) startChatbotDrag(event);
+// });
+// document.addEventListener('pointermove', (event) => {
+//   if (!state.chatbotDrag.active) return;
+//   moveChatbotDrag(event);
+// });
+// document.addEventListener('pointerup', (event) => {
+//   if (!state.chatbotDrag.active) return;
+//   endChatbotDrag(event);
+// });
+// document.addEventListener('pointercancel', (event) => {
+//   if (!state.chatbotDrag.active) return;
+//   endChatbotDrag(event);
+// });
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
