@@ -1580,37 +1580,38 @@ function renderAuthView(mode) {
               <input class="text-input" name="name" placeholder="Full name" ${isLogin ? 'style="display:none;"' : 'required'} />
               <input class="text-input" name="email" type="email" placeholder="Email address" required />
               <input class="text-input" name="password" type="password" placeholder="Password" required minlength="8" />
-              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;">
+              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
                 <button class="primary-button" type="submit">${isLogin ? 'Sign in' : 'Create account'}</button>
                 <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
               </div>
               <p class="helper-text" style="margin-top:0.75rem; color:inherit;">${isLogin ? 'Need an account?' : 'Already have an account?'} <a href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Register' : 'Login'}</a></p>
-              ${isLogin ? `
-                <button class="ghost-button" type="button" data-action="toggle-reset-panel" style="margin-top:0.5rem;">Forgot password?</button>
-                <div class="auth-recovery" aria-hidden="true">
-                  <div class="auth-recovery-panel">
-                    <h3 class="mini-title">Reset your password</h3>
-                    <p class="helper-text">Request a reset code, then use it with your email and new password.</p>
-                    <form class="auth-form auth-recovery-form" data-form="forgot-password">
-                      <input class="text-input" name="email" type="email" placeholder="Email address" required />
-                      <button class="secondary-button" type="submit">Send reset code</button>
-                    </form>
-                    <form class="auth-form auth-recovery-form" data-form="reset-password">
-                      <input class="text-input" name="email" type="email" placeholder="Email address" required />
-                      <input class="text-input" name="token" placeholder="Reset code" required />
-                      <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
-                      <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
-                      <button class="primary-button" type="submit">Reset password</button>
-                    </form>
-                  </div>
-                </div>
-              ` : ''}
               <div style="margin-top:0.75rem; display:flex; gap:0.6rem; align-items:center;">
                 <button class="ghost-button" type="button">G</button>
                 <button class="ghost-button" type="button">f</button>
                 <button class="ghost-button" type="button"></button>
               </div>
             </form>
+
+            ${isLogin ? `
+              <button class="ghost-button" type="button" data-action="toggle-reset-panel" style="margin-top:0.75rem;">Forgot password?</button>
+              <div class="auth-recovery" aria-hidden="true" hidden>
+                <div class="auth-recovery-panel">
+                  <h3 class="mini-title">Reset your password</h3>
+                  <p class="helper-text">Request a reset code, then use it with your email and new password.</p>
+                  <form class="auth-form auth-recovery-form" data-form="forgot-password">
+                    <input class="text-input" name="email" type="email" placeholder="Email address" required />
+                    <button class="secondary-button" type="submit">Send reset code</button>
+                  </form>
+                  <form class="auth-form auth-recovery-form" data-form="reset-password">
+                    <input class="text-input" name="email" type="email" placeholder="Email address" required />
+                    <input class="text-input" name="token" placeholder="Reset code" required />
+                    <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
+                    <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
+                    <button class="primary-button" type="submit">Reset password</button>
+                  </form>
+                </div>
+              </div>
+            ` : ''}
           </div>
           
         </div>
@@ -2219,7 +2220,9 @@ function handleAction(target) {
     const panel = document.querySelector('.auth-recovery');
     if (panel) {
       panel.classList.toggle('is-open');
-      panel.setAttribute('aria-hidden', String(!panel.classList.contains('is-open')));
+      const isOpen = panel.classList.contains('is-open');
+      panel.hidden = !isOpen;
+      panel.setAttribute('aria-hidden', String(!isOpen));
     }
     return;
   }
@@ -2537,6 +2540,7 @@ async function handleSubmit(form) {
       }
       const panel = document.querySelector('.auth-recovery');
       if (panel) panel.classList.add('is-open');
+      if (panel) panel.hidden = false;
       showToast('Reset code generated. Use it below to set a new password.');
     } catch (error) {
       showToast(error.message, 'error');
