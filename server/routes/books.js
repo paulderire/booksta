@@ -159,6 +159,25 @@ router.get('/genres', async (_req, res, next) => {
   }
 });
 
+router.get('/authors/top', async (req, res, next) => {
+  try {
+    const limit = Math.max(Number(req.query.limit || 6), 1);
+    const { rows } = await query(
+      `SELECT b.author, COUNT(*)::int AS book_count
+       FROM books b
+       WHERE b.author IS NOT NULL AND b.author <> ''
+       GROUP BY b.author
+       ORDER BY book_count DESC, b.author ASC
+       LIMIT $1`,
+      [limit]
+    );
+
+    res.json({ authors: rows.map((row) => ({ name: row.author, count: Number(row.book_count || 0) })) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { rows } = await query(

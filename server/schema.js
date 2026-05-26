@@ -18,7 +18,6 @@ const schemaStatements = [
     cover_color VARCHAR(20),
     emoji VARCHAR(10),
     genre VARCHAR(50),
-    genres TEXT[] DEFAULT '{}'::text[],
     price NUMERIC(10,2) NOT NULL,
     original_price NUMERIC(10,2),
     stock INTEGER DEFAULT 0,
@@ -60,12 +59,33 @@ const schemaStatements = [
     shipping_address JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS reading_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    book_id UUID REFERENCES books(id) ON DELETE CASCADE,
+    event_type VARCHAR(40) NOT NULL DEFAULT 'view',
+    source VARCHAR(40),
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );`,
   `CREATE TABLE IF NOT EXISTS order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
     book_id UUID REFERENCES books(id) ON DELETE SET NULL,
     quantity INTEGER NOT NULL,
     unit_price NUMERIC(10,2) NOT NULL
+  );`,
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(60) NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    book_id UUID REFERENCES books(id) ON DELETE SET NULL,
+    data JSONB DEFAULT '{}'::jsonb,
+    dedupe_key TEXT UNIQUE,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS promotions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,6 +115,10 @@ const schemaStatements = [
   "CREATE INDEX IF NOT EXISTS idx_cart_items_user_id ON cart_items(user_id);",
   "CREATE INDEX IF NOT EXISTS idx_wishlist_items_user_id ON wishlist_items(user_id);",
   "CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_reading_events_user_id ON reading_events(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_reading_events_book_id ON reading_events(book_id);",
+  "CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);",
+  "CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, read_at) WHERE read_at IS NULL;",
   "CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);",
   "CREATE INDEX IF NOT EXISTS idx_promotions_code ON promotions(code);",
   "CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions(is_active) WHERE is_active = TRUE;"

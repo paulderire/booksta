@@ -120,6 +120,30 @@
         <div class="search-bar">
           <input id="book-search" placeholder="Search by title, author, genre..." class="search-input" />
         </div>
+        <div class="advanced-filters" style="margin-top:0.75rem">
+          <div class="filters-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.5rem;align-items:center">
+            <select id="filter-genre" class="filter-select">
+              <option value="">All genres</option>
+            </select>
+            <input id="filter-min-price" type="number" class="search-input" placeholder="Min price (RWF)" />
+            <input id="filter-max-price" type="number" class="search-input" placeholder="Max price (RWF)" />
+            <select id="filter-stock" class="filter-select">
+              <option value="">Any stock</option>
+              <option value="low">Low (<=5)</option>
+              <option value="watch">Watch (6-15)</option>
+              <option value="healthy">Healthy (16+)</option>
+            </select>
+            <select id="filter-sort" class="filter-select">
+              <option value="created_desc">Newest</option>
+              <option value="price_asc">Price ↑</option>
+              <option value="price_desc">Price ↓</option>
+              <option value="sold_desc">Most sold</option>
+              <option value="title_asc">Title A→Z</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:0.5rem"><input id="filter-featured" type="checkbox">Featured only</label>
+            <button id="filter-reset" type="button" class="btn-secondary" style="justify-self:end;min-width:120px">Reset filters</button>
+          </div>
+        </div>
         <div id="books-table" style="overflow-x:auto"></div>
       </section>
 
@@ -150,7 +174,50 @@
       <section id="view-users" class="view" style="display:none;">
         <div class="section-header">
           <h2>Manage Users</h2>
-          <input id="user-search" placeholder="Search by name, email..." class="search-input" style="flex:1;max-width:300px" />
+        </div>
+        <div class="users-filter-shell glass">
+          <div class="users-filter-title">
+            <div>
+              <div class="eyebrow">User explorer</div>
+              <h3>Advanced filters</h3>
+            </div>
+            <button id="user-filter-reset" type="button" class="btn-secondary">Reset filters</button>
+          </div>
+          <div class="users-filter-grid">
+            <input id="user-search" placeholder="Search by name, email..." class="search-input" />
+            <select id="user-role-filter" class="filter-select">
+              <option value="">All roles</option>
+              <option value="customer">Customer</option>
+              <option value="admin">Admin</option>
+            </select>
+            <select id="user-tier-filter" class="filter-select">
+              <option value="">All buying tiers</option>
+              <option value="vip">VIP buyers</option>
+              <option value="gold">Gold buyers</option>
+              <option value="silver">Silver buyers</option>
+              <option value="standard">Standard buyers</option>
+            </select>
+            <input id="user-min-orders" type="number" class="search-input" placeholder="Min completed orders" />
+            <input id="user-min-spend" type="number" class="search-input" placeholder="Min spend (RWF)" />
+            <select id="user-date-filter" class="filter-select">
+              <option value="">Any joined date</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last year</option>
+            </select>
+            <select id="user-sort" class="filter-select">
+              <option value="score_desc" selected>Buyer score</option>
+              <option value="spend_desc">Top spenders</option>
+              <option value="orders_desc">Most orders</option>
+              <option value="rank_asc">Buyer rank</option>
+              <option value="joined_desc">Newest joined</option>
+              <option value="joined_asc">Oldest joined</option>
+              <option value="name_asc">Name A→Z</option>
+              <option value="email_asc">Email A→Z</option>
+            </select>
+            <input id="user-domain-filter" placeholder="Email domain (e.g. gmail.com)" class="search-input" />
+          </div>
         </div>
         <div id="users-table" style="overflow-x:auto"></div>
       </section>
