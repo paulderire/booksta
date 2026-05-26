@@ -201,7 +201,7 @@ body{
 .card:hover{border-color:var(--accent);box-shadow:0 8px 24px rgba(0,0,0,0.15)}
 
 /* Featured books manager cards */
-.featured-card{display:grid;grid-template-columns:64px 1fr auto;gap:1rem;align-items:center;padding:0.9rem;border-radius:12px}
+.featured-card{display:grid;grid-template-columns:minmax(64px,72px) minmax(0,1fr) auto;gap:1rem;align-items:center;padding:0.9rem;border-radius:12px}
 .featured-thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;border:1px solid var(--border);background:linear-gradient(180deg,color-mix(in srgb,var(--glass-strong) 60%, transparent), var(--glass));display:flex;align-items:center;justify-content:center;font-size:1.6rem}
 .featured-thumb.placeholder{font-size:1.4rem}
 .featured-meta{display:flex;flex-direction:column;gap:0.25rem}
@@ -218,6 +218,15 @@ body{
 @media (max-width:900px){
   .featured-card{grid-template-columns:56px 1fr auto}
   .featured-thumb{width:56px;height:56px}
+}
+
+@media (max-width:720px){
+  .featured-card{grid-template-columns:1fr;align-items:start}
+  .featured-left{width:100%}
+  .featured-thumb{width:100%;height:180px}
+  .featured-right{align-items:flex-start}
+  .featured-actions{width:100%}
+  .featured-actions .btn-secondary{width:100%}
 }
 
 @media (max-width:700px){

@@ -198,6 +198,14 @@ function getTopAuthors(books = [], limit = 6) {
     .slice(0, limit);
 }
 
+function getTopGenres(limit = 16) {
+  return Object.entries(state.genreCounts || {})
+    .map(([name, count]) => ({ name, count: Number(count || 0) }))
+    .filter((item) => item.name)
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, limit);
+}
+
 function cartTotal() {
   return state.cart.reduce((sum, item) => {
     const subtotal = Number(item.subtotal);
@@ -455,7 +463,7 @@ function renderChrome() {
             <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
             <span class="account-trigger-copy">
               <span class="account-trigger-label">${escapeHtml(state.user.name || 'Reader')}</span>
-              <span class="account-trigger-sub">${escapeHtml(state.user.role || 'customer')}</span>
+              <span class="account-trigger-sub">${state.user.role === 'admin' ? escapeHtml(state.user.role) : ''}</span>
             </span>
             <span class="account-caret">⌄</span>
           </button>
@@ -479,7 +487,7 @@ function renderChrome() {
             <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
             <div>
               <div class="mobile-account-name">${escapeHtml(state.user.name || 'Reader')}</div>
-              <div class="mobile-account-role">${escapeHtml(state.user.role || 'customer')}</div>
+              <div class="mobile-account-role">${state.user.role === 'admin' ? escapeHtml(state.user.role) : ''}</div>
             </div>
           </div>
           <a class="ghost-button" href="#/profile" data-action="close-mobile-menu">Profile</a>
@@ -624,6 +632,18 @@ function renderBookCard(book) {
         <button class="ghost-button" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}">Wishlist</button>
       </div>
     </article>
+  `;
+}
+
+function renderRecommendationTile(book) {
+  const coverStyle = `background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));`;
+  return `
+    <a class="recommendation-tile" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" aria-label="Open ${escapeHtml(book.title)}">
+      <span class="recommendation-cover" style="${coverStyle}">
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+      </span>
+      <strong class="recommendation-name">${escapeHtml(book.title)}</strong>
+    </a>
   `;
 }
 
@@ -902,6 +922,7 @@ function renderHomeView() {
   const featuredCount = state.featured.length;
   const genreCount = state.genres.length;
   const featuredAuthors = state.featuredAuthors || [];
+  const topGenres = getTopGenres(16);
   const heroBooks = state.featured.slice(0, 3);
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
@@ -912,10 +933,6 @@ function renderHomeView() {
     : state.books.length
       ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
       : `<div class="empty-state"><p>No books match your current filters.</p><button class="primary-button" type="button" data-action="reset-filters">Clear filters</button></div>`;
-
-  const tabsMarkup = ['All', ...state.genres].map((genre) => `
-    <button class="tab ${!state.genre && genre === 'All' || state.genre === genre ? 'is-active' : ''}" type="button" data-action="set-genre" data-genre="${escapeHtml(genre === 'All' ? '' : genre)}">${escapeHtml(genre)}</button>
-  `).join('');
 
   return `
     <section class="page home-page full-width section full-bleed">
@@ -958,7 +975,7 @@ function renderHomeView() {
 
       <section class="section">
         ${state.user && state.recommendations.length ? `
-          <div class="panel recommendation-strip">
+          <div class="recommendation-strip">
             <div>
               <div class="hint">Personalized</div>
               <h2 class="section-title" style="margin:0.2rem 0 0.4rem 0;">Recommended for you</h2>
@@ -966,12 +983,12 @@ function renderHomeView() {
             </div>
             <a class="secondary-button" href="#/notifications">See all recommendations</a>
           </div>
-          <div class="books-grid recommended-grid">${state.recommendations.slice(0, 4).map(renderBookCard).join('')}</div>
+          <div class="recommendation-rail">${state.recommendations.slice(0, 4).map(renderRecommendationTile).join('')}</div>
         ` : ''}
         <div class="toolbar">
           <div>
             <h2 class="section-title">Explore books</h2>
-            <p class="section-copy">Use genre tabs and sort controls to narrow the catalog. Search now lives in the header.</p>
+            <p class="section-copy">Use sort controls to narrow the catalog. Search now lives in the header.</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -986,8 +1003,6 @@ function renderHomeView() {
             </select>
           </div>
         </div>
-
-        <div class="filter-pill-row">${tabsMarkup}</div>
         ${booksMarkup}
         ${state.homeLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
       </section>
@@ -1031,8 +1046,7 @@ function renderHomeView() {
       <section class="section" style="padding: 4rem 0;">
         <h2 class="section-title">Browse by Genre</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
-          ${state.genres.slice(0, 8).map(genre => {
-            const genreBooks = Number(state.genreCounts?.[genre] || 0);
+          ${topGenres.map(({ name: genre, count: genreBooks }) => {
             const isActive = state.genre === genre;
             return `<button class="genre-card ${isActive ? 'is-active' : ''}" style="padding: 2rem; text-align: center; cursor: pointer; transition: transform 0.25s, background 0.25s; border: none; background: transparent; border-radius: 18px;" data-action="set-genre" data-genre="${escapeHtml(genre)}">
               <h3>${escapeHtml(genre)}</h3>
@@ -1105,17 +1119,13 @@ function renderSearchView() {
       ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
       : `<div class="empty-state"><p>No books match "${escapeHtml(query)}".</p><a class="primary-button" href="#/">Back to home</a></div>`;
 
-  const tabsMarkup = ['All', ...state.genres].map((genre) => `
-    <button class="tab ${(!state.genre && genre === 'All') || state.genre === genre ? 'is-active' : ''}" type="button" data-action="set-genre" data-genre="${escapeHtml(genre === 'All' ? '' : genre)}">${escapeHtml(genre)}</button>
-  `).join('');
-
   return `
     <section class="page search-page full-width">
       <section class="section">
         <div class="toolbar">
           <div>
             <h2 class="section-title">Refine results</h2>
-            <p class="section-copy">Use genre and sort controls to narrow the current query.</p>
+            <p class="section-copy">Use sort controls to narrow the current query.</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -1130,8 +1140,6 @@ function renderSearchView() {
             </select>
           </div>
         </div>
-
-        <div class="filter-pill-row">${tabsMarkup}</div>
         ${booksMarkup}
         ${state.homeLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
       </section>
@@ -1577,6 +1585,26 @@ function renderAuthView(mode) {
                 <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
               </div>
               <p class="helper-text" style="margin-top:0.75rem; color:inherit;">${isLogin ? 'Need an account?' : 'Already have an account?'} <a href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Register' : 'Login'}</a></p>
+              ${isLogin ? `
+                <button class="ghost-button" type="button" data-action="toggle-reset-panel" style="margin-top:0.5rem;">Forgot password?</button>
+                <div class="auth-recovery" aria-hidden="true">
+                  <div class="auth-recovery-panel">
+                    <h3 class="mini-title">Reset your password</h3>
+                    <p class="helper-text">Request a reset code, then use it with your email and new password.</p>
+                    <form class="auth-form auth-recovery-form" data-form="forgot-password">
+                      <input class="text-input" name="email" type="email" placeholder="Email address" required />
+                      <button class="secondary-button" type="submit">Send reset code</button>
+                    </form>
+                    <form class="auth-form auth-recovery-form" data-form="reset-password">
+                      <input class="text-input" name="email" type="email" placeholder="Email address" required />
+                      <input class="text-input" name="token" placeholder="Reset code" required />
+                      <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
+                      <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
+                      <button class="primary-button" type="submit">Reset password</button>
+                    </form>
+                  </div>
+                </div>
+              ` : ''}
               <div style="margin-top:0.75rem; display:flex; gap:0.6rem; align-items:center;">
                 <button class="ghost-button" type="button">G</button>
                 <button class="ghost-button" type="button">f</button>
@@ -2187,6 +2215,15 @@ function handleAction(target) {
     return;
   }
 
+  if (action === 'toggle-reset-panel') {
+    const panel = document.querySelector('.auth-recovery');
+    if (panel) {
+      panel.classList.toggle('is-open');
+      panel.setAttribute('aria-hidden', String(!panel.classList.contains('is-open')));
+    }
+    return;
+  }
+
   if (action === 'close-drawer') {
     setDrawerOpen(false);
     return;
@@ -2478,6 +2515,53 @@ async function handleSubmit(form) {
       await refreshPersonalization();
       window.location.hash = '#/';
       await loadRoute();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+    return;
+  }
+
+  if (formType === 'forgot-password') {
+    const values = Object.fromEntries(new FormData(form).entries());
+    try {
+      const response = await api('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify(values)
+      });
+      const resetForm = document.querySelector('[data-form="reset-password"]');
+      if (resetForm) {
+        const emailField = resetForm.querySelector('input[name="email"]');
+        const tokenField = resetForm.querySelector('input[name="token"]');
+        if (emailField) emailField.value = String(values.email || '');
+        if (tokenField) tokenField.value = response.resetToken || '';
+      }
+      const panel = document.querySelector('.auth-recovery');
+      if (panel) panel.classList.add('is-open');
+      showToast('Reset code generated. Use it below to set a new password.');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+    return;
+  }
+
+  if (formType === 'reset-password') {
+    const values = Object.fromEntries(new FormData(form).entries());
+    if (values.newPassword !== values.confirmPassword) {
+      showToast('New password and confirmation must match.', 'error');
+      return;
+    }
+
+    try {
+      await api('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: values.email,
+          token: values.token,
+          newPassword: values.newPassword
+        })
+      });
+      form.reset();
+      showToast('Password reset successfully. You can now sign in.');
     } catch (error) {
       showToast(error.message, 'error');
     }

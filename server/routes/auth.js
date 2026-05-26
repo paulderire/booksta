@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { auth } = require('../middleware/auth');
 const { query } = require('../db');
 const { serializeUser } = require('../utils');
@@ -16,6 +17,10 @@ function signToken(userId) {
     subject: userId,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
 router.post('/register', async (req, res, next) => {
@@ -147,6 +152,96 @@ router.post('/change-password', auth, async (req, res, next) => {
     await query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, req.user.id]);
 
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const { rows } = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'No account found for that email.' });
+    }
+
+    const resetToken = crypto.randomBytes(24).toString('hex');
+    const tokenHash = hashResetToken(resetToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    await query(
+      `UPDATE users
+       SET password_reset_token_hash = $1,
+           password_reset_expires_at = $2
+       WHERE email = $3`,
+      [tokenHash, expiresAt, normalizedEmail]
+    );
+
+    const resetUrl = `${process.env.CLIENT_URL || ''}/#/login?resetToken=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(normalizedEmail)}`;
+    res.json({
+      ok: true,
+      resetToken,
+      resetUrl,
+      message: 'Reset code generated. Use it to complete the password reset.'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { email, token, newPassword } = req.body || {};
+
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ error: 'Email, token, and new password are required.' });
+    }
+
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const tokenHash = hashResetToken(token);
+    const { rows } = await query(
+      `SELECT id, password_reset_expires_at, password_reset_token_hash
+       FROM users
+       WHERE email = $1`,
+      [normalizedEmail]
+    );
+
+    const user = rows[0];
+    if (!user || !user.password_reset_token_hash) {
+      return res.status(400).json({ error: 'Password reset code is invalid or has expired.' });
+    }
+
+    if (new Date(user.password_reset_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Password reset code is invalid or has expired.' });
+    }
+
+    if (user.password_reset_token_hash !== tokenHash) {
+      return res.status(400).json({ error: 'Password reset code is invalid or has expired.' });
+    }
+
+    const rounds = Number(process.env.BCRYPT_ROUNDS || 12);
+    const passwordHash = await bcrypt.hash(newPassword, rounds);
+    await query(
+      `UPDATE users
+       SET password_hash = $1,
+           password_reset_token_hash = NULL,
+           password_reset_expires_at = NULL
+       WHERE email = $2`,
+      [passwordHash, normalizedEmail]
+    );
+
+    res.json({ ok: true, message: 'Password updated successfully.' });
   } catch (error) {
     next(error);
   }

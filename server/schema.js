@@ -7,6 +7,8 @@ const schemaStatements = [
     password_hash TEXT NOT NULL,
     avatar_url TEXT,
     role VARCHAR(20) DEFAULT 'customer',
+    password_reset_token_hash TEXT,
+    password_reset_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
   );`,
   `CREATE TABLE IF NOT EXISTS books (
