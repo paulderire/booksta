@@ -103,9 +103,9 @@ const state = {
   ordersLoading: true,
   search: '',
   genre: '',
-  sort: 'featured',
+  sort: 'newest',
   page: 1,
-  limit: 12,
+  limit: 3,
   drawerOpen: false,
   typewriterIndex: 0,
   theme: localStorage.getItem('bookstaTheme') || 'dark',
@@ -342,6 +342,11 @@ function getRoute() {
     return { name: 'register', params: params };
   }
 
+  if (segments[0] === 'reset-password') {
+    const stage = segments[1] === 'confirm' ? 'confirm' : 'request';
+    return { name: 'reset-password', params: { stage, ...params } };
+  }
+
   return { name: 'home', params };
 } 
 
@@ -365,12 +370,18 @@ function showToast(message, type = 'success') {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   const isFormData = options.body instanceof FormData;
+  const authlessAuthPaths = new Set([
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password'
+  ]);
 
   if (!isFormData && options.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  if (state.token) {
+  if (state.token && !authlessAuthPaths.has(path)) {
     headers.set('Authorization', `Bearer ${state.token}`);
   }
 
@@ -923,7 +934,25 @@ function renderHomeView() {
   const genreCount = state.genres.length;
   const featuredAuthors = state.featuredAuthors || [];
   const topGenres = getTopGenres(16);
-  const heroBooks = state.featured.slice(0, 3);
+  // Ensure the hero always displays three books.
+  // Priority: explicit `state.featured` -> `state.books` -> static placeholders.
+  let heroBooks = Array.isArray(state.featured) && state.featured.length ? state.featured.slice(0, 3) : [];
+  if (heroBooks.length < 3 && Array.isArray(state.books) && state.books.length) {
+    const needed = 3 - heroBooks.length;
+    const fromBooks = state.books.slice(0, needed).filter(Boolean);
+    heroBooks = [...heroBooks, ...fromBooks];
+  }
+  if (heroBooks.length < 3) {
+    // Fallback placeholders when no data is available.
+    const placeholders = [
+      { id: 'ph-1', title: 'The Quiet Library', author: 'Various', cover_color: '#334155', price: 1200, avg_rating: 4.5, review_count: 12, emoji: '📘' },
+      { id: 'ph-2', title: 'Night Stories', author: 'A. Storyteller', cover_color: '#0f172a', price: 980, avg_rating: 4.2, review_count: 8, emoji: '📗' },
+      { id: 'ph-3', title: 'Journeys', author: 'M. Traveler', cover_color: '#7c3aed', price: 1500, avg_rating: 4.7, review_count: 21, emoji: '📙' }
+    ];
+    const needed = 3 - heroBooks.length;
+    heroBooks = [...heroBooks, ...placeholders.slice(0, needed)];
+  }
+
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
     : renderSkeletonGrid(4);
@@ -1591,29 +1620,100 @@ function renderAuthView(mode) {
                 <button class="ghost-button" type="button"></button>
               </div>
             </form>
-
-            ${isLogin ? `
-              <button class="ghost-button" type="button" data-action="toggle-reset-panel" style="margin-top:0.75rem;">Forgot password?</button>
-              <div class="auth-recovery" aria-hidden="true" hidden>
-                <div class="auth-recovery-panel">
-                  <h3 class="mini-title">Reset your password</h3>
-                  <p class="helper-text">Request a reset code, then use it with your email and new password.</p>
-                  <form class="auth-form auth-recovery-form" data-form="forgot-password">
-                    <input class="text-input" name="email" type="email" placeholder="Email address" required />
-                    <button class="secondary-button" type="submit">Send reset code</button>
-                  </form>
-                  <form class="auth-form auth-recovery-form" data-form="reset-password">
-                    <input class="text-input" name="email" type="email" placeholder="Email address" required />
-                    <input class="text-input" name="token" placeholder="Reset code" required />
-                    <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
-                    <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
-                    <button class="primary-button" type="submit">Reset password</button>
-                  </form>
-                </div>
-              </div>
-            ` : ''}
+            ${isLogin ? `<button class="ghost-button" type="button" data-action="open-reset-password" style="margin-top:0.75rem;">Forgot password?</button>` : ''}
           </div>
           
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResetPasswordRequestView() {
+  const routeEmail = escapeHtml(state.route?.params?.email || '');
+  return `
+    <div class="auth-modal" role="dialog" aria-modal="true">
+      <div class="auth-modal-backdrop" data-action="close-auth"></div>
+      <div class="auth-modal-panel popup-shell auth-large">
+        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
+        <div class="auth-grid auth-large">
+          <div class="auth-branding auth-large">
+            <div class="auth-brand-row">
+              <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
+              <div><strong class="auth-brand-name">Booksta</strong></div>
+            </div>
+            <h2 class="section-title">Reset your password</h2>
+            <p class="section-copy">Request a reset code and we will send it to your email.</p>
+            <div class="auth-brand-note">
+              <div class="auth-brand-copy">Secure reset · Email verification</div>
+            </div>
+          </div>
+
+          <div class="auth-form-panel auth-large">
+            <div class="auth-header">
+              <div class="hint">Password recovery</div>
+              <h2 class="section-title">Get a reset code</h2>
+              <p class="section-copy">Enter your email and we will send a reset code to your inbox.</p>
+            </div>
+
+            <form class="auth-form" data-form="forgot-password">
+              <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
+              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
+                <button class="primary-button" type="submit">Send reset code</button>
+                <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
+              </div>
+              <p class="helper-text reset-feedback" data-reset-feedback aria-live="polite"></p>
+            </form>
+            <p class="helper-text" style="margin-top:1rem;">
+              Already have your code? <a href="#/reset-password/confirm${routeEmail ? `?email=${encodeURIComponent(state.route?.params?.email || '')}` : ''}">Use reset code</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResetPasswordConfirmView() {
+  const routeEmailRaw = state.route?.params?.email || '';
+  const routeToken = escapeHtml(state.route?.params?.token || '');
+  const routeEmail = escapeHtml(routeEmailRaw);
+  return `
+    <div class="auth-modal" role="dialog" aria-modal="true">
+      <div class="auth-modal-backdrop" data-action="close-auth"></div>
+      <div class="auth-modal-panel popup-shell auth-large">
+        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
+        <div class="auth-grid auth-large">
+          <div class="auth-branding auth-large">
+            <div class="auth-brand-row">
+              <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
+              <div><strong class="auth-brand-name">Booksta</strong></div>
+            </div>
+            <h2 class="section-title">Use your reset code</h2>
+            <p class="section-copy">Enter the code from your email and choose a new password.</p>
+            <div class="auth-brand-note">
+              <div class="auth-brand-copy">Secure reset · Code-based verification</div>
+            </div>
+          </div>
+
+          <div class="auth-form-panel auth-large">
+            <div class="auth-header">
+              <div class="hint">Password recovery</div>
+              <h2 class="section-title">Set your new password</h2>
+              <p class="section-copy">Paste your reset code from email, then set your new password.</p>
+            </div>
+
+            <form class="auth-form auth-recovery-form" data-form="reset-password">
+              <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
+              <input class="text-input" name="token" placeholder="Reset code" value="${routeToken}" required />
+              <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
+              <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
+              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
+                <button class="primary-button" type="submit">Reset password</button>
+                <a class="ghost-button" href="#/reset-password${routeEmailRaw ? `?email=${encodeURIComponent(routeEmailRaw)}` : ''}">Get reset code</a>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -2058,6 +2158,15 @@ function renderApp() {
       return;
     }
 
+    if (name === 'reset-password') {
+      const stage = state.route?.params?.stage === 'confirm' ? 'confirm' : 'request';
+      app.innerHTML = stage === 'confirm' ? renderResetPasswordConfirmView() : renderResetPasswordRequestView();
+      renderFloatingUi();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+      return;
+    }
+
     app.innerHTML = '<section class="page"><div class="empty-state"><p>Page not found.</p><a class="primary-button" href="#/">Return home</a></div></section>';
     renderFloatingUi();
     // Re-observe sections for scroll animations
@@ -2076,9 +2185,9 @@ async function loadRoute() {
   renderChrome();
   
   // Smooth scroll to top when route changes
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'auto' });
   // Also scroll main content to top for anchored navigation
-  document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'smooth' });
+  document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'auto' });
 
   if (state.route.name === 'home') {
     state.search = '';
@@ -2091,6 +2200,11 @@ async function loadRoute() {
     state.search = state.route.params?.q || state.search || '';
     state.page = 1;
     await loadHomeData();
+    return;
+  }
+
+  if (state.route.name === 'reset-password') {
+    renderApp();
     return;
   }
 
@@ -2216,14 +2330,9 @@ function handleAction(target) {
     return;
   }
 
-  if (action === 'toggle-reset-panel') {
-    const panel = document.querySelector('.auth-recovery');
-    if (panel) {
-      panel.classList.toggle('is-open');
-      const isOpen = panel.classList.contains('is-open');
-      panel.hidden = !isOpen;
-      panel.setAttribute('aria-hidden', String(!isOpen));
-    }
+  if (action === 'open-reset-password') {
+    const currentEmail = document.querySelector('.auth-form[data-form="login"] input[name="email"]')?.value || '';
+    window.location.hash = `#/reset-password${currentEmail ? `?email=${encodeURIComponent(currentEmail)}` : ''}`;
     return;
   }
 
@@ -2271,14 +2380,16 @@ function handleAction(target) {
 
   if (action === 'set-page') {
     state.page = Number(target.dataset.page || 1);
-    loadRoute();
+    renderChrome();
+    loadHomeData();
     return;
   }
 
   if (action === 'set-genre') {
     state.genre = target.dataset.genre || '';
     state.page = 1;
-    loadRoute();
+    renderChrome();
+    loadHomeData();
     return;
   }
 
@@ -2526,24 +2637,33 @@ async function handleSubmit(form) {
 
   if (formType === 'forgot-password') {
     const values = Object.fromEntries(new FormData(form).entries());
+    const feedbackNode = form.querySelector('[data-reset-feedback]');
+    if (feedbackNode) {
+      feedbackNode.textContent = '';
+      feedbackNode.classList.remove('is-error', 'is-success');
+    }
     try {
       const response = await api('/api/auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify(values)
       });
-      const resetForm = document.querySelector('[data-form="reset-password"]');
-      if (resetForm) {
-        const emailField = resetForm.querySelector('input[name="email"]');
-        const tokenField = resetForm.querySelector('input[name="token"]');
-        if (emailField) emailField.value = String(values.email || '');
-        if (tokenField) tokenField.value = response.resetToken || '';
+      const targetEmail = String(values.email || '').trim();
+      window.location.hash = `#/reset-password/confirm?email=${encodeURIComponent(targetEmail)}`;
+      const resetMessage = response?.message || 'Reset code sent to your email address.';
+      showToast(resetMessage);
+      if (feedbackNode) {
+        feedbackNode.textContent = resetMessage;
+        feedbackNode.classList.add('is-success');
       }
-      const panel = document.querySelector('.auth-recovery');
-      if (panel) panel.classList.add('is-open');
-      if (panel) panel.hidden = false;
-      showToast('Reset code generated. Use it below to set a new password.');
     } catch (error) {
-      showToast(error.message, 'error');
+      const userMessage = error?.status === 401
+        ? 'Please sign out and try again, or refresh the page and retry.'
+        : (error.message || 'Could not send reset code.');
+      showToast(userMessage, 'error');
+      if (feedbackNode) {
+        feedbackNode.textContent = userMessage;
+        feedbackNode.classList.add('is-error');
+      }
     }
     return;
   }
@@ -2566,6 +2686,7 @@ async function handleSubmit(form) {
       });
       form.reset();
       showToast('Password reset successfully. You can now sign in.');
+      window.location.hash = '#/login';
     } catch (error) {
       showToast(error.message, 'error');
     }

@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { auth } = require('../middleware/auth');
 const { query } = require('../db');
 const { serializeUser } = require('../utils');
@@ -21,6 +22,74 @@ function signToken(userId) {
 
 function hashResetToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+async function getSmtpConfig() {
+  const keys = ['smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'smtpFrom', 'clientUrl'];
+  const { rows } = await query('SELECT key, value FROM app_settings WHERE key = ANY($1)', [keys]);
+  const map = rows.reduce((acc, row) => {
+    acc[row.key] = row.value;
+    return acc;
+  }, {});
+
+  const host = map.smtpHost || process.env.SMTP_HOST;
+  const port = Number(map.smtpPort || process.env.SMTP_PORT || 587);
+  const user = map.smtpUser || process.env.SMTP_USER;
+  const pass = map.smtpPass || process.env.SMTP_PASS;
+  const secure = String(map.smtpSecure || process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;
+  const from = map.smtpFrom || process.env.SMTP_FROM || user;
+  const clientUrl = map.clientUrl || process.env.CLIENT_URL || 'http://localhost:5000';
+
+  if (!host || !user || !pass || !from) {
+    return null;
+  }
+
+  return { host, port, user, pass, secure, from, clientUrl };
+}
+
+function createTransporter(config) {
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: {
+      user: config.user,
+      pass: config.pass
+    }
+  });
+}
+
+async function sendResetPasswordEmail({ toEmail, resetToken }) {
+  const smtpConfig = await getSmtpConfig();
+  if (!smtpConfig) {
+    const err = new Error('Email delivery is not configured on the server. Please configure SMTP in Admin Settings.');
+    err.status = 500;
+    throw err;
+  }
+
+  const transporter = createTransporter(smtpConfig);
+  const clientBase = String(smtpConfig.clientUrl || 'http://localhost:5000').replace(/\/$/, '');
+  const resetUrl = `${clientBase}/#/reset-password/confirm?email=${encodeURIComponent(toEmail)}&token=${encodeURIComponent(resetToken)}`;
+
+  await transporter.sendMail({
+    from: smtpConfig.from,
+    to: toEmail,
+    subject: 'Booksta password reset code',
+    text: `Your Booksta reset code is: ${resetToken}\n\nUse this code to reset your password. You can also open this link: ${resetUrl}\n\nThis code expires in 30 minutes.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:600px;">
+        <h2>Reset your Booksta password</h2>
+        <p>Your reset code is:</p>
+        <p style="font-size:20px;font-weight:700;letter-spacing:1px;">${resetToken}</p>
+        <p>This code expires in 30 minutes.</p>
+        <p>
+          <a href="${resetUrl}" style="display:inline-block;background:#111;color:#fff;padding:10px 14px;text-decoration:none;border-radius:6px;">
+            Open reset page
+          </a>
+        </p>
+      </div>
+    `
+  });
 }
 
 router.post('/register', async (req, res, next) => {
@@ -184,12 +253,11 @@ router.post('/forgot-password', async (req, res, next) => {
       [tokenHash, expiresAt, normalizedEmail]
     );
 
-    const resetUrl = `${process.env.CLIENT_URL || ''}/#/login?resetToken=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(normalizedEmail)}`;
+    await sendResetPasswordEmail({ toEmail: normalizedEmail, resetToken });
+
     res.json({
       ok: true,
-      resetToken,
-      resetUrl,
-      message: 'Reset code generated. Use it to complete the password reset.'
+      message: 'Reset code sent to your email. Please check your inbox.'
     });
   } catch (error) {
     next(error);

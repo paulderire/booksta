@@ -19,7 +19,7 @@ const promotionsRoutes = require('./routes/promotions');
 const adminRoutes = require('./routes/admin');
 const settingsRoutes = require('./routes/settings');
 const personalizationRoutes = require('./routes/personalization');
-const { pool } = require('./db');
+const { pool, query } = require('./db');
 const { ensureSchema, seed } = require('./seed');
 
 // Improve diagnostics: handle pool errors and log resource usage periodically
@@ -80,11 +80,108 @@ app.use(compression()); // Enable gzip compression
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
 // Serve static client files with aggressive caching
+// Dynamic sitemap endpoint: builds sitemap from DB (books) and key pages.
+app.get('/sitemap.xml', async (req, res, next) => {
+  try {
+    // Build absolute base URL
+    const base = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
+
+    // Fetch recent books to include in sitemap (limit to 50000)
+    const { rows } = await query(`SELECT id, created_at, updated_at FROM books ORDER BY created_at DESC LIMIT 50000`, []);
+
+    // Fetch distinct genres and top authors to include category/author pages
+    const genresRes = await query(
+      `SELECT genre, COUNT(*)::int AS book_count
+       FROM (
+         SELECT unnest(CASE WHEN genres IS NULL OR cardinality(genres) = 0 THEN ARRAY_REMOVE(ARRAY[genre], NULL) ELSE genres END) AS genre
+         FROM books
+       ) gv
+       WHERE genre IS NOT NULL AND genre <> ''
+       GROUP BY genre
+       ORDER BY book_count DESC
+       LIMIT 500`,
+      []
+    );
+
+    const authorsRes = await query(
+      `SELECT author, COUNT(*)::int AS book_count
+       FROM books
+       WHERE author IS NOT NULL AND author <> ''
+       GROUP BY author
+       ORDER BY book_count DESC
+       LIMIT 500`,
+      []
+    );
+
+    // Active promotions overview (we'll include the promotions landing page)
+    const promosRes = await query(`SELECT id, code FROM promotions WHERE is_active = TRUE AND expires_at >= CURRENT_DATE LIMIT 200`, []);
+
+    const urls = [];
+    // Add core pages
+    urls.push({ loc: base + '/', priority: 1.0, changefreq: 'daily' });
+    urls.push({ loc: base + '/books', priority: 0.8, changefreq: 'daily' });
+    urls.push({ loc: base + '/wishlist', priority: 0.4, changefreq: 'weekly' });
+    urls.push({ loc: base + '/orders', priority: 0.4, changefreq: 'weekly' });
+
+    rows.forEach((row) => {
+      const loc = `${base}/book/${encodeURIComponent(row.id)}`;
+      const lastmod = (row.updated_at || row.created_at) ? new Date(row.updated_at || row.created_at).toISOString() : null;
+      urls.push({ loc, lastmod, priority: 0.7, changefreq: 'monthly' });
+    });
+
+    // Add genre pages
+    (genresRes.rows || []).forEach((g) => {
+      const loc = `${base}/books?genre=${encodeURIComponent(g.genre)}`;
+      urls.push({ loc, priority: 0.6, changefreq: 'weekly' });
+    });
+
+    // Add author search pages
+    (authorsRes.rows || []).forEach((a) => {
+      const loc = `${base}/search?author=${encodeURIComponent(a.author)}`;
+      urls.push({ loc, priority: 0.5, changefreq: 'weekly' });
+    });
+
+    // Add promotions landing page and per-promo pages
+    if ((promosRes.rows || []).length) {
+      urls.push({ loc: base + '/promotions', priority: 0.6, changefreq: 'weekly' });
+      (promosRes.rows || []).forEach((p) => {
+        const loc = `${base}/promotions?code=${encodeURIComponent(p.code)}`;
+        urls.push({ loc, priority: 0.4, changefreq: 'monthly' });
+      });
+    }
+
+    res.header('Content-Type', 'application/xml');
+    const xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'];
+    urls.forEach((u) => {
+      xml.push('  <url>');
+      xml.push(`    <loc>${escapeXml(u.loc)}</loc>`);
+      if (u.lastmod) xml.push(`    <lastmod>${u.lastmod}</lastmod>`);
+      if (u.changefreq) xml.push(`    <changefreq>${u.changefreq}</changefreq>`);
+      if (u.priority !== undefined) xml.push(`    <priority>${u.priority}</priority>`);
+      xml.push('  </url>');
+    });
+    xml.push('</urlset>');
+    res.send(xml.join('\n'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.use(express.static(clientDir, {
   maxAge: isProduction ? '1y' : 0,
   etag: false,
   lastModified: false
 }));
+
+// Helper to escape XML special chars
+function escapeXml(unsafe) {
+  return String(unsafe || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
 
 // Set cache headers for specific file types
 app.get('/api/*', (_req, res, next) => {
