@@ -105,7 +105,7 @@ const state = {
   genre: '',
   sort: 'newest',
   page: 1,
-  limit: 3,
+  limit: 12,
   drawerOpen: false,
   typewriterIndex: 0,
   theme: localStorage.getItem('bookstaTheme') || 'dark',
@@ -204,6 +204,36 @@ function getTopGenres(limit = 16) {
     .filter((item) => item.name)
     .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
     .slice(0, limit);
+}
+
+function getResponsivePageLimit() {
+  const minCardWidth = window.innerWidth <= 640 ? 170 : 220;
+  const horizontalGap = 16;
+  const availableWidth = Math.max(Math.min(window.innerWidth - 48, 1400), minCardWidth);
+  const columns = Math.max(1, Math.floor((availableWidth + horizontalGap) / (minCardWidth + horizontalGap)));
+
+  // Estimate visible rows for the catalog area so each page fills the viewport.
+  const estimatedCardHeight = 430;
+  const availableHeight = Math.max(window.innerHeight - 260, estimatedCardHeight);
+  const rows = Math.max(1, Math.floor(availableHeight / estimatedCardHeight));
+
+  const limit = columns * rows;
+  return Math.max(4, Math.min(30, limit));
+}
+
+function syncResponsivePageLimit() {
+  const nextLimit = getResponsivePageLimit();
+  if (nextLimit === state.limit) {
+    return false;
+  }
+
+  state.limit = nextLimit;
+  state.totalPages = Math.max(Math.ceil(Number(state.total || 0) / state.limit), 1);
+  if (state.page > state.totalPages) {
+    state.page = state.totalPages;
+  }
+
+  return true;
 }
 
 function cartTotal() {
@@ -1012,7 +1042,7 @@ function renderHomeView() {
             </div>
             <a class="secondary-button" href="#/notifications">See all recommendations</a>
           </div>
-          <div class="recommendation-rail">${state.recommendations.slice(0, 4).map(renderRecommendationTile).join('')}</div>
+          <div class="recommendation-rail">${state.recommendations.map(renderRecommendationTile).join('')}</div>
         ` : ''}
         <div class="toolbar">
           <div>
@@ -1260,7 +1290,7 @@ function renderBookView() {
       ${state.recommendations.length ? `
         <section class="section">
           <h2 class="section-title">More books you may like</h2>
-          <div class="books-grid">${state.recommendations.slice(0, 4).map(renderBookCard).join('')}</div>
+          <div class="books-grid">${state.recommendations.map(renderBookCard).join('')}</div>
         </section>
       ` : ''}
     </section>
@@ -1875,6 +1905,7 @@ async function loadHomeData() {
     return;
   }
   state._lastHomeLoadAt = now;
+  syncResponsivePageLimit();
 
   try {
     const params = new URLSearchParams();
@@ -3067,6 +3098,14 @@ window.addEventListener('resize', () => {
     closeAccountMenu();
   }
   syncChatbotMode();
+  window.clearTimeout(state._paginationResizeTimer);
+  state._paginationResizeTimer = window.setTimeout(() => {
+    const changed = syncResponsivePageLimit();
+    if (changed && (isActiveRoute('home') || isActiveRoute('search'))) {
+      state.page = 1;
+      loadHomeData();
+    }
+  }, 180);
   // Dragging disabled - skip position restore
   // // Dragging disabled - skip position restore
   // positionChatbotFromStorage();
@@ -3113,6 +3152,7 @@ async function init() {
   window.__bookstaStage = 'init:loadSiteSettings';
   await loadPromotionsData();
   window.__bookstaStage = 'init:loadPromotionsData';
+  syncResponsivePageLimit();
   startHeroCycle();
   window.__bookstaStage = 'init:startHeroCycle';
   await loadRoute();

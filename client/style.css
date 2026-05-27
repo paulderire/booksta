@@ -1928,11 +1928,9 @@ html[data-theme='light'] .genre-card {
 }
 
 .recommendation-rail {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 0.75rem;
-  padding-bottom: 0.25rem;
 }
 
 .recommendation-tile {
@@ -1940,15 +1938,15 @@ html[data-theme='light'] .genre-card {
   gap: 0.65rem;
   text-decoration: none;
   color: var(--text);
-  flex: 0 0 120px;
-  max-width: 120px;
+  min-width: 0;
+  max-width: none;
 }
 
 .recommendation-cover {
   position: relative;
   display: block;
-  width: 120px;
-  height: 180px;
+  width: 100%;
+  height: auto;
   aspect-ratio: auto;
   border-radius: 12px;
   overflow: hidden;
@@ -2401,16 +2399,16 @@ body.has-drawer-open {
 
   .recommendation-rail {
     gap: 0.6rem;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   }
 
   .recommendation-tile {
-    flex: 0 0 104px;
-    max-width: 104px;
+    max-width: none;
   }
 
   .recommendation-cover {
-    width: 104px;
-    height: 156px;
+    width: 100%;
+    height: auto;
   }
 }
   .auth-grid,
