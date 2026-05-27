@@ -1293,7 +1293,7 @@ function renderBookView() {
       ${state.recommendations.length ? `
         <section class="section">
           <h2 class="section-title">More books you may like</h2>
-          <div class="books-grid">${state.recommendations.map(renderBookCard).join('')}</div>
+          <div class="recommendation-rail recommendation-rail--detail">${state.recommendations.map(renderRecommendationTile).join('')}</div>
         </section>
       ` : ''}
     </section>
