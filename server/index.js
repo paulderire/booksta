@@ -87,7 +87,11 @@ app.get('/sitemap.xml', async (req, res, next) => {
     const base = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
 
     // Fetch recent books to include in sitemap (limit to 50000)
-    const { rows } = await query(`SELECT id, created_at, updated_at FROM books ORDER BY created_at DESC LIMIT 50000`, []);
+    // Some deployments may not have an `updated_at` column; use COALESCE to fall back to `created_at` when available.
+    const { rows } = await query(
+      `SELECT id, created_at, COALESCE(updated_at, created_at) AS lastmod FROM books ORDER BY created_at DESC LIMIT 50000`,
+      []
+    );
 
     // Fetch distinct genres and top authors to include category/author pages
     const genresRes = await query(
@@ -125,7 +129,7 @@ app.get('/sitemap.xml', async (req, res, next) => {
 
     rows.forEach((row) => {
       const loc = `${base}/book/${encodeURIComponent(row.id)}`;
-      const lastmod = (row.updated_at || row.created_at) ? new Date(row.updated_at || row.created_at).toISOString() : null;
+      const lastmod = row.lastmod ? new Date(row.lastmod).toISOString() : null;
       urls.push({ loc, lastmod, priority: 0.7, changefreq: 'monthly' });
     });
 
