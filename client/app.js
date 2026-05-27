@@ -218,7 +218,8 @@ function getResponsivePageLimit() {
   const rows = Math.max(1, Math.floor(availableHeight / estimatedCardHeight));
 
   const limit = columns * rows;
-  return Math.max(4, Math.min(30, limit));
+  // Cap per-page results to at most 7 as requested.
+  return Math.max(4, Math.min(7, limit));
 }
 
 function syncResponsivePageLimit() {
@@ -229,6 +230,8 @@ function syncResponsivePageLimit() {
 
   state.limit = nextLimit;
   state.totalPages = Math.max(Math.ceil(Number(state.total || 0) / state.limit), 1);
+  // Do not expose pagination beyond 10 pages to the user.
+  state.totalPages = Math.min(state.totalPages, 10);
   if (state.page > state.totalPages) {
     state.page = state.totalPages;
   }
@@ -1913,7 +1916,8 @@ async function loadHomeData() {
     if (state.genre) params.set('genre', state.genre);
     if (state.sort) params.set('sort', state.sort);
     params.set('page', String(state.page));
-    params.set('limit', String(state.limit));
+    // Ensure we never request more than 7 books per page.
+    params.set('limit', String(Math.min(state.limit, 7)));
 
     const [books, featured, genres] = await Promise.all([
       api(`/api/books?${params.toString()}`),
@@ -1923,7 +1927,8 @@ async function loadHomeData() {
 
     state.books = books.books || [];
     state.total = books.total || state.books.length;
-    state.totalPages = books.totalPages || 1;
+    // Clamp total pages to a maximum of 10 for UX constraints.
+    state.totalPages = Math.min(books.totalPages || 1, 10);
     state.featured = featured.books || [];
     state.genreCounts = genres.counts || {};
     // Load top authors separately so a failing authors endpoint doesn't block the home render
