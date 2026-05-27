@@ -2105,11 +2105,12 @@ html[data-theme='light'] .genre-card {
   grid-template-columns: 0.95fr 0.75fr;
   gap: 1rem;
   align-items: stretch;
+  --detail-card-height: clamp(26rem, 54vw, 34rem);
 }
 
 .detail-grid > .panel {
   min-height: 0;
-  height: 100%;
+  height: var(--detail-card-height);
 }
 
 .detail-cover-panel {
@@ -2118,12 +2119,14 @@ html[data-theme='light'] .genre-card {
 
 .detail-cover {
   flex: 1 1 auto;
-  min-height: 26rem;
+  height: 100%;
+  min-height: 0;
 }
 
 .detail-book {
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden;
 }
 
