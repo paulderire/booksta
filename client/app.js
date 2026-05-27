@@ -1242,7 +1242,7 @@ function renderBookView() {
   return `
     <section class="page book-detail">
       <div class="detail-grid">
-        <div class="panel">
+        <div class="panel detail-cover-panel">
           <div class="detail-cover" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
             ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
           </div>

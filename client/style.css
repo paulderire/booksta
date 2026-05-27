@@ -2107,8 +2107,29 @@ html[data-theme='light'] .genre-card {
   align-items: stretch;
 }
 
-.detail-book {
+.detail-grid > .panel {
+  min-height: 0;
   height: 100%;
+}
+
+.detail-cover-panel {
+  display: flex;
+}
+
+.detail-cover {
+  flex: 1 1 auto;
+  min-height: 26rem;
+}
+
+.detail-book {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-book .hero-copy {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
