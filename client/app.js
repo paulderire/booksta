@@ -207,19 +207,8 @@ function getTopGenres(limit = 16) {
 }
 
 function getResponsivePageLimit() {
-  const minCardWidth = window.innerWidth <= 640 ? 170 : 220;
-  const horizontalGap = 16;
-  const availableWidth = Math.max(Math.min(window.innerWidth - 48, 1400), minCardWidth);
-  const columns = Math.max(1, Math.floor((availableWidth + horizontalGap) / (minCardWidth + horizontalGap)));
-
-  // Estimate visible rows for the catalog area so each page fills the viewport.
-  const estimatedCardHeight = 430;
-  const availableHeight = Math.max(window.innerHeight - 260, estimatedCardHeight);
-  const rows = Math.max(1, Math.floor(availableHeight / estimatedCardHeight));
-
-  const limit = columns * rows;
-  // Cap per-page results to at most 7 as requested.
-  return Math.max(4, Math.min(7, limit));
+  // Keep the explore page at seven books so the first page fills the layout consistently.
+  return 7;
 }
 
 function syncResponsivePageLimit() {
@@ -631,20 +620,17 @@ function renderStars(value = 0) {
 }
 
 function renderRatingDistribution(reviews = []) {
-  const total = reviews.length || 1;
-  const counts = [5, 4, 3, 2, 1].map((rating) => reviews.filter((review) => Number(review.rating) === rating).length);
+  if (!reviews.length) {
+    return `<div class="rating-summary-stars"><span class="hint">${renderStars(0)}</span><span class="hint">No ratings yet</span></div>`;
+  }
 
-  return counts.map((count, index) => {
-    const rating = 5 - index;
-    const width = Math.round((count / total) * 100);
-    return `
-      <div class="chart-row">
-        <span class="hint">${rating}★</span>
-        <div class="rating-bar"><span style="width:${width}%"></span></div>
-        <span class="hint">${count}</span>
-      </div>
-    `;
-  }).join('');
+  const average = reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length;
+  return `
+    <div class="rating-summary-stars">
+      <span class="hint">${renderStars(average)}</span>
+      <span class="hint">${reviews.length} reviews</span>
+    </div>
+  `;
 }
 
 function renderBookCard(book) {
@@ -1242,7 +1228,7 @@ function renderBookView() {
   return `
     <section class="page book-detail">
       <div class="detail-grid">
-        <div class="panel">
+        <div class="panel detail-cover-panel">
           <div class="detail-cover" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
             ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
           </div>
@@ -1293,7 +1279,7 @@ function renderBookView() {
       ${state.recommendations.length ? `
         <section class="section">
           <h2 class="section-title">More books you may like</h2>
-          <div class="books-grid">${state.recommendations.map(renderBookCard).join('')}</div>
+          <div class="recommendation-rail recommendation-rail--detail">${state.recommendations.map(renderRecommendationTile).join('')}</div>
         </section>
       ` : ''}
     </section>
@@ -1337,7 +1323,7 @@ function renderNotificationsView() {
     : '<div class="empty-state"><p>No notifications yet.</p><span class="pill">We will alert you when liked books return.</span></div>';
 
   const recommendationsMarkup = state.recommendations.length
-    ? `<div class="books-grid">${state.recommendations.map(renderBookCard).join('')}</div>`
+    ? `<div class="recommendation-rail">${state.recommendations.map(renderRecommendationTile).join('')}</div>`
     : '<div class="empty-state"><p>No recommendations available yet.</p><span class="pill">Read, wish list, and review books to improve suggestions.</span></div>';
 
   const profile = state.recommendationProfile || {};
