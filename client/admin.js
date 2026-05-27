@@ -175,11 +175,25 @@
 
     // Quick actions
     const quick = $id('admin-quick-actions');
-    if (quick) {
-      quick.innerHTML = `<div class="quick-inner"><button id="qa-new-book" class="btn-primary">➕ New Book</button><button id="qa-new-promo" class="btn-secondary">🎉 New Promotion</button><button id="qa-export" class="btn-primary">⬇ Export Orders</button><button id="qa-refresh" class="btn-secondary">🔄 Refresh</button></div>`;
+      if (quick) {
+      quick.innerHTML = `<div class="quick-inner"><button id="qa-new-book" class="btn-primary">➕ New Book</button><button id="qa-new-promo" class="btn-secondary">🎉 New Promotion</button><button id="qa-export" class="btn-primary">⬇ Export Orders</button><button id="qa-ping-sitemap" class="btn-secondary">📣 Ping Search Engines</button><button id="qa-refresh" class="btn-secondary">🔄 Refresh</button></div>`;
       $id('qa-new-book').addEventListener('click', () => openBookForm(null));
       $id('qa-new-promo').addEventListener('click', () => openPromoForm());
       $id('qa-export').addEventListener('click', ()=>{ document.querySelector('#export-csv')?.click(); });
+      $id('qa-ping-sitemap').addEventListener('click', async () => {
+        try {
+          const res = await api('/admin/sitemap/ping', { method: 'POST', body: JSON.stringify({}) });
+          if (res && res.results) {
+            toast('Sitemap ping sent. See console for details.');
+            console.log('Sitemap ping results', res);
+          } else {
+            toast('Sitemap ping result: ' + JSON.stringify(res));
+          }
+        } catch (e) {
+          console.error('Ping error', e);
+          toast('Failed to ping search engines: ' + (e.message || e), 'error');
+        }
+      });
       $id('qa-refresh').addEventListener('click', ()=> loadDashboard());
     }
 
@@ -532,10 +546,10 @@
       const grid = $id('featured-books-grid');
       const featuredBooks = (booksRes.books || []).filter(b => b.featured);
       
-      // Build complete grid HTML with stats header and featured books
+      // Build HTML: stats header plus a table of featured books for easier management
       let gridHtml = '';
-      
-      // Add stats header (spans full width)
+
+      // Stats header (spans full width)
       gridHtml += `
         <div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
           <div class="card" style="padding: 1.5rem; background: linear-gradient(180deg, rgba(124,140,255,0.15), var(--bg-soft)); border-left: 4px solid var(--accent);">
@@ -560,32 +574,54 @@
           </div>
         </div>
       `;
-      
-      // Add featured books
-      featuredBooks.forEach(b=>{
-        const cover = b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="${escapeHtml(b.title)}" class="featured-thumb" />` : `<div class="featured-thumb placeholder">📚</div>`;
-        const genres = (b.genres && b.genres.length) ? b.genres.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join(' ') : `<span class="genre-badge muted">${escapeHtml(b.genre || 'Uncategorized')}</span>`;
-        gridHtml += `
-          <div class="card featured-card">
-            <div class="featured-left">${cover}</div>
-            <div class="featured-meta">
-              <h3 class="featured-title">${escapeHtml(b.title)}</h3>
-              <div class="small featured-author">${escapeHtml(b.author)}</div>
-              <div class="featured-genres">${genres}</div>
-            </div>
-            <div class="featured-right">
-              <div class="featured-price">${formatRWF(b.price)}</div>
-              <div class="featured-stock"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></div>
-              <div class="featured-actions"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></div>
-            </div>
-          </div>
-        `;
-      });
-      
+
       if (!featuredBooks.length) {
         gridHtml += `<div class="card" style="grid-column:1/-1;padding:1.25rem;color:var(--text-muted)">No featured books. Add by clicking Edit on any book.</div>`;
+        grid.innerHTML = gridHtml;
+        return;
       }
-      
+
+      // Table header
+      gridHtml += `
+        <table class="admin-table" style="width:100%;border-collapse:collapse;margin-top:0.5rem">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Title</th>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Author</th>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Genres</th>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Price</th>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Stock</th>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Sold</th>
+              <th style="text-align:left;padding:0.75rem;font-weight:600">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      featuredBooks.forEach(b => {
+        const genres = (b.genres && b.genres.length) ? escapeHtml(b.genres.join(', ')) : escapeHtml(b.genre || 'Uncategorized');
+        gridHtml += `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:0.75rem">
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <div style="width:56px;height:80px;border-radius:8px;overflow:hidden;flex:0 0 auto;background:linear-gradient(145deg, ${escapeHtml(b.cover_color || '#1f2937')}, rgba(15,23,42,0.9));display:grid;place-items:center">${b.cover_url ? `<img src="${escapeHtml(b.cover_url)}" alt="${escapeHtml(b.title)}" style="width:100%;height:100%;object-fit:cover"/>` : `<span style="font-size:1.4rem">📚</span>`}</div>
+                <div>
+                  <strong>${escapeHtml(b.title)}</strong>
+                  <div class="small" style="opacity:0.7">${escapeHtml(b.author)}</div>
+                </div>
+              </div>
+            </td>
+            <td style="padding:0.75rem">${escapeHtml(b.author)}</td>
+            <td style="padding:0.75rem">${genres}</td>
+            <td style="padding:0.75rem">${formatRWF(b.price)}</td>
+            <td style="padding:0.75rem"><span class="status-pill ${stockBadgeClass(b.stock)}">${formatNumber(b.stock)}</span></td>
+            <td style="padding:0.75rem">${formatNumber(b.sold_count || 0)}</td>
+            <td style="padding:0.75rem"><button class="btn-secondary" data-admin-action="remove-featured" data-id="${b.id}">Remove</button></td>
+          </tr>
+        `;
+      });
+
+      gridHtml += '</tbody></table>';
       grid.innerHTML = gridHtml;
     } catch (error) {
       console.error('Featured load error:', error);
@@ -1167,6 +1203,18 @@
       if ($id('s_facebook')) $id('s_facebook').value = s.facebookUrl || '';
       if ($id('s_x')) $id('s_x').value = s.xUrl || '';
       if ($id('s_tiktok')) $id('s_tiktok').value = s.tiktokUrl || '';
+      if ($id('s_smtp_host')) $id('s_smtp_host').value = s.smtpHost || '';
+      if ($id('s_smtp_port')) $id('s_smtp_port').value = s.smtpPort || '587';
+      if ($id('s_smtp_secure')) $id('s_smtp_secure').checked = String(s.smtpSecure || '').toLowerCase() === 'true';
+      if ($id('s_smtp_user')) $id('s_smtp_user').value = s.smtpUser || '';
+      if ($id('s_smtp_from')) $id('s_smtp_from').value = s.smtpFrom || '';
+      if ($id('s_client_url')) $id('s_client_url').value = s.clientUrl || '';
+      if ($id('s_smtp_pass')) $id('s_smtp_pass').value = '';
+      if ($id('smtp-pass-status')) {
+        $id('smtp-pass-status').textContent = s.smtpPassConfigured
+          ? 'SMTP password is configured. Leave password blank to keep it unchanged.'
+          : 'SMTP password is not configured yet.';
+      }
     } catch (e) {
       toast('Failed to load settings', 'error');
     }
@@ -1179,11 +1227,19 @@
       instagramUrl: $id('s_instagram')?.value?.trim() || '',
       facebookUrl: $id('s_facebook')?.value?.trim() || '',
       xUrl: $id('s_x')?.value?.trim() || '',
-      tiktokUrl: $id('s_tiktok')?.value?.trim() || ''
+      tiktokUrl: $id('s_tiktok')?.value?.trim() || '',
+      smtpHost: $id('s_smtp_host')?.value?.trim() || '',
+      smtpPort: $id('s_smtp_port')?.value?.trim() || '',
+      smtpSecure: String(!!$id('s_smtp_secure')?.checked),
+      smtpUser: $id('s_smtp_user')?.value?.trim() || '',
+      smtpPass: $id('s_smtp_pass')?.value || '',
+      smtpFrom: $id('s_smtp_from')?.value?.trim() || '',
+      clientUrl: $id('s_client_url')?.value?.trim() || ''
     };
     try {
       await api('/admin/settings', { method: 'PUT', body: JSON.stringify(payload) });
       toast('Settings saved');
+      await loadSettings();
     } catch (e) {
       toast(e.message || 'Failed to save settings', 'error');
     }

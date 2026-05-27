@@ -103,9 +103,9 @@ const state = {
   ordersLoading: true,
   search: '',
   genre: '',
-  sort: 'featured',
+  sort: 'newest',
   page: 1,
-  limit: 12,
+  limit: 3,
   drawerOpen: false,
   typewriterIndex: 0,
   theme: localStorage.getItem('bookstaTheme') || 'dark',
@@ -194,6 +194,14 @@ function getTopAuthors(books = [], limit = 6) {
 
   return Array.from(counts.entries())
     .map(([name, count]) => ({ name, count }))
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, limit);
+}
+
+function getTopGenres(limit = 16) {
+  return Object.entries(state.genreCounts || {})
+    .map(([name, count]) => ({ name, count: Number(count || 0) }))
+    .filter((item) => item.name)
     .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
     .slice(0, limit);
 }
@@ -334,6 +342,11 @@ function getRoute() {
     return { name: 'register', params: params };
   }
 
+  if (segments[0] === 'reset-password') {
+    const stage = segments[1] === 'confirm' ? 'confirm' : 'request';
+    return { name: 'reset-password', params: { stage, ...params } };
+  }
+
   return { name: 'home', params };
 } 
 
@@ -357,12 +370,18 @@ function showToast(message, type = 'success') {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   const isFormData = options.body instanceof FormData;
+  const authlessAuthPaths = new Set([
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password'
+  ]);
 
   if (!isFormData && options.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  if (state.token) {
+  if (state.token && !authlessAuthPaths.has(path)) {
     headers.set('Authorization', `Bearer ${state.token}`);
   }
 
@@ -455,7 +474,7 @@ function renderChrome() {
             <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
             <span class="account-trigger-copy">
               <span class="account-trigger-label">${escapeHtml(state.user.name || 'Reader')}</span>
-              <span class="account-trigger-sub">${escapeHtml(state.user.role || 'customer')}</span>
+              <span class="account-trigger-sub">${state.user.role === 'admin' ? escapeHtml(state.user.role) : ''}</span>
             </span>
             <span class="account-caret">⌄</span>
           </button>
@@ -479,7 +498,7 @@ function renderChrome() {
             <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
             <div>
               <div class="mobile-account-name">${escapeHtml(state.user.name || 'Reader')}</div>
-              <div class="mobile-account-role">${escapeHtml(state.user.role || 'customer')}</div>
+              <div class="mobile-account-role">${state.user.role === 'admin' ? escapeHtml(state.user.role) : ''}</div>
             </div>
           </div>
           <a class="ghost-button" href="#/profile" data-action="close-mobile-menu">Profile</a>
@@ -624,6 +643,18 @@ function renderBookCard(book) {
         <button class="ghost-button" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}">Wishlist</button>
       </div>
     </article>
+  `;
+}
+
+function renderRecommendationTile(book) {
+  const coverStyle = `background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));`;
+  return `
+    <a class="recommendation-tile" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" aria-label="Open ${escapeHtml(book.title)}">
+      <span class="recommendation-cover" style="${coverStyle}">
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+      </span>
+      <strong class="recommendation-name">${escapeHtml(book.title)}</strong>
+    </a>
   `;
 }
 
@@ -902,7 +933,26 @@ function renderHomeView() {
   const featuredCount = state.featured.length;
   const genreCount = state.genres.length;
   const featuredAuthors = state.featuredAuthors || [];
-  const heroBooks = state.featured.slice(0, 3);
+  const topGenres = getTopGenres(16);
+  // Ensure the hero always displays three books.
+  // Priority: explicit `state.featured` -> `state.books` -> static placeholders.
+  let heroBooks = Array.isArray(state.featured) && state.featured.length ? state.featured.slice(0, 3) : [];
+  if (heroBooks.length < 3 && Array.isArray(state.books) && state.books.length) {
+    const needed = 3 - heroBooks.length;
+    const fromBooks = state.books.slice(0, needed).filter(Boolean);
+    heroBooks = [...heroBooks, ...fromBooks];
+  }
+  if (heroBooks.length < 3) {
+    // Fallback placeholders when no data is available.
+    const placeholders = [
+      { id: 'ph-1', title: 'The Quiet Library', author: 'Various', cover_color: '#334155', price: 1200, avg_rating: 4.5, review_count: 12, emoji: '📘' },
+      { id: 'ph-2', title: 'Night Stories', author: 'A. Storyteller', cover_color: '#0f172a', price: 980, avg_rating: 4.2, review_count: 8, emoji: '📗' },
+      { id: 'ph-3', title: 'Journeys', author: 'M. Traveler', cover_color: '#7c3aed', price: 1500, avg_rating: 4.7, review_count: 21, emoji: '📙' }
+    ];
+    const needed = 3 - heroBooks.length;
+    heroBooks = [...heroBooks, ...placeholders.slice(0, needed)];
+  }
+
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
     : renderSkeletonGrid(4);
@@ -912,10 +962,6 @@ function renderHomeView() {
     : state.books.length
       ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
       : `<div class="empty-state"><p>No books match your current filters.</p><button class="primary-button" type="button" data-action="reset-filters">Clear filters</button></div>`;
-
-  const tabsMarkup = ['All', ...state.genres].map((genre) => `
-    <button class="tab ${!state.genre && genre === 'All' || state.genre === genre ? 'is-active' : ''}" type="button" data-action="set-genre" data-genre="${escapeHtml(genre === 'All' ? '' : genre)}">${escapeHtml(genre)}</button>
-  `).join('');
 
   return `
     <section class="page home-page full-width section full-bleed">
@@ -958,7 +1004,7 @@ function renderHomeView() {
 
       <section class="section">
         ${state.user && state.recommendations.length ? `
-          <div class="panel recommendation-strip">
+          <div class="recommendation-strip">
             <div>
               <div class="hint">Personalized</div>
               <h2 class="section-title" style="margin:0.2rem 0 0.4rem 0;">Recommended for you</h2>
@@ -966,12 +1012,12 @@ function renderHomeView() {
             </div>
             <a class="secondary-button" href="#/notifications">See all recommendations</a>
           </div>
-          <div class="books-grid recommended-grid">${state.recommendations.slice(0, 4).map(renderBookCard).join('')}</div>
+          <div class="recommendation-rail">${state.recommendations.slice(0, 4).map(renderRecommendationTile).join('')}</div>
         ` : ''}
         <div class="toolbar">
           <div>
             <h2 class="section-title">Explore books</h2>
-            <p class="section-copy">Use genre tabs and sort controls to narrow the catalog. Search now lives in the header.</p>
+            <p class="section-copy">Use sort controls to narrow the catalog. Search now lives in the header.</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -986,8 +1032,6 @@ function renderHomeView() {
             </select>
           </div>
         </div>
-
-        <div class="filter-pill-row">${tabsMarkup}</div>
         ${booksMarkup}
         ${state.homeLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
       </section>
@@ -1031,8 +1075,7 @@ function renderHomeView() {
       <section class="section" style="padding: 4rem 0;">
         <h2 class="section-title">Browse by Genre</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
-          ${state.genres.slice(0, 8).map(genre => {
-            const genreBooks = Number(state.genreCounts?.[genre] || 0);
+          ${topGenres.map(({ name: genre, count: genreBooks }) => {
             const isActive = state.genre === genre;
             return `<button class="genre-card ${isActive ? 'is-active' : ''}" style="padding: 2rem; text-align: center; cursor: pointer; transition: transform 0.25s, background 0.25s; border: none; background: transparent; border-radius: 18px;" data-action="set-genre" data-genre="${escapeHtml(genre)}">
               <h3>${escapeHtml(genre)}</h3>
@@ -1105,17 +1148,13 @@ function renderSearchView() {
       ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
       : `<div class="empty-state"><p>No books match "${escapeHtml(query)}".</p><a class="primary-button" href="#/">Back to home</a></div>`;
 
-  const tabsMarkup = ['All', ...state.genres].map((genre) => `
-    <button class="tab ${(!state.genre && genre === 'All') || state.genre === genre ? 'is-active' : ''}" type="button" data-action="set-genre" data-genre="${escapeHtml(genre === 'All' ? '' : genre)}">${escapeHtml(genre)}</button>
-  `).join('');
-
   return `
     <section class="page search-page full-width">
       <section class="section">
         <div class="toolbar">
           <div>
             <h2 class="section-title">Refine results</h2>
-            <p class="section-copy">Use genre and sort controls to narrow the current query.</p>
+            <p class="section-copy">Use sort controls to narrow the current query.</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -1130,8 +1169,6 @@ function renderSearchView() {
             </select>
           </div>
         </div>
-
-        <div class="filter-pill-row">${tabsMarkup}</div>
         ${booksMarkup}
         ${state.homeLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
       </section>
@@ -1572,7 +1609,7 @@ function renderAuthView(mode) {
               <input class="text-input" name="name" placeholder="Full name" ${isLogin ? 'style="display:none;"' : 'required'} />
               <input class="text-input" name="email" type="email" placeholder="Email address" required />
               <input class="text-input" name="password" type="password" placeholder="Password" required minlength="8" />
-              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;">
+              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
                 <button class="primary-button" type="submit">${isLogin ? 'Sign in' : 'Create account'}</button>
                 <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
               </div>
@@ -1583,8 +1620,100 @@ function renderAuthView(mode) {
                 <button class="ghost-button" type="button"></button>
               </div>
             </form>
+            ${isLogin ? `<button class="ghost-button" type="button" data-action="open-reset-password" style="margin-top:0.75rem;">Forgot password?</button>` : ''}
           </div>
           
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResetPasswordRequestView() {
+  const routeEmail = escapeHtml(state.route?.params?.email || '');
+  return `
+    <div class="auth-modal" role="dialog" aria-modal="true">
+      <div class="auth-modal-backdrop" data-action="close-auth"></div>
+      <div class="auth-modal-panel popup-shell auth-large">
+        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
+        <div class="auth-grid auth-large">
+          <div class="auth-branding auth-large">
+            <div class="auth-brand-row">
+              <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
+              <div><strong class="auth-brand-name">Booksta</strong></div>
+            </div>
+            <h2 class="section-title">Reset your password</h2>
+            <p class="section-copy">Request a reset code and we will send it to your email.</p>
+            <div class="auth-brand-note">
+              <div class="auth-brand-copy">Secure reset · Email verification</div>
+            </div>
+          </div>
+
+          <div class="auth-form-panel auth-large">
+            <div class="auth-header">
+              <div class="hint">Password recovery</div>
+              <h2 class="section-title">Get a reset code</h2>
+              <p class="section-copy">Enter your email and we will send a reset code to your inbox.</p>
+            </div>
+
+            <form class="auth-form" data-form="forgot-password">
+              <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
+              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
+                <button class="primary-button" type="submit">Send reset code</button>
+                <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
+              </div>
+              <p class="helper-text reset-feedback" data-reset-feedback aria-live="polite"></p>
+            </form>
+            <p class="helper-text" style="margin-top:1rem;">
+              Already have your code? <a href="#/reset-password/confirm${routeEmail ? `?email=${encodeURIComponent(state.route?.params?.email || '')}` : ''}">Use reset code</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResetPasswordConfirmView() {
+  const routeEmailRaw = state.route?.params?.email || '';
+  const routeToken = escapeHtml(state.route?.params?.token || '');
+  const routeEmail = escapeHtml(routeEmailRaw);
+  return `
+    <div class="auth-modal" role="dialog" aria-modal="true">
+      <div class="auth-modal-backdrop" data-action="close-auth"></div>
+      <div class="auth-modal-panel popup-shell auth-large">
+        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
+        <div class="auth-grid auth-large">
+          <div class="auth-branding auth-large">
+            <div class="auth-brand-row">
+              <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
+              <div><strong class="auth-brand-name">Booksta</strong></div>
+            </div>
+            <h2 class="section-title">Use your reset code</h2>
+            <p class="section-copy">Enter the code from your email and choose a new password.</p>
+            <div class="auth-brand-note">
+              <div class="auth-brand-copy">Secure reset · Code-based verification</div>
+            </div>
+          </div>
+
+          <div class="auth-form-panel auth-large">
+            <div class="auth-header">
+              <div class="hint">Password recovery</div>
+              <h2 class="section-title">Set your new password</h2>
+              <p class="section-copy">Paste your reset code from email, then set your new password.</p>
+            </div>
+
+            <form class="auth-form auth-recovery-form" data-form="reset-password">
+              <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
+              <input class="text-input" name="token" placeholder="Reset code" value="${routeToken}" required />
+              <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
+              <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
+              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
+                <button class="primary-button" type="submit">Reset password</button>
+                <a class="ghost-button" href="#/reset-password${routeEmailRaw ? `?email=${encodeURIComponent(routeEmailRaw)}` : ''}">Get reset code</a>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -2029,6 +2158,15 @@ function renderApp() {
       return;
     }
 
+    if (name === 'reset-password') {
+      const stage = state.route?.params?.stage === 'confirm' ? 'confirm' : 'request';
+      app.innerHTML = stage === 'confirm' ? renderResetPasswordConfirmView() : renderResetPasswordRequestView();
+      renderFloatingUi();
+      // Re-observe sections for scroll animations
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+      return;
+    }
+
     app.innerHTML = '<section class="page"><div class="empty-state"><p>Page not found.</p><a class="primary-button" href="#/">Return home</a></div></section>';
     renderFloatingUi();
     // Re-observe sections for scroll animations
@@ -2047,9 +2185,9 @@ async function loadRoute() {
   renderChrome();
   
   // Smooth scroll to top when route changes
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'auto' });
   // Also scroll main content to top for anchored navigation
-  document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'smooth' });
+  document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'auto' });
 
   if (state.route.name === 'home') {
     state.search = '';
@@ -2062,6 +2200,11 @@ async function loadRoute() {
     state.search = state.route.params?.q || state.search || '';
     state.page = 1;
     await loadHomeData();
+    return;
+  }
+
+  if (state.route.name === 'reset-password') {
+    renderApp();
     return;
   }
 
@@ -2187,6 +2330,12 @@ function handleAction(target) {
     return;
   }
 
+  if (action === 'open-reset-password') {
+    const currentEmail = document.querySelector('.auth-form[data-form="login"] input[name="email"]')?.value || '';
+    window.location.hash = `#/reset-password${currentEmail ? `?email=${encodeURIComponent(currentEmail)}` : ''}`;
+    return;
+  }
+
   if (action === 'close-drawer') {
     setDrawerOpen(false);
     return;
@@ -2231,14 +2380,16 @@ function handleAction(target) {
 
   if (action === 'set-page') {
     state.page = Number(target.dataset.page || 1);
-    loadRoute();
+    renderChrome();
+    loadHomeData();
     return;
   }
 
   if (action === 'set-genre') {
     state.genre = target.dataset.genre || '';
     state.page = 1;
-    loadRoute();
+    renderChrome();
+    loadHomeData();
     return;
   }
 
@@ -2478,6 +2629,64 @@ async function handleSubmit(form) {
       await refreshPersonalization();
       window.location.hash = '#/';
       await loadRoute();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+    return;
+  }
+
+  if (formType === 'forgot-password') {
+    const values = Object.fromEntries(new FormData(form).entries());
+    const feedbackNode = form.querySelector('[data-reset-feedback]');
+    if (feedbackNode) {
+      feedbackNode.textContent = '';
+      feedbackNode.classList.remove('is-error', 'is-success');
+    }
+    try {
+      const response = await api('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify(values)
+      });
+      const targetEmail = String(values.email || '').trim();
+      window.location.hash = `#/reset-password/confirm?email=${encodeURIComponent(targetEmail)}`;
+      const resetMessage = response?.message || 'Reset code sent to your email address.';
+      showToast(resetMessage);
+      if (feedbackNode) {
+        feedbackNode.textContent = resetMessage;
+        feedbackNode.classList.add('is-success');
+      }
+    } catch (error) {
+      const userMessage = error?.status === 401
+        ? 'Please sign out and try again, or refresh the page and retry.'
+        : (error.message || 'Could not send reset code.');
+      showToast(userMessage, 'error');
+      if (feedbackNode) {
+        feedbackNode.textContent = userMessage;
+        feedbackNode.classList.add('is-error');
+      }
+    }
+    return;
+  }
+
+  if (formType === 'reset-password') {
+    const values = Object.fromEntries(new FormData(form).entries());
+    if (values.newPassword !== values.confirmPassword) {
+      showToast('New password and confirmation must match.', 'error');
+      return;
+    }
+
+    try {
+      await api('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: values.email,
+          token: values.token,
+          newPassword: values.newPassword
+        })
+      });
+      form.reset();
+      showToast('Password reset successfully. You can now sign in.');
+      window.location.hash = '#/login';
     } catch (error) {
       showToast(error.message, 'error');
     }

@@ -162,7 +162,14 @@ router.get('/settings', async (_req, res, next) => {
         instagramUrl: map.instagramUrl || '#/social/instagram',
         facebookUrl: map.facebookUrl || '#/social/facebook',
         xUrl: map.xUrl || '#/social/x',
-        tiktokUrl: map.tiktokUrl || '#/social/tiktok'
+        tiktokUrl: map.tiktokUrl || '#/social/tiktok',
+        smtpHost: map.smtpHost || '',
+        smtpPort: map.smtpPort || '587',
+        smtpSecure: map.smtpSecure || 'false',
+        smtpUser: map.smtpUser || '',
+        smtpFrom: map.smtpFrom || '',
+        clientUrl: map.clientUrl || '',
+        smtpPassConfigured: Boolean(map.smtpPass)
       }
     });
   } catch (error) {
@@ -178,8 +185,19 @@ router.put('/settings', async (req, res, next) => {
       instagramUrl: String(req.body?.instagramUrl || '').trim(),
       facebookUrl: String(req.body?.facebookUrl || '').trim(),
       xUrl: String(req.body?.xUrl || '').trim(),
-      tiktokUrl: String(req.body?.tiktokUrl || '').trim()
+      tiktokUrl: String(req.body?.tiktokUrl || '').trim(),
+      smtpHost: String(req.body?.smtpHost || '').trim(),
+      smtpPort: String(req.body?.smtpPort || '').trim(),
+      smtpSecure: String(req.body?.smtpSecure || '').trim(),
+      smtpUser: String(req.body?.smtpUser || '').trim(),
+      smtpFrom: String(req.body?.smtpFrom || '').trim(),
+      clientUrl: String(req.body?.clientUrl || '').trim()
     };
+
+    const smtpPass = String(req.body?.smtpPass || '');
+    if (smtpPass.trim()) {
+      incoming.smtpPass = smtpPass;
+    }
 
     const entries = Object.entries(incoming).filter(([, value]) => value);
     for (const [key, value] of entries) {
@@ -191,7 +209,8 @@ router.put('/settings', async (req, res, next) => {
       );
     }
 
-    res.json({ settings: incoming });
+    const { rows: passRows } = await query('SELECT value FROM app_settings WHERE key = $1 LIMIT 1', ['smtpPass']);
+    res.json({ settings: { ...incoming, smtpPassConfigured: Boolean(passRows[0]?.value) } });
   } catch (error) {
     next(error);
   }
@@ -463,6 +482,39 @@ router.delete('/promotions/:id', async (req, res, next) => {
     const { rows } = await query('DELETE FROM promotions WHERE id = $1 RETURNING *', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Promotion not found' });
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Ping search engines to notify sitemap update (admin-only)
+router.post('/sitemap/ping', async (req, res, next) => {
+  try {
+    const sitemapUrl = (req.body && req.body.sitemap) || process.env.CLIENT_URL ? `${process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`}/sitemap.xml` : `${req.protocol}://${req.get('host')}/sitemap.xml`;
+
+    // Build ping endpoints
+    const endpoints = [
+      `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`,
+      `https://www.bing.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`
+    ];
+
+    const https = require('https');
+
+    const ping = (url) => new Promise((resolve) => {
+      try {
+        const req = https.get(url, (r) => {
+          const ok = r.statusCode >= 200 && r.statusCode < 400;
+          resolve({ url, status: r.statusCode, ok });
+        });
+        req.on('error', (err) => resolve({ url, error: err.message }));
+        req.setTimeout(5000, () => { req.abort(); resolve({ url, error: 'timeout' }); });
+      } catch (err) {
+        resolve({ url, error: String(err && err.message ? err.message : err) });
+      }
+    });
+
+    const results = await Promise.all(endpoints.map(ping));
+    res.json({ sitemap: sitemapUrl, results });
   } catch (error) {
     next(error);
   }

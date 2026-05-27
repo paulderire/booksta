@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>Booksta Admin</title>
   <link rel="icon" type="image/png" href="assets/logo.png?v=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Syne:wght@700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/admin.css?v=4" />
+  <link rel="stylesheet" href="/admin.css?v=7" />
   <link rel="stylesheet" href="/ui-overrides.css?v=1" />
 </head>
 <body>
@@ -248,31 +249,34 @@
         <div class="section-header">
           <h2>Store Settings</h2>
         </div>
-        <div class="card" style="padding:1rem;max-width:760px">
+        <div style="display:flex;flex-direction:column;gap:1rem;max-width:960px">
           <form id="settings-form" style="display:grid;gap:0.85rem">
-            <div class="form-group">
-              <label>WhatsApp Number</label>
-              <input id="s_whatsapp" placeholder="250782781575" />
+            <div style="display:grid;grid-template-columns:1fr;gap:1rem">
+              <div class="card" style="padding:1rem">
+                <h3 style="margin:0 0 0.5rem 0">Social & Contact</h3>
+                <p class="small" style="margin:0 0 0.5rem 0;opacity:0.75;">Public contact channels and social links.</p>
+                <div class="form-group"><label>WhatsApp Number</label><input id="s_whatsapp" placeholder="250782781575" /></div>
+                <div class="form-group"><label>Instagram URL</label><input id="s_instagram" placeholder="https://instagram.com/youraccount" /></div>
+                <div class="form-group"><label>Facebook URL</label><input id="s_facebook" placeholder="https://facebook.com/yourpage" /></div>
+                <div class="form-group"><label>X (Twitter) URL</label><input id="s_x" placeholder="https://x.com/youraccount" /></div>
+                <div class="form-group"><label>TikTok URL</label><input id="s_tiktok" placeholder="https://tiktok.com/@youraccount" /></div>
+              </div>
+
+              <div class="card" style="padding:1rem">
+                <h3 style="margin:0 0 0.5rem 0">Password Reset Email (SMTP)</h3>
+                <p class="small" style="margin:0 0 0.5rem 0;opacity:0.75;">Configure SMTP so reset codes are delivered by email.</p>
+                <div class="form-group"><label>SMTP Host</label><input id="s_smtp_host" placeholder="smtp.gmail.com" /></div>
+                <div class="form-group"><label>SMTP Port</label><input id="s_smtp_port" type="number" placeholder="587" /></div>
+                <div class="form-group"><label style="display:flex;align-items:center;gap:0.5rem"><input id="s_smtp_secure" type="checkbox" />Use secure SMTP (SSL/TLS)</label></div>
+                <div class="form-group"><label>SMTP User</label><input id="s_smtp_user" placeholder="no-reply@yourdomain.com" /></div>
+                <div class="form-group"><label>SMTP Password / App Password</label><input id="s_smtp_pass" type="password" placeholder="Enter to set or replace" autocomplete="new-password" /></div>
+                <div class="form-group"><label>From Email</label><input id="s_smtp_from" placeholder="Booksta <no-reply@yourdomain.com>" /></div>
+                <div class="form-group"><label>Client URL for Reset Link</label><input id="s_client_url" placeholder="http://localhost:5000" /></div>
+                <p id="smtp-pass-status" class="small" style="margin:0;color:var(--text-muted);"></p>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Instagram URL</label>
-              <input id="s_instagram" placeholder="https://instagram.com/youraccount" />
-            </div>
-            <div class="form-group">
-              <label>Facebook URL</label>
-              <input id="s_facebook" placeholder="https://facebook.com/yourpage" />
-            </div>
-            <div class="form-group">
-              <label>X (Twitter) URL</label>
-              <input id="s_x" placeholder="https://x.com/youraccount" />
-            </div>
-            <div class="form-group">
-              <label>TikTok URL</label>
-              <input id="s_tiktok" placeholder="https://tiktok.com/@youraccount" />
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn-primary">Save Settings</button>
-            </div>
+
+            <div class="form-actions"><button type="submit" class="btn-primary">Save Settings</button></div>
           </form>
         </div>
       </section>
@@ -281,6 +285,6 @@
 
   <div id="modal" class="modal" style="display:none;"></div>
   <div id="toast-container"></div>
-  <script src="/admin.js?v=4"></script>
+  <script src="/admin.js?v=8"></script>
 </body>
 </html>

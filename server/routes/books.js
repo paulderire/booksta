@@ -19,7 +19,7 @@ function getSortClause(sort) {
       return 'ORDER BY b.title ASC';
     case 'featured':
     default:
-      return 'ORDER BY b.featured DESC, COALESCE(AVG(r.rating), 0) DESC, b.created_at DESC';
+      return 'ORDER BY b.created_at DESC, b.featured DESC, COALESCE(AVG(r.rating), 0) DESC';
   }
 }
 

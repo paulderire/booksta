@@ -1,6 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { auth } = require('../middleware/auth');
 const { query } = require('../db');
 const { serializeUser } = require('../utils');
@@ -15,6 +17,78 @@ function signToken(userId) {
   return jwt.sign({}, process.env.JWT_SECRET, {
     subject: userId,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+  });
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+async function getSmtpConfig() {
+  const keys = ['smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'smtpFrom', 'clientUrl'];
+  const { rows } = await query('SELECT key, value FROM app_settings WHERE key = ANY($1)', [keys]);
+  const map = rows.reduce((acc, row) => {
+    acc[row.key] = row.value;
+    return acc;
+  }, {});
+
+  const host = map.smtpHost || process.env.SMTP_HOST;
+  const port = Number(map.smtpPort || process.env.SMTP_PORT || 587);
+  const user = map.smtpUser || process.env.SMTP_USER;
+  const pass = map.smtpPass || process.env.SMTP_PASS;
+  const secure = String(map.smtpSecure || process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;
+  const from = map.smtpFrom || process.env.SMTP_FROM || user;
+  const clientUrl = map.clientUrl || process.env.CLIENT_URL || 'http://localhost:5000';
+
+  if (!host || !user || !pass || !from) {
+    return null;
+  }
+
+  return { host, port, user, pass, secure, from, clientUrl };
+}
+
+function createTransporter(config) {
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: {
+      user: config.user,
+      pass: config.pass
+    }
+  });
+}
+
+async function sendResetPasswordEmail({ toEmail, resetToken }) {
+  const smtpConfig = await getSmtpConfig();
+  if (!smtpConfig) {
+    const err = new Error('Email delivery is not configured on the server. Please configure SMTP in Admin Settings.');
+    err.status = 500;
+    throw err;
+  }
+
+  const transporter = createTransporter(smtpConfig);
+  const clientBase = String(smtpConfig.clientUrl || 'http://localhost:5000').replace(/\/$/, '');
+  const resetUrl = `${clientBase}/#/reset-password/confirm?email=${encodeURIComponent(toEmail)}&token=${encodeURIComponent(resetToken)}`;
+
+  await transporter.sendMail({
+    from: smtpConfig.from,
+    to: toEmail,
+    subject: 'Booksta password reset code',
+    text: `Your Booksta reset code is: ${resetToken}\n\nUse this code to reset your password. You can also open this link: ${resetUrl}\n\nThis code expires in 30 minutes.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:600px;">
+        <h2>Reset your Booksta password</h2>
+        <p>Your reset code is:</p>
+        <p style="font-size:20px;font-weight:700;letter-spacing:1px;">${resetToken}</p>
+        <p>This code expires in 30 minutes.</p>
+        <p>
+          <a href="${resetUrl}" style="display:inline-block;background:#111;color:#fff;padding:10px 14px;text-decoration:none;border-radius:6px;">
+            Open reset page
+          </a>
+        </p>
+      </div>
+    `
   });
 }
 
@@ -147,6 +221,95 @@ router.post('/change-password', auth, async (req, res, next) => {
     await query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, req.user.id]);
 
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const { rows } = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'No account found for that email.' });
+    }
+
+    const resetToken = crypto.randomBytes(24).toString('hex');
+    const tokenHash = hashResetToken(resetToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    await query(
+      `UPDATE users
+       SET password_reset_token_hash = $1,
+           password_reset_expires_at = $2
+       WHERE email = $3`,
+      [tokenHash, expiresAt, normalizedEmail]
+    );
+
+    await sendResetPasswordEmail({ toEmail: normalizedEmail, resetToken });
+
+    res.json({
+      ok: true,
+      message: 'Reset code sent to your email. Please check your inbox.'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { email, token, newPassword } = req.body || {};
+
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ error: 'Email, token, and new password are required.' });
+    }
+
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const tokenHash = hashResetToken(token);
+    const { rows } = await query(
+      `SELECT id, password_reset_expires_at, password_reset_token_hash
+       FROM users
+       WHERE email = $1`,
+      [normalizedEmail]
+    );
+
+    const user = rows[0];
+    if (!user || !user.password_reset_token_hash) {
+      return res.status(400).json({ error: 'Password reset code is invalid or has expired.' });
+    }
+
+    if (new Date(user.password_reset_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Password reset code is invalid or has expired.' });
+    }
+
+    if (user.password_reset_token_hash !== tokenHash) {
+      return res.status(400).json({ error: 'Password reset code is invalid or has expired.' });
+    }
+
+    const rounds = Number(process.env.BCRYPT_ROUNDS || 12);
+    const passwordHash = await bcrypt.hash(newPassword, rounds);
+    await query(
+      `UPDATE users
+       SET password_hash = $1,
+           password_reset_token_hash = NULL,
+           password_reset_expires_at = NULL
+       WHERE email = $2`,
+      [passwordHash, normalizedEmail]
+    );
+
+    res.json({ ok: true, message: 'Password updated successfully.' });
   } catch (error) {
     next(error);
   }

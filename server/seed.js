@@ -337,6 +337,16 @@ async function ensureSchema(client) {
   }
 
   await client.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS password_reset_token_hash TEXT
+  `);
+
+  await client.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ
+  `);
+
+  await client.query(`
     ALTER TABLE books
     ADD COLUMN IF NOT EXISTS genres TEXT[] DEFAULT '{}'::text[]
   `);
