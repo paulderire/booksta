@@ -999,7 +999,7 @@ function renderHomeView() {
           </div>
           <div class="hero-search-hint">Use the header search to find books by title, author, or genre.</div>
           <div class="hero-stats" style="margin-top: 1rem;">
-            <div class="stat"><span class="stat-value">${featuredCount}</span><span class="stat-label">featured books</span></div>
+            <div class="stat"><span class="stat-value">100+</span><span class="stat-label">featured books</span></div>
             <div class="stat"><span class="stat-value">${genreCount}</span><span class="stat-label">genres</span></div>
             <div class="stat"><span class="stat-value">Secure</span><span class="stat-label">checkout flow</span></div>
           </div>
