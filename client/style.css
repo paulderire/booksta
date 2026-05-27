@@ -1032,7 +1032,7 @@ p span.accent:hover {
     scroll-behavior: smooth;
     scroll-padding-top: 4.5rem;
   }
-  
+
   * {
     scroll-behavior: smooth;
   }
@@ -1043,7 +1043,7 @@ p span.accent:hover {
   html {
     scroll-behavior: auto;
   }
-  
+
   .scroll-fade-in,
   .scroll-fade-in-trigger,
   .scroll-stagger,
@@ -1051,7 +1051,7 @@ p span.accent:hover {
     animation: none !important;
     transform: none !important;
   }
-  
+
   .topbar.header-hidden {
     transform: none;
   }
@@ -1122,7 +1122,7 @@ p span.accent:hover {
 }
 
 .header-search button:hover,
-.search-submit-btn:hover { 
+.search-submit-btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-glow);
 }
@@ -2102,13 +2102,14 @@ html[data-theme='light'] .genre-card {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: 1fr 0.65fr;
+  grid-template-columns: 0.95fr 0.75fr;
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .detail-book {
-  align-self: start;
+  height: 100%;
+  overflow: auto;
 }
 
 .rating-summary {
