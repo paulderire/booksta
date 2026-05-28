@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const dns = require('dns');
 const nodemailer = require('nodemailer');
 const { auth } = require('../middleware/auth');
 const { query } = require('../db');
@@ -64,6 +65,7 @@ async function getSmtpConfig() {
 }
 
 function createTransporter(config) {
+  // Force IPv4 lookups to avoid IPv6 ENETUNREACH errors on hosts without IPv6.
   return nodemailer.createTransport({
     host: config.host,
     port: config.port,
@@ -71,6 +73,11 @@ function createTransporter(config) {
     auth: {
       user: config.user,
       pass: config.pass
+    },
+    // Provide a custom DNS lookup that limits to IPv4 (family: 4).
+    lookup: (hostname, options, callback) => {
+      // Normalize arguments for Node >= 12 where options may be a number
+      dns.lookup(hostname, { family: 4, hints: dns.ADDRCONFIG | dns.V4MAPPED }, callback);
     }
   });
 }
@@ -84,25 +91,17 @@ async function sendResetPasswordEmail({ toEmail, resetToken }) {
   }
 
   const transporter = createTransporter(smtpConfig);
-  const clientBase = String(smtpConfig.clientUrl || 'http://localhost:5000').replace(/\/$/, '');
-  const resetUrl = `${clientBase}/#/reset-password/confirm?email=${encodeURIComponent(toEmail)}&token=${encodeURIComponent(resetToken)}`;
-
   await transporter.sendMail({
     from: smtpConfig.from,
     to: toEmail,
-    subject: 'Booksta password reset code',
-    text: `Your Booksta reset code is: ${resetToken}\n\nUse this code to reset your password. You can also open this link: ${resetUrl}\n\nThis code expires in 30 minutes.`,
+    subject: 'Booksta 6-digit password reset code',
+    text: `Your Booksta reset code is: ${resetToken}\n\nUse this 6-digit code to reset your password.\n\nThis code expires in 30 minutes.`,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:600px;">
         <h2>Reset your Booksta password</h2>
         <p>Your reset code is:</p>
         <p style="font-size:20px;font-weight:700;letter-spacing:1px;">${resetToken}</p>
         <p>This code expires in 30 minutes.</p>
-        <p>
-          <a href="${resetUrl}" style="display:inline-block;background:#111;color:#fff;padding:10px 14px;text-decoration:none;border-radius:6px;">
-            Open reset page
-          </a>
-        </p>
       </div>
     `
   });
@@ -272,7 +271,7 @@ router.post('/forgot-password', async (req, res, next) => {
       return res.status(404).json({ error: 'No account found for that email.' });
     }
 
-    const resetToken = crypto.randomBytes(24).toString('hex');
+    const resetToken = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     const tokenHash = hashResetToken(resetToken);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
@@ -305,6 +304,10 @@ router.post('/reset-password', async (req, res, next) => {
 
     if (String(newPassword).length < 8) {
       return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    if (!/^\d{6}$/.test(String(token || '').trim())) {
+      return res.status(400).json({ error: 'Password reset code must be exactly 6 digits.' });
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
