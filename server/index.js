@@ -198,7 +198,17 @@ app.get('/sitemap.xml', async (req, res, next) => {
 app.use(express.static(clientDir, {
   maxAge: isProduction ? '1y' : 0,
   etag: false,
-  lastModified: false
+  lastModified: false,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      return;
+    }
+
+    if (isProduction) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
 }));
 
 // Helper to escape XML special chars

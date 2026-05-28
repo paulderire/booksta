@@ -97,6 +97,7 @@ const state = {
   currentReviews: [],
   route: null,
   homeLoading: true,
+  booksLoading: false,
   bookLoading: true,
   cartLoading: true,
   wishlistLoading: true,
@@ -108,7 +109,7 @@ const state = {
   limit: 12,
   drawerOpen: false,
   typewriterIndex: 0,
-  theme: localStorage.getItem('bookstaTheme') || 'dark',
+  theme: 'light',
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,
@@ -330,6 +331,10 @@ function getRoute() {
 
   if (segments[0] === 'search') {
     return { name: 'search', params };
+  }
+
+  if (segments[0] === 'books') {
+    return { name: 'books', params };
   }
 
   if (segments[0] === 'book') {
@@ -634,8 +639,10 @@ function renderRatingDistribution(reviews = []) {
   `;
 }
 
-function renderBookCard(book) {
+function renderBookCard(book, options = {}) {
   const sale = book.original_price && Number(book.original_price) > Number(book.price);
+  const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
+  const showShare = options.showShare === true;
   return `
     <article class="book-card card">
       <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
@@ -657,9 +664,10 @@ function renderBookCard(book) {
         <span class="hint">${book.stock} in stock</span>
       </div>
       <div class="card-actions">
-        <button class="secondary-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}">Add to cart</button>
-        <button class="primary-button" type="button" data-action="order-now" data-book-id="${escapeHtml(book.id)}">Order now</button>
-        <button class="ghost-button" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}">Wishlist</button>
+        <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
+        <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
+        ${showShare ? `<button class="icon-button compact-action-button share-icon-button" type="button" data-action="share-book" data-book-id="${escapeHtml(book.id)}" aria-label="Share ${escapeHtml(book.title)}">↗</button>` : ''}
+        <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
       </div>
     </article>
   `;
@@ -674,6 +682,131 @@ function renderRecommendationTile(book) {
       </span>
       <strong class="recommendation-name">${escapeHtml(book.title)}</strong>
     </a>
+  `;
+}
+
+function renderBookRow(book) {
+  const genres = (book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book';
+  const sale = Number(book.original_price || 0) > Number(book.price || 0);
+  return `
+    <article class="book-row card">
+      <a class="book-row-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+        ${sale ? '<span class="sale-badge">SALE</span>' : ''}
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+      </a>
+      <div class="book-row-content">
+        <div class="book-row-head">
+          <div>
+            <div class="book-row-meta">${escapeHtml(genres)}</div>
+            <h3 class="book-row-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
+            <div class="book-row-author">${escapeHtml(book.author)}</div>
+          </div>
+          <div class="book-row-price">
+            <strong>${formatMoney(book.price)}</strong>
+            ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+          </div>
+        </div>
+        <p class="book-row-description">${escapeHtml(shorten(book.description || 'Explore this title from the catalog.', 170))}</p>
+        <div class="book-row-stats">
+          <span class="hint">${renderStars(book.avg_rating)} ${Number(book.review_count || 0)} reviews</span>
+          <span class="hint">${book.stock} in stock</span>
+          <span class="hint">${book.pages || '—'} pages</span>
+        </div>
+      </div>
+      <div class="book-row-actions">
+        <button class="secondary-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}">Add to cart</button>
+        <button class="primary-button" type="button" data-action="order-now" data-book-id="${escapeHtml(book.id)}">Order now</button>
+        <button class="ghost-button" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}">Wishlist</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderCompactBookCard(book) {
+  const genres = (book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book';
+  const sale = Number(book.original_price || 0) > Number(book.price || 0);
+  const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
+  return `
+    <article class="compact-book-card card">
+      <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+        ${sale ? '<span class="sale-badge">SALE</span>' : ''}
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+      </a>
+      <div class="compact-book-content">
+        <div class="book-row-meta">${escapeHtml(genres)}</div>
+        <h3 class="compact-book-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
+        <div class="book-row-author">${escapeHtml(book.author)}</div>
+        <div class="compact-book-stats">
+          <span class="hint">${renderStars(book.avg_rating)}</span>
+          <span class="hint">${Number(book.review_count || 0)} reviews</span>
+        </div>
+        <div class="compact-book-price">
+          <strong>${formatMoney(book.price)}</strong>
+          ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+        </div>
+      </div>
+      <div class="compact-book-actions">
+        <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
+        <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
+        <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderAllBooksView() {
+  const totalBooks = Number(state.total || state.books.length || 0);
+  const booksMarkup = state.booksLoading
+    ? `<div class="books-grid books-grid--compact">${Array.from({ length: 5 }, () => `
+        <article class="compact-book-card card is-loading">
+          <div class="compact-book-cover skeleton"></div>
+          <div class="compact-book-content">
+            <div class="skeleton" style="width: 40%; height: 0.8rem; border-radius: 999px;"></div>
+            <div class="skeleton" style="width: 82%; height: 1.4rem; border-radius: 999px;"></div>
+            <div class="skeleton" style="width: 54%; height: 0.85rem; border-radius: 999px;"></div>
+            <div class="skeleton" style="width: 70%; height: 0.85rem; border-radius: 999px;"></div>
+            <div class="skeleton" style="width: 50%; height: 1rem; border-radius: 999px;"></div>
+          </div>
+          <div class="compact-book-actions">
+            <div class="skeleton" style="width: 2.5rem; height: 2.5rem; border-radius: 999px;"></div>
+            <div class="skeleton" style="width: 2.5rem; height: 2.5rem; border-radius: 999px;"></div>
+          </div>
+        </article>`).join('')}</div>`
+    : state.books.length
+      ? `<div class="books-grid books-grid--compact">${state.books.map(renderCompactBookCard).join('')}</div>`
+      : `<div class="empty-state"><p>No books were found in the database.</p><a class="primary-button" href="#/">Back to home</a></div>`;
+
+  return `
+    <section class="page books-page full-width section full-bleed">
+      <div class="toolbar books-toolbar">
+        <div></div>
+        <div class="filter-row">
+          <select class="select" data-action="sort-books">
+            ${[
+              ['featured', 'Featured'],
+              ['price_asc', 'Price: Low to High'],
+              ['price_desc', 'Price: High to Low'],
+              ['rating', 'Top Rated'],
+              ['newest', 'Newest'],
+              ['title_asc', 'Title A-Z']
+            ].map(([value, label]) => `<option value="${value}" ${state.sort === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+          <a class="secondary-button" href="#/">Back to explore</a>
+        </div>
+      </div>
+
+      <section class="section">
+        <div class="recommendation-strip">
+          <div>
+            <div class="hint">Catalog overview</div>
+            <h3 class="section-title" style="margin:0.2rem 0 0.4rem 0;">${totalBooks} books available</h3>
+            <p class="section-copy" style="margin:0;">Browse the complete library in a compact, full-width reading list.</p>
+          </div>
+        </div>
+        ${booksMarkup}
+        ${state.booksLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
+      </section>
+    </section>
   `;
 }
 
@@ -973,7 +1106,7 @@ function renderHomeView() {
   }
 
   const featuredMarkup = heroBooks.length
-    ? `<div class="books-grid hero-feature-grid">${heroBooks.map(renderBookCard).join('')}</div>`
+    ? `<div class="books-grid hero-feature-grid">${heroBooks.map((book) => renderBookCard(book, { showShare: false })).join('')}</div>`
     : renderSkeletonGrid(4);
 
   const booksMarkup = state.homeLoading
@@ -1049,6 +1182,7 @@ function renderHomeView() {
                 ['title_asc', 'Title A-Z']
               ].map(([value, label]) => `<option value="${value}" ${state.sort === value ? 'selected' : ''}>${label}</option>`).join('')}
             </select>
+            <button class="secondary-button" type="button" data-action="view-all-books">View all books</button>
           </div>
         </div>
         ${booksMarkup}
@@ -1207,6 +1341,7 @@ function renderBookView() {
   }
 
   const purchasedNotice = state.user ? '<div class="hint">Only customers who purchased a title can post a review. The server enforces this rule.</div>' : '<div class="hint">Sign in to add this title to your cart, wishlist, and review queue.</div>';
+  const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
 
   const reviewsMarkup = state.currentReviews.length
     ? state.currentReviews.map(renderReviewCard).join('')
@@ -1255,9 +1390,10 @@ function renderBookView() {
           <p class="hero-copy">${escapeHtml(book.description || '')}</p>
 
           <div class="detail-actions">
-            <button class="primary-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}">Add to cart</button>
-            <button class="success-button" type="button" data-action="order-now" data-book-id="${escapeHtml(book.id)}">Order now</button>
-            <button class="secondary-button" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}">Wishlist</button>
+            <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
+            <button class="icon-button compact-action-button share-icon-button" type="button" data-action="share-book" data-book-id="${escapeHtml(book.id)}" aria-label="Share ${escapeHtml(book.title)}">↗</button>
+            <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
+            <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
           </div>
 
           <div class="rating-summary panel">
@@ -1947,6 +2083,32 @@ async function loadHomeData() {
   }
 }
 
+async function loadBooksData() {
+  if (state._booksLoadInProgress) return;
+  state._booksLoadInProgress = true;
+  state.booksLoading = true;
+  renderApp();
+
+  try {
+    const params = new URLSearchParams();
+    params.set('page', String(state.page));
+    params.set('limit', '5');
+    if (state.sort) params.set('sort', state.sort);
+
+    const books = await api(`/api/books?${params.toString()}`);
+    state.books = books.books || [];
+    state.total = books.total || state.books.length;
+    state.totalPages = Math.max(books.totalPages || 1, 1);
+    state.booksLoading = false;
+    state._booksLoadInProgress = false;
+    renderApp();
+  } catch (error) {
+    state.booksLoading = false;
+    state._booksLoadInProgress = false;
+    app.innerHTML = `<section class="page"><div class="empty-state"><p>${escapeHtml(error.message)}</p></div></section>`;
+  }
+}
+
 async function loadBookData(id) {
   state.bookLoading = true;
   renderApp();
@@ -2116,6 +2278,13 @@ function renderApp() {
       return;
     }
 
+    if (name === 'books') {
+      app.innerHTML = renderAllBooksView();
+      renderFloatingUi();
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+      return;
+    }
+
     if (name === 'book') {
       app.innerHTML = renderBookView();
       renderFloatingUi();
@@ -2231,6 +2400,15 @@ async function loadRoute() {
     state.genre = state.route.params?.genre || '';
     state.page = 1;
     await loadHomeData();
+    return;
+  }
+
+  if (state.route.name === 'books') {
+    state.search = '';
+    state.genre = '';
+    state.page = Math.max(Number(state.route.params?.page || 1), 1);
+    state.sort = state.route.params?.sort || state.sort || 'featured';
+    await loadBooksData();
     return;
   }
 
@@ -2394,6 +2572,11 @@ function handleAction(target) {
     return;
   }
 
+  if (action === 'buy-now') {
+    orderNow(target.dataset.bookId);
+    return;
+  }
+
   if (action === 'remove-from-cart') {
     removeFromCart(target.dataset.bookId);
     return;
@@ -2404,6 +2587,11 @@ function handleAction(target) {
     return;
   }
 
+  if (action === 'share-book') {
+    shareBook(target.dataset.bookId);
+    return;
+  }
+
   if (action === 'quantity-change') {
     changeQuantity(target.dataset.bookId, Number(target.dataset.delta || 0));
     return;
@@ -2411,8 +2599,33 @@ function handleAction(target) {
 
   if (action === 'set-page') {
     state.page = Number(target.dataset.page || 1);
+    const routeName = state.route?.name || getRoute().name;
+    if (routeName === 'search') {
+      const params = new URLSearchParams();
+      params.set('page', String(state.page));
+      params.set('sort', String(state.sort || 'featured'));
+      if (state.search) params.set('q', state.search);
+      if (state.genre) params.set('genre', state.genre);
+      window.location.hash = `#/search?${params.toString()}`;
+      return;
+    }
+    if (routeName === 'books') {
+      const params = new URLSearchParams();
+      params.set('page', String(state.page));
+      params.set('sort', String(state.sort || 'featured'));
+      window.location.hash = `#/books?${params.toString()}`;
+      return;
+    }
     renderChrome();
     loadHomeData();
+    return;
+  }
+
+  if (action === 'view-all-books') {
+    state.page = 1;
+    const params = new URLSearchParams();
+    params.set('sort', String(state.sort || 'featured'));
+    window.location.hash = `#/books?${params.toString()}`;
     return;
   }
 
@@ -2617,9 +2830,37 @@ async function toggleWishlist(bookId) {
     await refreshPersonalization();
     if (isActiveRoute('wishlist')) {
       await loadWishlistData();
+      return;
     }
+    renderApp();
   } catch (error) {
     showToast(error.message, 'error');
+  }
+}
+
+async function shareBook(bookId) {
+  const book = state.books.find((entry) => String(entry.id) === String(bookId)) || state.featured.find((entry) => String(entry.id) === String(bookId)) || state.currentBook;
+  const url = `${window.location.origin}${window.location.pathname}#/book/${bookId}`;
+  const title = book?.title ? `Booksta - ${book.title}` : 'Booksta book';
+  const text = book?.author ? `${book.title} by ${book.author}` : 'Check out this book on Booksta.';
+
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, text, url });
+      showToast('Shared successfully');
+      return;
+    }
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      console.warn('share failed', error);
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Share link copied');
+  } catch (error) {
+    window.prompt('Copy this share link', url);
   }
 }
 
@@ -3086,6 +3327,9 @@ app.addEventListener('change', (event) => {
   if (route === 'search' && state.genre) {
     params.set('genre', state.genre);
   }
+  if (route === 'books') {
+    params.set('page', '1');
+  }
 
   state.sort = sort;
   state.page = 1;
@@ -3095,6 +3339,10 @@ app.addEventListener('change', (event) => {
   }
   if (route === 'search') {
     window.location.hash = `#/search?${params.toString()}`;
+    return;
+  }
+  if (route === 'books') {
+    window.location.hash = `#/books?${params.toString()}`;
     return;
   }
   loadRoute();
@@ -3173,12 +3421,12 @@ async function init() {
   window.__bookstaStage = 'init:renderChrome';
   await refreshSession();
   window.__bookstaStage = 'init:refreshSession';
-  await refreshCart();
-  window.__bookstaStage = 'init:refreshCart';
-  await loadSiteSettings();
-  window.__bookstaStage = 'init:loadSiteSettings';
-  await loadPromotionsData();
-  window.__bookstaStage = 'init:loadPromotionsData';
+  await Promise.all([
+    refreshCart(),
+    loadSiteSettings(),
+    loadPromotionsData()
+  ]);
+  window.__bookstaStage = 'init:bootDataLoaded';
   syncResponsivePageLimit();
   startHeroCycle();
   window.__bookstaStage = 'init:startHeroCycle';
