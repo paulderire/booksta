@@ -409,7 +409,8 @@ async function api(path, options = {}) {
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers
+    headers,
+    credentials: 'include'
   });
 
   if (response.status === 429) {
@@ -1632,6 +1633,12 @@ function renderAuthView(mode) {
                 <button class="primary-button" type="submit">${isLogin ? 'Sign in' : 'Create account'}</button>
                 <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
               </div>
+              ${isLogin ? `
+                <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;">
+                  <input type="checkbox" name="remember" value="1" />
+                  <span style="font-size:0.95rem;color:var(--muted)">Remember me on this device</span>
+                </label>
+              ` : ''}
               <p class="helper-text" style="margin-top:0.75rem; color:inherit;">${isLogin ? 'Need an account?' : 'Already have an account?'} <a href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Register' : 'Login'}</a></p>
               <div style="margin-top:0.75rem; display:flex; gap:0.6rem; align-items:center;">
                 <button class="ghost-button" type="button">G</button>
@@ -1748,17 +1755,17 @@ function renderEmptyRoute() {
 }
 
 async function refreshSession() {
-  if (!state.token) {
-    renderChrome();
-    return;
-  }
-
+  // Attempt to refresh user session from server. This will succeed
+  // when either an Authorization token is present or an HttpOnly
+  // remember-me cookie was set by the server.
   try {
     const data = await api('/api/auth/me');
     state.user = data.user;
     renderChrome();
     await refreshPersonalization();
   } catch (error) {
+    // If no remote session exists, clear any client-side token
+    // but don't show a notification during normal startup.
     clearSession(false);
   }
 }

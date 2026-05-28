@@ -56,7 +56,9 @@ function logResourceUsage() {
 setInterval(logResourceUsage, 60 * 1000); // log every minute
 
 const app = express();
-app.set('trust proxy', 1);
+// Scope proxy trust via env var. Defaults to 'loopback' (safer than true).
+const trustProxy = process.env.TRUST_PROXY || 'loopback';
+app.set('trust proxy', trustProxy);
 const clientDir = path.resolve(process.cwd(), 'client');
 const clientUrl = process.env.CLIENT_URL;
 
@@ -73,7 +75,7 @@ app.use(helmet({
     }
   }
 }));
-app.use(cors({ origin: clientUrl || true }));
+app.use(cors({ origin: clientUrl || true, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(compression()); // Enable gzip compression
 
@@ -256,9 +258,42 @@ async function initializeDatabase() {
 if (require.main === module) {
   initializeDatabase()
     .then(() => {
-      app.listen(port, () => {
+      // Start server and keep reference for graceful shutdown
+      const server = app.listen(port, () => {
         console.log(`booksta server listening on port ${port}`);
       });
+
+      // Graceful shutdown helper
+      const shutdown = (signal) => {
+        console.log(`Received ${signal} - closing server and database pool...`);
+        // stop accepting new connections
+        try {
+          server.close(async () => {
+            try {
+              if (pool && typeof pool.end === 'function') {
+                await pool.end();
+                console.log('Postgres pool closed');
+              }
+            } catch (err) {
+              console.error('Error closing pool during shutdown', err);
+            }
+            console.log('Shutdown complete, exiting.');
+            process.exit(0);
+          });
+        } catch (err) {
+          console.error('Error during server close', err);
+          process.exit(1);
+        }
+
+        // Force exit if shutdown hangs
+        setTimeout(() => {
+          console.error('Forcing shutdown after timeout');
+          process.exit(1);
+        }, 30 * 1000).unref();
+      };
+
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
     })
     .catch((error) => {
       console.error('booksta database initialization failed', error);
