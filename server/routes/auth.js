@@ -75,7 +75,7 @@ async function getSmtpConfig() {
   }, {});
 
   const host = map.smtpHost || process.env.SMTP_HOST;
-  const port = Number(map.smtpPort || process.env.SMTP_PORT || 587);
+  const port = Number(map.smtpPort || process.env.SMTP_PORT || 465);
   const user = map.smtpUser || process.env.SMTP_USER;
   const pass = map.smtpPass || process.env.SMTP_PASS;
   const secure = String(map.smtpSecure || process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;

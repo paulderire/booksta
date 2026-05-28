@@ -70,7 +70,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 13px;
   background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
@@ -303,6 +303,153 @@ html[data-theme='light'] .header-search{flex:1 1 36%;max-width:420px}
   .nav-toggle{display:none !important;}
 }
 
+@media (min-width: 1200px) and (max-width: 1700px) {
+  main#app {
+    padding-inline: 0.85rem;
+  }
+
+  .topbar {
+    margin: 0.7rem;
+    padding: 0.7rem 1rem;
+  }
+
+  .topbar-center {
+    margin-left: 1rem;
+  }
+
+  .header-search {
+    max-width: 560px;
+    flex: 1 1 48%;
+  }
+
+  .page.home-page > .hero,
+  .page.home-page > .section,
+  .page.home-page > .marquee,
+  .page.home-page > .toolbar,
+  .page.home-page > .filter-pill-row {
+    width: 96%;
+  }
+
+  .hero {
+    /* bring columns slightly closer on Nest Hub range */
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr) !important;
+    gap: 0.6rem !important;
+    padding: 0.9rem 1rem 1rem !important;
+    align-items: flex-start !important;
+  }
+
+  .hero-title {
+    max-width: 14ch !important;
+    font-size: clamp(1.38rem, 2.3vw, 2.15rem) !important;
+    line-height: 0.9 !important;
+  }
+
+  .hero-copy {
+    max-width: 36ch !important;
+    font-size: 0.84rem !important;
+    line-height: 1.45 !important;
+  }
+
+  .hero-cta {
+    margin-top: 0.45rem !important;
+    gap: 0.4rem !important;
+  }
+
+  /* Improve hero spacing when browser is zoomed or at intermediate widths */
+  @media (max-width: 1400px) {
+    .hero {
+      gap: 0.45rem !important;
+      padding: 0.8rem 0.9rem !important;
+    }
+
+    .hero-panel { gap: 0.28rem !important; }
+    .hero-feature-grid { margin-top: 0.2rem !important; gap: 0.32rem !important; }
+  }
+
+  @media (max-width: 1200px) and (min-width: 900px) {
+    /* also tighten the medium range to avoid large separation on zoom */
+    .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 0.5rem !important; }
+    .hero-feature-grid { margin-top: 0.2rem !important; }
+  }
+
+  .hero-search-hint,
+  .hero-stats {
+    display: none !important;
+  }
+
+  .hero-panel {
+    gap: 0.35rem !important;
+  }
+
+  .hero-feature-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+    margin-top: 0.35rem !important;
+    grid-auto-flow: column !important;
+    grid-auto-rows: auto !important;
+    align-items: start !important;
+  }
+
+/* Tighten hero spacing for medium-large screens and high-zoom devices (nest hub / 110% zoom) */
+@media (min-width: 880px) and (max-width: 1700px), (min-resolution: 1.1dppx), (min-resolution: 110dpi) {
+  .hero-panel {
+    gap: 0.28rem !important;
+  }
+
+  .hero-cta {
+    gap: 0.35rem !important;
+    margin-top: 0.4rem !important;
+  }
+
+  .hero-feature-grid {
+    gap: 0.32rem !important;
+    margin-top: 0.28rem !important;
+  }
+
+  /* reduce paddings on feature cards so they appear closer to hero text */
+  .hero-feature-grid .book-card {
+    padding: 0.35rem !important;
+    gap: 0.25rem !important;
+  }
+}
+
+  .hero-feature-grid .book-card {
+    padding: 0.45rem !important;
+    gap: 0.35rem !important;
+    height: auto !important;
+    align-self: start !important;
+  }
+
+  .hero-feature-grid .book-card .card-actions {
+    grid-template-columns: repeat(2, minmax(2.6rem, 1fr)) minmax(6.75rem, 2.1fr) !important;
+    gap: 0.35rem !important;
+  }
+
+  .hero-feature-grid .book-card .compact-buy-button {
+    min-width: 6.75rem !important;
+    width: 100% !important;
+    padding-inline: 0.95rem !important;
+    font-size: 0.92rem !important;
+  }
+
+  .hero-feature-grid .book-card .book-cover {
+    width: min(100%, 118px) !important;
+  }
+
+  .hero-feature-grid .book-card > *:not(.book-cover) {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+  }
+
+  .section {
+    contain-intrinsic-size: 1px 560px;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
 .header-search input{flex:1;padding:0.85rem 1rem;border-radius:999px;border:1px solid var(--border);background:transparent}
 .header-search button{padding:0.7rem 1rem;border-radius:999px;border:1px solid var(--border);background:var(--accent);color:#fff}
 
@@ -351,6 +498,50 @@ html[data-theme='light'] .header-search{flex:1 1 36%;max-width:420px}
 .topbar-actions,
 .toolbar,
 .filter-row,
+/* end of existing blocks - enforce stable hero layout for mid+ screens to avoid layout shifts caused by browser zoom */
+
+@media (min-width: 720px) {
+  /* Force a stable two-column hero: main content + fixed side panel.
+     Using minmax keeps the side panel usable on narrower widths
+     while preventing the grid from collapsing into a stacked layout
+     when the browser is zoomed to ~110% or similar. */
+  .hero {
+    display: grid !important;
+    grid-template-columns: 1fr minmax(320px, 420px) !important;
+    align-items: start !important;
+    gap: 0.6rem !important;
+    padding: 0.8rem 0.9rem !important;
+    min-height: 48vh !important;
+  }
+
+  /* Keep the panel visually close to the hero text */
+  .hero-panel {
+    margin-top: 0 !important;
+    padding: 0 !important;
+    gap: 0.35rem !important;
+  }
+
+  /* Make featured cards compact and closer to hero copy */
+  .hero-feature-grid {
+    margin-top: 0.2rem !important;
+    gap: 0.32rem !important;
+    grid-auto-flow: row !important;
+  }
+
+  .hero-feature-grid .book-card {
+    padding: 0.35rem !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure hero text doesn't shrink unexpectedly */
+  .hero-title { max-width: 36ch !important; }
+  .hero-copy { max-width: 48ch !important; }
+}
+
+/* For very small screens we keep the original stacked/mobile behavior */
+@media (max-width: 719px) {
+  .hero { grid-template-columns: 1fr !important; gap: 0.8rem !important; }
+}
 .genre-tabs,
 .card-actions,
 .cart-controls,
@@ -529,6 +720,34 @@ html[data-theme='light'] .panel {
   background: rgba(255, 255, 255, 0.97);
 }
 
+html:not([data-theme='light']) .book-card,
+html:not([data-theme='light']) .compact-book-card,
+html:not([data-theme='light']) .genre-card,
+html:not([data-theme='light']) .contact-card,
+html:not([data-theme='light']) .wishlist-card,
+html:not([data-theme='light']) .order-card,
+html:not([data-theme='light']) .review-card,
+html:not([data-theme='light']) .mini-book,
+html:not([data-theme='light']) .drawer-item {
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg) 12%);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+html:not([data-theme='light']) .book-card:hover,
+html:not([data-theme='light']) .compact-book-card:hover,
+html:not([data-theme='light']) .genre-card:hover,
+html:not([data-theme='light']) .contact-card:hover,
+html:not([data-theme='light']) .wishlist-card:hover,
+html:not([data-theme='light']) .order-card:hover,
+html:not([data-theme='light']) .review-card:hover,
+html:not([data-theme='light']) .mini-book:hover,
+html:not([data-theme='light']) .drawer-item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
 .hero {
   display: grid;
   gap: 2rem;
@@ -638,7 +857,7 @@ html[data-theme='light'] .panel {
   }
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 719px) {
   .hero {
     grid-template-columns: 1fr;
   }
@@ -792,6 +1011,40 @@ html[data-theme='light'] .panel {
   }
   100% {
     transform: translateX(100%);
+  }
+}
+
+/* Final desktop hero override: keep the copy anchored to the top and
+   keep the featured cards close at all large widths, including 1510px+.
+   This wins over earlier desktop rules that vertically center the hero. */
+@media (min-width: 720px) {
+  .hero {
+    align-items: start !important;
+    align-content: start !important;
+    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr) !important;
+    gap: 0.5rem !important;
+    padding: 0.9rem 1rem 1rem !important;
+    min-height: 0 !important;
+  }
+
+  .hero > :first-child {
+    align-self: start !important;
+  }
+
+  .hero-panel {
+    align-self: start !important;
+    margin-top: 0 !important;
+    width: 100% !important;
+  }
+
+  .hero-feature-grid {
+    align-content: start !important;
+    gap: 0.35rem !important;
+    margin-top: 0.2rem !important;
+  }
+
+  .hero-feature-grid .book-card {
+    padding: 0.4rem !important;
   }
 }
 
@@ -1262,6 +1515,12 @@ p span.accent:hover {
   margin-top: 1.2rem;
 }
 
+.hero-cta > .primary-button,
+.hero-cta > .secondary-button {
+  min-width: 8.75rem;
+  flex: 0 0 auto;
+}
+
 .primary-button,
 .secondary-button,
 .danger-button,
@@ -1522,6 +1781,25 @@ p span.accent:hover {
   .auth-form-panel.auth-large { border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; border-left: 0; border-top: 1px solid var(--border); }
 }
 
+@media (max-width: 1100px) {
+  .auth-modal-panel.auth-large { width: min(760px, calc(100% - 1.5rem)); padding: 0; overflow-y: auto; }
+  .auth-grid.auth-large { grid-template-columns: 1fr; gap: 0.35rem; }
+  .auth-branding.auth-large {
+    border-right: 0;
+    border-bottom: 1px solid var(--auth-brand-border);
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+    padding: 1.35rem 1.35rem 1rem;
+  }
+  .auth-form-panel.auth-large {
+    border-left: 0;
+    border-top: 0;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    padding: 1.2rem 1.35rem 1.35rem;
+  }
+}
+
 @media (max-width: 700px) {
   .auth-modal-panel.auth-large { width: calc(100% - 1.5rem) !important; padding: 0 !important; top: 50% !important; transform: translate(-50%, -50%) !important; left: 50% !important; max-height: 90vh !important; overflow-y: auto !important; }
   .auth-grid.auth-large { gap: 0.3rem !important; }
@@ -1748,6 +2026,50 @@ p span.accent:hover {
 .page-actions,
 .filter-row {
   justify-content: space-between;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+}
+
+.toolbar > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toolbar .filter-row {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.filter-row .select,
+.filter-row .secondary-button {
+  min-height: 38px;
+}
+
+.filter-row .secondary-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar .filter-row {
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.toolbar .filter-row .select {
+  min-width: 8.75rem;
+  width: auto;
+}
+
+.toolbar .filter-row .secondary-button {
+  white-space: nowrap;
+  padding-inline: 0.85rem;
+  font-size: 0.88rem;
 }
 
 .search-input,
@@ -1991,7 +2313,36 @@ html[data-theme='light'] .genre-card {
 
 .card-actions,
 .detail-actions {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
+.detail-actions .compact-action-button,
+.detail-actions .compact-buy-button {
+  width: 100%;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.6rem;
+  padding: 0;
+  font-size: 1.02rem;
+}
+
+.book-card .card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  align-items: stretch;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.book-card .card-actions .compact-action-button,
+.book-card .card-actions .compact-buy-button {
+  width: 100%;
 }
 
 .book-card {
@@ -2002,6 +2353,7 @@ html[data-theme='light'] .genre-card {
 
 .book-card .card-actions {
   margin-top: 0.1rem;
+  margin-bottom: 0.55rem;
   padding-bottom: 0;
   justify-content: flex-start;
 }
@@ -2032,6 +2384,352 @@ html[data-theme='light'] .genre-card {
   color: var(--text);
   min-width: 0;
   max-width: none;
+}
+
+.books-page .toolbar {
+  align-items: center;
+}
+
+.books-page .filter-row {
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.books-page .filter-row .select,
+.books-page .filter-row .secondary-button {
+  min-height: 38px;
+  height: 38px;
+  padding-block: 0.45rem;
+  padding-inline: 0.8rem;
+  font-size: 0.88rem;
+}
+
+.books-page .filter-row .secondary-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.books-page .filter-row .select {
+  min-width: 9.25rem;
+  width: auto;
+}
+
+.books-page .filter-row .secondary-button {
+  white-space: nowrap;
+}
+
+.promotions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 280px));
+  justify-content: center;
+  gap: 1rem;
+}
+
+.promo-card {
+  max-width: 280px;
+  width: 100%;
+  justify-self: center;
+}
+
+.promo-card .mini-title {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.promo-card .section-copy {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.promotions-section {
+  padding-bottom: 2rem;
+}
+
+.books-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+.compact-book-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem;
+  padding-bottom: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.compact-book-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 31 / 44;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(15, 23, 42, 0.8));
+}
+
+.compact-book-cover .cover-emoji {
+  font-size: 2rem;
+}
+
+.compact-book-content {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.compact-book-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  font-size: 0.95rem;
+}
+
+.compact-book-title a {
+  color: inherit;
+}
+
+.compact-book-stats,
+.compact-book-price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.compact-book-price strong {
+  font-family: var(--font-mono);
+  font-size: 0.96rem;
+}
+
+.compact-book-actions {
+  display: grid;
+  grid-template-columns: 2.6rem 2.6rem minmax(6.25rem, 1fr);
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.compact-action-button {
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.compact-action-button.wishlist-icon-button {
+  color: var(--text);
+}
+
+.compact-action-button.wishlist-icon-button.is-active {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.compact-action-button.cart-icon-button,
+.compact-action-button.share-icon-button {
+  color: var(--text);
+}
+
+.compact-buy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.75rem;
+  height: 2.6rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #eef2ff;
+}
+
+html[data-theme='light'] .compact-buy-button {
+  background: linear-gradient(135deg, var(--accent), #2563eb);
+  color: #ffffff;
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+html:not([data-theme='light']) .compact-buy-button {
+  color: #eef2ff;
+  background: linear-gradient(135deg, #3b82f6, #58A6FF);
+  border-color: rgba(88, 166, 255, 0.22);
+}
+
+.compact-book-actions .compact-buy-button {
+  white-space: nowrap;
+}
+
+.compact-action-button:hover {
+  transform: translateY(-1px);
+}
+
+.books-row-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.book-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: stretch;
+  padding: 1rem;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+}
+
+.book-row-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(15, 23, 42, 0.8));
+}
+
+.book-row-cover .cover-emoji {
+  font-size: 2.4rem;
+}
+
+.book-row-content {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.book-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.book-row-meta,
+.book-row-author,
+.book-row-description,
+.book-row-stats {
+  color: var(--muted);
+}
+
+.book-row-meta {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.book-row-title {
+  margin: 0.2rem 0 0.35rem;
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.book-row-title a {
+  color: inherit;
+}
+
+.book-row-author {
+  font-size: 0.98rem;
+}
+
+.book-row-price {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.book-row-price strong {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+.book-row-description {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.book-row-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.book-row-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.6rem;
+  min-width: 168px;
+}
+
+.book-row-actions .primary-button,
+.book-row-actions .secondary-button,
+.book-row-actions .ghost-button {
+  justify-content: center;
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .book-row {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+
+  .book-row-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .book-row-actions .primary-button,
+  .book-row-actions .secondary-button,
+  .book-row-actions .ghost-button {
+    width: auto;
+    flex: 1 1 160px;
+  }
+}
+
+@media (max-width: 700px) {
+  .book-row {
+    grid-template-columns: 1fr;
+  }
+
+  .book-row-head {
+    flex-direction: column;
+  }
+
+  .book-row-price {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .book-row-actions {
+    flex-direction: column;
+  }
+
+  .book-row-actions .primary-button,
+  .book-row-actions .secondary-button,
+  .book-row-actions .ghost-button {
+    width: 100%;
+    flex: initial;
+  }
 }
 
 .recommendation-cover {
