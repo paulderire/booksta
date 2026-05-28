@@ -13,11 +13,27 @@ function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').toLowerCase());
 }
 
-function signToken(userId) {
+function signToken(userId, expiresIn) {
+  const exp = expiresIn || process.env.JWT_EXPIRES_IN || '7d';
   return jwt.sign({}, process.env.JWT_SECRET, {
     subject: userId,
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+    expiresIn: exp
   });
+}
+
+function parseExpiryToMs(expiry) {
+  if (!expiry) return 0;
+  const match = String(expiry).trim().toLowerCase().match(/^(\d+)(d|h|m|s)?$/);
+  if (!match) return 0;
+  const n = Number(match[1]);
+  const unit = match[2] || 'd';
+  switch (unit) {
+    case 'd': return n * 24 * 60 * 60 * 1000;
+    case 'h': return n * 60 * 60 * 1000;
+    case 'm': return n * 60 * 1000;
+    case 's': return n * 1000;
+    default: return n * 24 * 60 * 60 * 1000;
+  }
 }
 
 function hashResetToken(token) {
@@ -133,7 +149,7 @@ router.post('/register', async (req, res, next) => {
 
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body || {};
+    const { email, password, remember } = req.body || {};
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
@@ -154,7 +170,22 @@ router.post('/login', async (req, res, next) => {
     }
 
     const user = serializeUser(rows[0]);
-    return res.json({ token: signToken(user.id), user });
+
+    const expiresIn = remember ? (process.env.JWT_REMEMBER_EXPIRES_IN || '30d') : (process.env.JWT_EXPIRES_IN || '7d');
+    const token = signToken(user.id, expiresIn);
+
+    // If the client requested to be remembered, set an HttpOnly cookie
+    if (remember) {
+      const maxAge = parseExpiryToMs(expiresIn) || (30 * 24 * 60 * 60 * 1000);
+      res.cookie('booksta_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge
+      });
+    }
+
+    return res.json({ token, user });
   } catch (error) {
     next(error);
   }

@@ -5,7 +5,14 @@ function getToken(req) {
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
   if (scheme !== 'Bearer' || !token) {
-    return null;
+    // Try cookie fallback (simple parse) for 'booksta_token' or 'token'
+    const cookieHeader = req.headers.cookie || '';
+    const cookies = cookieHeader.split(/;\s*/).reduce((acc, pair) => {
+      const [k, v] = pair.split('=');
+      if (k && v) acc[k.trim()] = decodeURIComponent(v.trim());
+      return acc;
+    }, {});
+    return cookies.booksta_token || cookies.token || null;
   }
   return token;
 }
