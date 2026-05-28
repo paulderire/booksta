@@ -56,8 +56,27 @@ function logResourceUsage() {
 setInterval(logResourceUsage, 60 * 1000); // log every minute
 
 const app = express();
-// Scope proxy trust via env var. Defaults to 'loopback' (safer than true).
-const trustProxy = process.env.TRUST_PROXY || 'loopback';
+// Scope proxy trust via env var. Accepts booleans, numbers, or proxy-addr strings.
+function parseTrustProxy(value) {
+  if (value === undefined || value === null || value === '') {
+    return 'loopback';
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1') {
+    return true;
+  }
+  if (normalized === 'false' || normalized === '0') {
+    return false;
+  }
+  if (/^\d+$/.test(normalized)) {
+    return Number(normalized);
+  }
+
+  return value;
+}
+
+const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 app.set('trust proxy', trustProxy);
 const clientDir = path.resolve(process.cwd(), 'client');
 const clientUrl = process.env.CLIENT_URL;
