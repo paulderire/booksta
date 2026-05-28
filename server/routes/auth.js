@@ -346,4 +346,18 @@ router.post('/reset-password', async (req, res, next) => {
   }
 });
 
+// Logout endpoint to clear remember-me cookie
+router.post('/logout', (req, res) => {
+  try {
+    res.clearCookie('booksta_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Could not clear session cookie.' });
+  }
+});
+
 module.exports = router;
