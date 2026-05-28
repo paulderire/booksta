@@ -247,6 +247,21 @@ async function createBackInStockNotifications(book, previousStock, nextStock) {
   return { created };
 }
 
+async function createUserNotification({ userId, type, title, body, bookId = null, data = {}, dedupeKey = null }) {
+  if (!userId || !type || !title || !body) {
+    return { created: 0 };
+  }
+
+  const { rowCount } = await query(
+    `INSERT INTO notifications (user_id, type, title, body, book_id, data, dedupe_key)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (dedupe_key) DO NOTHING`,
+    [userId, type, title, body, bookId, data, dedupeKey]
+  );
+
+  return { created: rowCount > 0 ? 1 : 0 };
+}
+
 async function getNotificationsForUser(userId, limit = 20) {
   const { rows } = await query(
     `SELECT n.*, b.title AS book_title, b.cover_url AS book_cover_url, b.cover_color AS book_cover_color, b.emoji AS book_emoji
@@ -310,6 +325,7 @@ async function markAllNotificationsRead(userId) {
 
 module.exports = {
   createBackInStockNotifications,
+  createUserNotification,
   getNotificationsForUser,
   getRecommendationsForUser,
   getTasteProfile,
