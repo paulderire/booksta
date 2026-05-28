@@ -409,7 +409,8 @@ async function api(path, options = {}) {
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers
+    headers,
+    credentials: 'include'
   });
 
   if (response.status === 429) {
@@ -1754,17 +1755,17 @@ function renderEmptyRoute() {
 }
 
 async function refreshSession() {
-  if (!state.token) {
-    renderChrome();
-    return;
-  }
-
+  // Attempt to refresh user session from server. This will succeed
+  // when either an Authorization token is present or an HttpOnly
+  // remember-me cookie was set by the server.
   try {
     const data = await api('/api/auth/me');
     state.user = data.user;
     renderChrome();
     await refreshPersonalization();
   } catch (error) {
+    // If no remote session exists, clear any client-side token
+    // but don't show a notification during normal startup.
     clearSession(false);
   }
 }

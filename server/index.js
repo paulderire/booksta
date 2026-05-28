@@ -75,7 +75,7 @@ app.use(helmet({
     }
   }
 }));
-app.use(cors({ origin: clientUrl || true }));
+app.use(cors({ origin: clientUrl || true, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(compression()); // Enable gzip compression
 
