@@ -56,6 +56,7 @@ function logResourceUsage() {
 setInterval(logResourceUsage, 60 * 1000); // log every minute
 
 const app = express();
+app.set('trust proxy', 1);
 const clientDir = path.resolve(process.cwd(), 'client');
 const clientUrl = process.env.CLIENT_URL;
 

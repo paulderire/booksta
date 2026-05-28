@@ -3068,8 +3068,28 @@ app.addEventListener('change', (event) => {
   if (!select) {
     return;
   }
-  state.sort = select.value;
+  const sort = select.value;
+  const route = state.route?.name || getRoute().name;
+  const params = new URLSearchParams();
+
+  params.set('sort', sort);
+  if (route === 'search' && state.search) {
+    params.set('q', state.search);
+  }
+  if (route === 'search' && state.genre) {
+    params.set('genre', state.genre);
+  }
+
+  state.sort = sort;
   state.page = 1;
+  if (route === 'home') {
+    window.location.hash = `#/search?${params.toString()}`;
+    return;
+  }
+  if (route === 'search') {
+    window.location.hash = `#/search?${params.toString()}`;
+    return;
+  }
   loadRoute();
 });
 
