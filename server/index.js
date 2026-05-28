@@ -56,18 +56,19 @@ function logResourceUsage() {
 setInterval(logResourceUsage, 60 * 1000); // log every minute
 
 const app = express();
-// Scope proxy trust via env var. Accepts booleans, numbers, or proxy-addr strings.
+// Scope proxy trust via env var. In production, default to one proxy hop.
 function parseTrustProxy(value) {
   if (value === undefined || value === null || value === '') {
-    return 'loopback';
+    return isProduction ? 1 : 'loopback';
   }
 
   const normalized = String(value).trim().toLowerCase();
   if (normalized === 'true' || normalized === '1') {
     return 1;
   }
-  if (normalized === 'false' || normalized === '0') {
-    return false;
+  if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no') {
+    // Many managed platforms always send X-Forwarded-For in production.
+    return isProduction ? 1 : false;
   }
   if (/^\d+$/.test(normalized)) {
     return Number(normalized);
@@ -78,6 +79,7 @@ function parseTrustProxy(value) {
 
 const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 app.set('trust proxy', trustProxy);
+console.log('proxy-config', { trustProxy, nodeEnv: process.env.NODE_ENV || 'development' });
 const clientDir = path.resolve(process.cwd(), 'client');
 const clientUrl = process.env.CLIENT_URL;
 

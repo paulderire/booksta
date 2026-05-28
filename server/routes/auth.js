@@ -41,6 +41,31 @@ function hashResetToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
+function formatFromAddress(fromValue) {
+  const raw = String(fromValue || '').trim();
+  if (!raw) {
+    return raw;
+  }
+
+  if (raw.includes('<') && raw.includes('>')) {
+    return raw;
+  }
+
+  return `"Booksta" <${raw}>`;
+}
+
+function resolveHostIPv4(hostname) {
+  return new Promise((resolve, reject) => {
+    dns.lookup(hostname, { family: 4 }, (err, address) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(address);
+    });
+  });
+}
+
 async function getSmtpConfig() {
   const keys = ['smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'smtpFrom', 'clientUrl'];
   const { rows } = await query('SELECT key, value FROM app_settings WHERE key = ANY($1)', [keys]);
@@ -64,21 +89,30 @@ async function getSmtpConfig() {
   return { host, port, user, pass, secure, from, clientUrl };
 }
 
-function createTransporter(config) {
-  // Force IPv4 lookups to avoid IPv6 ENETUNREACH errors on hosts without IPv6.
+async function createTransporter(config) {
+  let smtpHost = config.host;
+  try {
+    smtpHost = await resolveHostIPv4(config.host);
+  } catch (err) {
+    console.warn('smtp-ipv4-lookup-failed', { host: config.host, error: err && err.message ? err.message : String(err) });
+  }
+
   return nodemailer.createTransport({
-    host: config.host,
+    host: smtpHost,
     port: config.port,
     secure: config.secure,
+    family: 4,
     auth: {
       user: config.user,
       pass: config.pass
     },
-    // Provide a custom DNS lookup that limits to IPv4 (family: 4).
-    lookup: (hostname, options, callback) => {
-      // Normalize arguments for Node >= 12 where options may be a number
-      dns.lookup(hostname, { family: 4, hints: dns.ADDRCONFIG | dns.V4MAPPED }, callback);
-    }
+    tls: {
+      // Keep TLS validation aligned with the original SMTP host when we connect by IPv4 address.
+      servername: config.host
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000
   });
 }
 
@@ -90,21 +124,35 @@ async function sendResetPasswordEmail({ toEmail, resetToken }) {
     throw err;
   }
 
-  const transporter = createTransporter(smtpConfig);
-  await transporter.sendMail({
-    from: smtpConfig.from,
-    to: toEmail,
-    subject: 'Booksta 6-digit password reset code',
-    text: `Your Booksta reset code is: ${resetToken}\n\nUse this 6-digit code to reset your password.\n\nThis code expires in 30 minutes.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:600px;">
-        <h2>Reset your Booksta password</h2>
-        <p>Your reset code is:</p>
-        <p style="font-size:20px;font-weight:700;letter-spacing:1px;">${resetToken}</p>
-        <p>This code expires in 30 minutes.</p>
-      </div>
-    `
-  });
+  const transporter = await createTransporter(smtpConfig);
+  try {
+    await transporter.sendMail({
+      from: formatFromAddress(smtpConfig.from),
+      to: toEmail,
+      subject: 'Booksta 6-digit password reset code',
+      text: `Your Booksta reset code is: ${resetToken}\n\nUse this 6-digit code to reset your password.\n\nThis code expires in 30 minutes.`,
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:600px;">
+          <h2>Reset your Booksta password</h2>
+          <p>Your reset code is:</p>
+          <p style="font-size:20px;font-weight:700;letter-spacing:1px;">${resetToken}</p>
+          <p>This code expires in 30 minutes.</p>
+        </div>
+      `
+    });
+  } catch (err) {
+    console.error('smtp-send-failed', {
+      code: err && err.code ? err.code : null,
+      syscall: err && err.syscall ? err.syscall : null,
+      address: err && err.address ? err.address : null,
+      port: err && err.port ? err.port : smtpConfig.port,
+      message: err && err.message ? err.message : String(err)
+    });
+
+    const sendErr = new Error('Could not send reset code email. Please verify SMTP settings in Admin.');
+    sendErr.status = 500;
+    throw sendErr;
+  }
 }
 
 router.post('/register', async (req, res, next) => {
@@ -142,6 +190,7 @@ router.post('/register', async (req, res, next) => {
     const user = serializeUser(rows[0]);
     return res.status(201).json({ token: signToken(user.id), user });
   } catch (error) {
+    console.error('forgot-password-failed', error && error.stack ? error.stack : error);
     next(error);
   }
 });
