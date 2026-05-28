@@ -1731,7 +1731,7 @@ function renderResetPasswordConfirmView() {
 
             <form class="auth-form auth-recovery-form" data-form="reset-password">
               <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
-              <input class="text-input" name="token" placeholder="Reset code" value="${routeToken}" required />
+              <input class="text-input" name="token" placeholder="Reset code" value="${routeToken}" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" minlength="6" required />
               <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
               <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
               <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
