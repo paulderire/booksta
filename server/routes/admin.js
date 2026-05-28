@@ -2,7 +2,7 @@ const express = require('express');
 const { auth, requireAdmin } = require('../middleware/auth');
 const { query } = require('../db');
 const { serializeBook, serializeOrder } = require('../utils');
-const { createBackInStockNotifications } = require('../personalization');
+const { createBackInStockNotifications, createUserNotification } = require('../personalization');
 
 const router = express.Router();
 
@@ -411,7 +411,12 @@ router.get('/analytics/genres', async (_req, res, next) => {
 // Promotions Management
 router.get('/promotions', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM promotions ORDER BY created_at DESC');
+    const { rows } = await query(`
+      SELECT p.*, u.name AS target_user_name, u.email AS target_user_email
+      FROM promotions p
+      LEFT JOIN users u ON u.id = p.target_user_id
+      ORDER BY p.created_at DESC
+    `);
     res.json({ promotions: rows });
   } catch (error) {
     next(error);
@@ -420,7 +425,12 @@ router.get('/promotions', async (req, res, next) => {
 
 router.get('/promotions/:id', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM promotions WHERE id = $1', [req.params.id]);
+    const { rows } = await query(`
+      SELECT p.*, u.name AS target_user_name, u.email AS target_user_email
+      FROM promotions p
+      LEFT JOIN users u ON u.id = p.target_user_id
+      WHERE p.id = $1
+    `, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Promotion not found' });
     res.json({ promotion: rows[0] });
   } catch (error) {
@@ -430,13 +440,34 @@ router.get('/promotions/:id', async (req, res, next) => {
 
 router.post('/promotions', async (req, res, next) => {
   try {
-    const { code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active } = req.body;
+    const { code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active, target_user_id } = req.body;
     const { rows } = await query(
-      `INSERT INTO promotions (code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO promotions (code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active, target_user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active]
+      [code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active, target_user_id || null]
     );
+
+    if (rows[0] && rows[0].target_user_id && rows[0].is_active) {
+      const { rows: targetRows } = await query('SELECT id, name, email FROM users WHERE id = $1 AND role = $2', [rows[0].target_user_id, 'customer']);
+      const targetUser = targetRows[0];
+      if (targetUser) {
+        await createUserNotification({
+          userId: targetUser.id,
+          type: 'promotion_targeted',
+          title: `A special discount is waiting for you: ${rows[0].code}`,
+          body: `You were selected for the ${rows[0].code} promotion. Check the admin offer details for your discount.`,
+          data: {
+            promotionId: rows[0].id,
+            promotionCode: rows[0].code,
+            discountType: rows[0].discount_type,
+            discountValue: rows[0].discount_value
+          },
+          dedupeKey: `promotion-target:${rows[0].id}:${targetUser.id}`
+        });
+      }
+    }
+
     res.status(201).json({ promotion: rows[0] });
   } catch (error) {
     next(error);
@@ -445,7 +476,7 @@ router.post('/promotions', async (req, res, next) => {
 
 router.patch('/promotions/:id', async (req, res, next) => {
   try {
-    const { code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active } = req.body;
+    const { code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active, target_user_id } = req.body;
     
     // Only update fields that are provided
     const updates = [];
@@ -460,6 +491,7 @@ router.patch('/promotions/:id', async (req, res, next) => {
     if (max_uses !== undefined) { updates.push(`max_uses=$${paramIndex++}`); values.push(max_uses); }
     if (expires_at !== undefined) { updates.push(`expires_at=$${paramIndex++}`); values.push(expires_at); }
     if (is_active !== undefined) { updates.push(`is_active=$${paramIndex++}`); values.push(is_active); }
+    if (target_user_id !== undefined) { updates.push(`target_user_id=$${paramIndex++}`); values.push(target_user_id || null); }
     
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -471,6 +503,27 @@ router.patch('/promotions/:id', async (req, res, next) => {
       values
     );
     if (!rows[0]) return res.status(404).json({ error: 'Promotion not found' });
+
+    if (rows[0].target_user_id && rows[0].is_active) {
+      const { rows: targetRows } = await query('SELECT id, name, email FROM users WHERE id = $1 AND role = $2', [rows[0].target_user_id, 'customer']);
+      const targetUser = targetRows[0];
+      if (targetUser) {
+        await createUserNotification({
+          userId: targetUser.id,
+          type: 'promotion_targeted',
+          title: `A special discount is waiting for you: ${rows[0].code}`,
+          body: `You were selected for the ${rows[0].code} promotion. Check the admin offer details for your discount.`,
+          data: {
+            promotionId: rows[0].id,
+            promotionCode: rows[0].code,
+            discountType: rows[0].discount_type,
+            discountValue: rows[0].discount_value
+          },
+          dedupeKey: `promotion-target:${rows[0].id}:${targetUser.id}`
+        });
+      }
+    }
+
     res.json({ promotion: rows[0] });
   } catch (error) {
     next(error);

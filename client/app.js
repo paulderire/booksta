@@ -639,8 +639,7 @@ function renderBookCard(book) {
     <article class="book-card card">
       <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
-        <span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>
-        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : ''}
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
       <div>
         <div class="book-meta">${escapeHtml((book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book')}</div>
@@ -989,7 +988,7 @@ function renderHomeView() {
           <div class="pill">A modern bookstore with a cinematic reading experience</div>
           <h1 class="hero-title">Booksta.<br>for readers who want the shelf to feel alive.</h1>
           <p class="hero-copy">
-            Discover featured picks, browse by genre, keep a wishlist, manage your cart, and order books with a smooth checkout flow.
+            Discover featured picks, browse by genre, keep a wishlist, and manage your cart.
             The catalog below is powered by the live API, with search, pagination, and review-aware rating summaries.
           </p>
           <div class="hero-copy">Currently cycling genres: ${renderHeroTypewriter()}</div>
@@ -1000,8 +999,8 @@ function renderHomeView() {
           <div class="hero-search-hint">Use the header search to find books by title, author, or genre.</div>
           <div class="hero-stats" style="margin-top: 1rem;">
             <div class="stat"><span class="stat-value">100+</span><span class="stat-label">featured books</span></div>
-            <div class="stat"><span class="stat-value">${genreCount}</span><span class="stat-label">genres</span></div>
-            <div class="stat"><span class="stat-value">Secure</span><span class="stat-label">checkout flow</span></div>
+            <div class="stat"><span class="stat-value">50+</span><span class="stat-label">authors</span></div>
+            <div class="stat"><span class="stat-value">16+</span><span class="stat-label">genres</span></div>
           </div>
         </div>
         <div class="hero-panel">
@@ -1172,8 +1171,8 @@ function renderSearchView() {
       <section class="section">
         <div class="toolbar">
           <div>
-            <h2 class="section-title">Refine results</h2>
-            <p class="section-copy">Use sort controls to narrow the current query.</p>
+            <h2 class="section-title">${query ? `Books by ${escapeHtml(query)}` : 'Refine results'}</h2>
+            <p class="section-copy">${query ? 'Showing the author’s books in compact cards.' : 'Use sort controls to narrow the current query.'}</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -2409,6 +2408,15 @@ function handleAction(target) {
 
   if (action === 'set-genre') {
     state.genre = target.dataset.genre || '';
+    state.page = 1;
+    renderChrome();
+    loadHomeData();
+    return;
+  }
+
+  if (action === 'search-author') {
+    state.search = target.dataset.author || '';
+    state.genre = '';
     state.page = 1;
     renderChrome();
     loadHomeData();

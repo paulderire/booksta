@@ -39,6 +39,29 @@
     return 'status-healthy';
   }
 
+  const adminViewStorageKey = 'bookstaAdminView';
+
+  function showAdminView(view) {
+    const nextView = view || 'dashboard';
+    document.querySelectorAll('.nav-item').forEach((button) => {
+      button.classList.toggle('active', button.dataset.view === nextView);
+    });
+    document.querySelectorAll('.view').forEach((section) => {
+      section.style.display = section.id === `view-${nextView}` ? '' : 'none';
+    });
+    localStorage.setItem(adminViewStorageKey, nextView);
+
+    if (nextView === 'dashboard') loadDashboard();
+    if (nextView === 'books') loadBooks();
+    if (nextView === 'featured') loadFeatured();
+    if (nextView === 'orders') loadOrders();
+    if (nextView === 'users') loadUsers();
+    if (nextView === 'promotions') loadPromotions();
+    if (nextView === 'reviews') loadReviews();
+    if (nextView === 'analytics') loadAnalytics();
+    if (nextView === 'settings') loadSettings();
+  }
+
   function toast(msg, type='info') {
     const container = $id('toast-container');
     const el = document.createElement('div');
@@ -87,19 +110,7 @@
   // Navigation
   document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
-      document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-      const view = e.currentTarget.dataset.view;
-      document.querySelectorAll('.view').forEach(v=>v.style.display = v.id === 'view-'+view ? '' : 'none');
-      if(view === 'dashboard') loadDashboard();
-      if(view === 'books') loadBooks();
-      if(view === 'featured') loadFeatured();
-      if(view === 'orders') loadOrders();
-      if(view === 'users') loadUsers();
-      if(view === 'promotions') loadPromotions();
-      if(view === 'reviews') loadReviews();
-      if(view === 'analytics') loadAnalytics();
-      if(view === 'settings') loadSettings();
+      showAdminView(e.currentTarget.dataset.view);
     });
   });
 
@@ -583,7 +594,7 @@
 
       // Table header
       gridHtml += `
-        <table class="admin-table" style="width:100%;border-collapse:collapse;margin-top:0.5rem">
+        <table class="admin-table" style="grid-column:1 / -1;width:100%;border-collapse:collapse;margin-top:0.5rem">
           <thead>
             <tr>
               <th style="text-align:left;padding:0.75rem;font-weight:600">Title</th>
@@ -638,41 +649,180 @@
 
   // Orders Management
   let allOrders = [];
+  let selectedOrderIds = new Set();
+
+  function buildOrderSummaryCards(orders) {
+    const totalOrders = orders.length;
+    const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const pendingOrders = orders.filter((order) => String(order.status || 'pending') === 'pending').length;
+    const fulfilledOrders = orders.filter((order) => ['shipped', 'completed'].includes(String(order.status || 'pending'))).length;
+
+    return [
+      { label: 'Orders in view', value: formatNumber(totalOrders), note: `${formatNumber(getSelectedVisibleOrders(orders).length)} selected` },
+      { label: 'Revenue in view', value: formatRWF(totalRevenue), note: 'Filtered total amount' },
+      { label: 'Pending orders', value: formatNumber(pendingOrders), note: 'Need attention' },
+      { label: 'Fulfilled orders', value: formatNumber(fulfilledOrders), note: 'Shipped or completed' }
+    ].map((item) => `
+      <article class="orders-summary-card">
+        <div class="orders-summary-label">${escapeHtml(item.label)}</div>
+        <div class="orders-summary-value">${escapeHtml(item.value)}</div>
+        <div class="orders-summary-note">${escapeHtml(item.note)}</div>
+      </article>
+    `).join('');
+  }
+
+  function getSelectedVisibleOrders(orders) {
+    return orders.filter((order) => selectedOrderIds.has(order.id));
+  }
+
+  function renderOrdersDashboard(orders) {
+    const summary = $id('orders-summary');
+    if (summary) summary.innerHTML = buildOrderSummaryCards(orders);
+  }
+
+  function syncOrderSelectionLabel(orders) {
+    const label = $id('orders-selection-label');
+    if (!label) return;
+    const selectedCount = getSelectedVisibleOrders(orders).length;
+    label.textContent = selectedCount ? `${formatNumber(selectedCount)} selected` : 'No orders selected';
+  }
+
+  function applyOrderFilters() {
+    const search = ($id('order-search').value || '').toLowerCase().trim();
+    const status = $id('order-filter').value || '';
+    const sort = $id('order-sort').value || 'created_desc';
+    const minTotal = Number($id('order-min-total').value || 0) || 0;
+    const dateWindow = Number($id('order-date-filter').value || 0) || 0;
+
+    let filtered = allOrders.filter((order) => {
+      const haystack = [order.user_email, order.user_name, order.id, order.status].filter(Boolean).join(' ').toLowerCase();
+      if (search && !haystack.includes(search)) return false;
+      if (status && String(order.status || 'pending') !== status) return false;
+      if (minTotal && Number(order.total || 0) < minTotal) return false;
+      if (dateWindow) {
+        const createdAt = new Date(order.created_at).getTime();
+        const cutoff = Date.now() - (dateWindow * 24 * 60 * 60 * 1000);
+        if (createdAt < cutoff) return false;
+      }
+      return true;
+    });
+
+    switch (sort) {
+      case 'created_asc': filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break;
+      case 'total_desc': filtered.sort((a, b) => Number(b.total || 0) - Number(a.total || 0)); break;
+      case 'total_asc': filtered.sort((a, b) => Number(a.total || 0) - Number(b.total || 0)); break;
+      case 'items_desc': filtered.sort((a, b) => Number((b.items || []).length) - Number((a.items || []).length)); break;
+      case 'created_desc':
+      default: filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
+    }
+
+    renderOrdersDashboard(filtered);
+    renderOrdersTable(filtered);
+  }
+
   async function loadOrders(){
     try {
       const res = await api('/admin/orders').catch(e => { console.warn('Orders error:', e); return { orders: [] }; });
       allOrders = res.orders || [];
-      renderOrdersTable(allOrders);
+      applyOrderFilters();
     } catch (error) {
       console.error('Orders load error:', error);
       toast('Orders load error: ' + error.message, 'error');
       allOrders = [];
+      renderOrdersDashboard([]);
       renderOrdersTable([]);
     }
   }
 
   function renderOrdersTable(orders) {
     const list = $id('orders-table'); 
-    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:0.75rem;font-weight:600">Customer</th><th style="text-align:left;padding:0.75rem;font-weight:600">Total</th><th style="text-align:left;padding:0.75rem;font-weight:600">Items</th><th style="text-align:left;padding:0.75rem;font-weight:600">Status</th><th style="text-align:left;padding:0.75rem;font-weight:600">Date</th><th style="text-align:left;padding:0.75rem;font-weight:600">Action</th></tr></thead><tbody>';
-    orders.forEach(o=>{
+    if (!list) return;
+    const visibleSelectedCount = getSelectedVisibleOrders(orders).length;
+    let html = `
+      <div class="order-bulk-selection">
+        <label class="order-select-all">
+          <input id="order-select-all" type="checkbox" ${orders.length && visibleSelectedCount === orders.length ? 'checked' : ''} />
+          <span>Select all visible</span>
+        </label>
+        <div class="hint" id="orders-selection-label">${visibleSelectedCount ? `${formatNumber(visibleSelectedCount)} selected` : 'No orders selected'}</div>
+      </div>
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th style="width:44px"></th>
+            <th>Order</th>
+            <th>Total</th>
+            <th>Items</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    orders.forEach((o) => {
       const statusClass = 'status-' + (o.status || 'pending');
-      html += `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:0.75rem">${escapeHtml(o.user_email)}</td>
+      const isSelected = selectedOrderIds.has(o.id);
+      const itemsMarkup = (o.items || []).slice(0, 3).map((item) => `<span>${escapeHtml(item.title || 'Book')} × ${Number(item.quantity || 1)}</span>`).join('') || '<span>No items listed</span>';
+      html += `<tr style="border-bottom:1px solid var(--border)" data-order-id="${escapeHtml(o.id)}" class="${isSelected ? 'is-selected' : ''}">
+        <td style="padding:0.75rem;vertical-align:middle"><input type="checkbox" class="order-row-select" data-order-select="${escapeHtml(o.id)}" ${isSelected ? 'checked' : ''} /></td>
+        <td style="padding:0.75rem">
+          <div class="order-row-meta">
+            <div class="order-row-title">${escapeHtml(o.user_name || o.user_email || 'Unknown customer')}</div>
+            <div class="order-row-sub">Order ${escapeHtml(String(o.id).slice(0, 10))}</div>
+            <div class="order-items-list">${itemsMarkup}</div>
+          </div>
+        </td>
         <td style="padding:0.75rem;font-weight:600">${formatRWF(o.total)}</td>
-        <td style="padding:0.75rem;color:var(--text-muted)">${(o.items||[]).length} items</td>
-        <td style="padding:0.75rem"><span class="order-status-badge ${statusClass}">${o.status || 'pending'}</span></td>
+        <td style="padding:0.75rem;color:var(--text-muted)">${formatNumber((o.items||[]).length)} item(s)</td>
+        <td style="padding:0.75rem"><span class="order-status-badge ${statusClass}">${escapeHtml(o.status || 'pending')}</span></td>
         <td style="padding:0.75rem;color:var(--text-muted);font-size:0.9rem">${new Date(o.created_at).toLocaleDateString()}</td>
-        <td style="padding:0.75rem"><select data-admin-action="order-status" data-id="${o.id}" style="padding:0.4rem;border-radius:4px;border:1px solid var(--border);background:var(--glass);color:inherit">
+        <td style="padding:0.75rem">
+          <div class="order-actions">
+            <select data-admin-action="order-status" data-id="${o.id}" class="filter-select" style="padding:0.4rem;border-radius:4px;border:1px solid var(--border);background:var(--glass);color:inherit">
           <option${o.status==='pending'?' selected':''}>pending</option>
           <option${o.status==='processing'?' selected':''}>processing</option>
           <option${o.status==='shipped'?' selected':''}>shipped</option>
           <option${o.status==='completed'?' selected':''}>completed</option>
           <option${o.status==='cancelled'?' selected':''}>cancelled</option>
-        </select></td>
+            </select>
+          </div>
+        </td>
       </tr>`;
     });
     html += '</tbody></table>';
     list.innerHTML = html;
+
+    const selectAll = $id('order-select-all');
+    if (selectAll) {
+      selectAll.checked = orders.length > 0 && visibleSelectedCount === orders.length;
+      selectAll.indeterminate = !selectAll.checked && visibleSelectedCount > 0;
+      selectAll.addEventListener('change', () => {
+        if (selectAll.checked) {
+          orders.forEach((order) => selectedOrderIds.add(order.id));
+        } else {
+          orders.forEach((order) => selectedOrderIds.delete(order.id));
+        }
+        renderOrdersDashboard(orders);
+        renderOrdersTable(orders);
+      }, { once: true });
+    }
+
+    document.querySelectorAll('[data-order-select]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const orderId = checkbox.dataset.orderSelect;
+        if (checkbox.checked) selectedOrderIds.add(orderId); else selectedOrderIds.delete(orderId);
+        syncOrderSelectionLabel(orders);
+        const master = $id('order-select-all');
+        if (master) {
+          const selectedVisible = getSelectedVisibleOrders(orders).length;
+          master.checked = orders.length > 0 && selectedVisible === orders.length;
+          master.indeterminate = !master.checked && selectedVisible > 0;
+        }
+      });
+    });
+
+    syncOrderSelectionLabel(orders);
   }
 
   window.updateOrderStatus = async (id, status) => {
@@ -681,14 +831,37 @@
     await loadOrders();
   };
 
-  $id('order-filter').addEventListener('change', (e) => {
-    const status = e.target.value;
-    renderOrdersTable(status ? allOrders.filter(o => o.status === status) : allOrders);
-  });
+  function clearOrderSelection() {
+    selectedOrderIds = new Set();
+    applyOrderFilters();
+  }
 
-  $id('order-search').addEventListener('keyup', (e) => {
-    const search = e.target.value.toLowerCase();
-    renderOrdersTable(allOrders.filter(o => o.user_email.toLowerCase().includes(search)));
+  $id('order-filter').addEventListener('change', applyOrderFilters);
+  $id('order-search').addEventListener('keyup', applyOrderFilters);
+  $id('order-sort').addEventListener('change', applyOrderFilters);
+  $id('order-date-filter').addEventListener('change', applyOrderFilters);
+  $id('order-min-total').addEventListener('keyup', applyOrderFilters);
+  $id('orders-clear-selection').addEventListener('click', clearOrderSelection);
+  $id('orders-refresh').addEventListener('click', loadOrders);
+
+  document.querySelectorAll('[data-order-bulk-status]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const status = button.dataset.orderBulkStatus;
+      const selected = allOrders.filter((order) => selectedOrderIds.has(order.id));
+      if (!selected.length) {
+        toast('Select at least one order first', 'error');
+        return;
+      }
+      if (!confirm(`Update ${selected.length} selected order(s) to ${status}?`)) return;
+      try {
+        await Promise.all(selected.map((order) => api('/admin/orders/' + order.id, { method: 'PATCH', body: JSON.stringify({ status }) })));
+        toast(`Updated ${selected.length} order(s) to ${status}`);
+        selectedOrderIds = new Set();
+        await loadOrders();
+      } catch (error) {
+        toast(error.message || 'Failed to update selected orders', 'error');
+      }
+    });
   });
 
   // Users Management
@@ -1115,6 +1288,10 @@
           <div><span style='opacity:0.6'>Uses:</span> <strong>${p.times_used}/${p.max_uses || '∞'}</strong></div>
           <div><span style='opacity:0.6'>Expires:</span> <strong>${new Date(p.expires_at).toLocaleDateString()}</strong></div>
         </div>
+        <div style='margin-bottom:1rem;font-size:0.9rem;opacity:0.85'>
+          <span style='opacity:0.6'>Scope:</span> <strong>${p.target_user_id ? 'Targeted customer promotion' : 'App-wide promotion'}</strong>
+          ${p.target_user_id ? `<div style='margin-top:0.35rem'><span style='opacity:0.6'>Target customer:</span> <strong>${escapeHtml(p.target_user_name || p.target_user_email || 'Not selected')}</strong></div>` : ''}
+        </div>
         <div style='display:flex;gap:0.5rem'>
           <button data-admin-action='edit-promo' data-id='${p.id}' class='btn-secondary' style='flex:1;padding:0.5rem;font-size:0.9rem'>Edit</button>
           <button data-admin-action='toggle-promo' data-id='${p.id}' data-active='${!p.is_active}' class='btn-primary' style='flex:1;padding:0.5rem;font-size:0.9rem'>${p.is_active ? 'Deactivate' : 'Activate'}</button>
@@ -1145,18 +1322,41 @@
   };
 
   async function openPromoForm(promoId){
-    let promo = { code:'', description:'', discount_type:'percentage', discount_value:10, min_order_amount:5000, max_uses:null, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], is_active:true };
-    if(promoId){
-      const res = await api(`/admin/promotions/${promoId}`);
-      promo = res.promotion;
-    }
+    let promo = { code:'', description:'', discount_type:'percentage', discount_value:10, min_order_amount:5000, max_uses:null, expires_at: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], is_active:true, target_user_id:'' };
+    const [promoRes, usersRes] = await Promise.all([
+      promoId ? api(`/admin/promotions/${promoId}`).catch(() => ({ promotion: promo })) : Promise.resolve({ promotion: promo }),
+      api('/admin/users').catch(() => ({ users: [] }))
+    ]);
+    promo = promoRes.promotion || promo;
+    const customers = (usersRes.users || []).filter((user) => String(user.role || 'customer') === 'customer');
+    const promoScope = promo.target_user_id ? 'customer' : 'app';
+    const targetOptions = ['<option value="">Select a customer</option>']
+      .concat(customers.map((user) => {
+        const label = `${user.buyer_rank ? `#${user.buyer_rank} ` : ''}${user.name || user.email} • ${formatRWF(user.total_spent || 0)} • ${formatNumber(user.completed_orders || 0)} orders`;
+        return `<option value="${escapeHtml(user.id)}" ${String(promo.target_user_id || '') === String(user.id) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+      }))
+      .join('');
+
     const modal = $id('modal'); modal.style.display='flex';
-    modal.innerHTML = `<div class='modal-panel'><h3>${promoId?'Edit':'New'} Promotion</h3>
+    modal.innerHTML = `<div class='modal-panel solid promo-modal'><h3>${promoId?'Edit':'New'} Promotion</h3>
       <div class='form-group'><label>Code *</label><input id='p_code' placeholder='SUMMER20' value='${escapeHtml(promo.code)}'></div>
       <div class='form-group'><label>Description</label><input id='p_desc' placeholder='Summer sale promotion' value='${escapeHtml(promo.description)}'></div>
       <div style='display:grid;grid-template-columns:1fr 1fr;gap:1rem'>
         <div class='form-group'><label>Discount Type</label><select id='p_type'><option value='percentage' ${promo.discount_type==='percentage'?'selected':''}>% Percentage</option><option value='fixed' ${promo.discount_type==='fixed'?'selected':''}>RWF Fixed</option></select></div>
         <div class='form-group'><label>Discount Value</label><input id='p_value' type='number' placeholder='10' value='${promo.discount_value}'></div>
+      </div>
+      <div class='form-group'>
+        <label>Promotion scope</label>
+        <select id='p_scope' class='filter-select'>
+          <option value='app' ${promoScope === 'app' ? 'selected' : ''}>App-wide promotion</option>
+          <option value='customer' ${promoScope === 'customer' ? 'selected' : ''}>Target a customer</option>
+        </select>
+        <div class='helper-line'>Choose whether this promotion applies to everyone or a specific customer.</div>
+      </div>
+      <div class='form-group' id='p_target_wrap' style='display:${promoScope === 'customer' ? 'block' : 'none'}'>
+        <label>Target customer</label>
+        <select id='p_target' class='filter-select'>${targetOptions}</select>
+        <div class='helper-line'>This customer will receive the notification and targeted offer.</div>
       </div>
       <div class='form-group'><label>Min Order Amount (RWF)</label><input id='p_min' type='number' placeholder='5000' value='${promo.min_order_amount}'></div>
       <div class='form-group'><label>Max Uses (leave empty for unlimited)</label><input id='p_max' type='number' placeholder='100' value='${promo.max_uses || ''}'></div>
@@ -1167,10 +1367,18 @@
         <button id='save-promo' class='btn-primary'>Save Promotion</button>
       </div>
     </div>`;
+    $id('p_scope').addEventListener('change', () => {
+      const scope = $id('p_scope').value;
+      const targetWrap = $id('p_target_wrap');
+      const targetControl = $id('p_target');
+      if (targetWrap) targetWrap.style.display = scope === 'customer' ? 'block' : 'none';
+      if (scope !== 'customer' && targetControl) targetControl.value = '';
+    });
     $id('close-modal').addEventListener('click', ()=>{ modal.style.display='none'; modal.innerHTML=''; });
     $id('save-promo').addEventListener('click', async ()=>{
       const code = $id('p_code').value.trim();
       if(!code){ toast('Code is required', 'error'); return; }
+      const scope = $id('p_scope').value;
       const payload = {
         code, 
         description: $id('p_desc').value || null,
@@ -1179,7 +1387,8 @@
         min_order_amount: parseFloat($id('p_min').value) || 0,
         max_uses: $id('p_max').value ? parseInt($id('p_max').value) : null,
         expires_at: $id('p_exp').value,
-        is_active: $id('p_active').checked
+        is_active: $id('p_active').checked,
+        target_user_id: scope === 'customer' ? ($id('p_target').value || null) : null
       };
       try {
         if(promoId) await api(`/admin/promotions/${promoId}`, { method:'PATCH', body: JSON.stringify(payload)});
@@ -1248,7 +1457,7 @@
   // Init
   (async () => {
     if (await checkAdmin()) {
-      loadDashboard();
+      showAdminView(localStorage.getItem(adminViewStorageKey) || 'dashboard');
     }
   })();
 

@@ -100,6 +100,7 @@ const schemaStatements = [
     max_uses INTEGER,
     expires_at DATE NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
+    target_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   );`,
@@ -123,7 +124,8 @@ const schemaStatements = [
   "CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, read_at) WHERE read_at IS NULL;",
   "CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);",
   "CREATE INDEX IF NOT EXISTS idx_promotions_code ON promotions(code);",
-  "CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions(is_active) WHERE is_active = TRUE;"
+  "CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions(is_active) WHERE is_active = TRUE;",
+  "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS target_user_id UUID REFERENCES users(id) ON DELETE SET NULL;"
 ];
 
 module.exports = {
