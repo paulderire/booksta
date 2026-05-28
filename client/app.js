@@ -1111,9 +1111,9 @@ function renderHomeView() {
             <h3>WhatsApp</h3>
             <p>+${escapeHtml(whatsappNumber || '250782781575')}</p>
           </a>
-          <a class="panel contact-card" href="mailto:booksta@gmail.com">
+          <a class="panel contact-card" href="mailto:booksta.online.store@gmail.com">
             <h3>Email</h3>
-            <p>booksta@gmail.com</p>
+            <p>booksta.online.store@gmail.com</p>
           </a>
           <a class="panel contact-card" href="${escapeHtml(state.settings?.instagramUrl || '#/social/instagram')}" target="_blank" rel="noopener noreferrer">
             <h3>Instagram</h3>
@@ -1159,20 +1159,21 @@ function renderHomeView() {
 
 function renderSearchView() {
   const query = String(state.search || '').trim();
+  const genre = String(state.genre || '').trim();
   const resultCount = Number(state.total || state.books.length || 0);
   const booksMarkup = state.homeLoading
     ? renderSkeletonGrid(12)
     : state.books.length
       ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
-      : `<div class="empty-state"><p>No books match "${escapeHtml(query)}".</p><a class="primary-button" href="#/">Back to home</a></div>`;
+      : `<div class="empty-state"><p>No books match "${escapeHtml(genre || query)}".</p><a class="primary-button" href="#/">Back to home</a></div>`;
 
   return `
     <section class="page search-page full-width">
       <section class="section">
         <div class="toolbar">
           <div>
-            <h2 class="section-title">${query ? `Books by ${escapeHtml(query)}` : 'Refine results'}</h2>
-            <p class="section-copy">${query ? 'Showing the author’s books in compact cards.' : 'Use sort controls to narrow the current query.'}</p>
+            <h2 class="section-title">${genre ? `Books in ${escapeHtml(genre)}` : query ? `Books by ${escapeHtml(query)}` : 'Refine results'}</h2>
+            <p class="section-copy">${genre ? 'Showing the selected genre in compact cards.' : query ? 'Showing the author’s books in compact cards.' : 'Use sort controls to narrow the current query.'}</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -2212,13 +2213,15 @@ async function loadRoute() {
 
   if (state.route.name === 'home') {
     state.search = '';
+    state.genre = '';
     state.page = 1;
     await loadHomeData();
     return;
   }
 
   if (state.route.name === 'search') {
-    state.search = state.route.params?.q || state.search || '';
+    state.search = state.route.params?.q || '';
+    state.genre = state.route.params?.genre || '';
     state.page = 1;
     await loadHomeData();
     return;
@@ -2407,10 +2410,8 @@ function handleAction(target) {
   }
 
   if (action === 'set-genre') {
-    state.genre = target.dataset.genre || '';
-    state.page = 1;
-    renderChrome();
-    loadHomeData();
+    const genre = target.dataset.genre || '';
+    window.location.hash = `#/search?genre=${encodeURIComponent(genre)}`;
     return;
   }
 
@@ -3067,8 +3068,28 @@ app.addEventListener('change', (event) => {
   if (!select) {
     return;
   }
-  state.sort = select.value;
+  const sort = select.value;
+  const route = state.route?.name || getRoute().name;
+  const params = new URLSearchParams();
+
+  params.set('sort', sort);
+  if (route === 'search' && state.search) {
+    params.set('q', state.search);
+  }
+  if (route === 'search' && state.genre) {
+    params.set('genre', state.genre);
+  }
+
+  state.sort = sort;
   state.page = 1;
+  if (route === 'home') {
+    window.location.hash = `#/search?${params.toString()}`;
+    return;
+  }
+  if (route === 'search') {
+    window.location.hash = `#/search?${params.toString()}`;
+    return;
+  }
   loadRoute();
 });
 
