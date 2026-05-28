@@ -1273,11 +1273,11 @@ function renderHomeView() {
       </section>
 
       ${state.promotions.length ? `
-      <section class="section" style="padding: 4rem 0;">
+      <section class="section promotions-section" style="padding: 3rem 0;">
         <h2 class="section-title">Active Promotions</h2>
-        <div class="books-grid" style="margin-top: 1.5rem;">
+        <div class="promotions-grid" style="margin-top: 1.25rem;">
           ${state.promotions.map((promo) => `
-            <article class="panel" style="padding: 1.5rem;">
+            <article class="panel promo-card" style="padding: 1rem 1.1rem;">
               <div class="hint">${escapeHtml(promo.code)}</div>
               <h3 class="mini-title" style="margin: 0.35rem 0 0.5rem 0;">${escapeHtml(promo.description || 'Special offer')}</h3>
               <p class="section-copy" style="margin: 0 0 0.75rem 0;">${promo.discount_type === 'percentage' ? `${promo.discount_value}% off` : formatMoney(promo.discount_value)} on orders above ${formatMoney(promo.min_order_amount || 0)}.</p>

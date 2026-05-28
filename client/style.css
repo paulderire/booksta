@@ -2420,6 +2420,33 @@ html[data-theme='light'] .genre-card {
   white-space: nowrap;
 }
 
+.promotions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 280px));
+  justify-content: center;
+  gap: 1rem;
+}
+
+.promo-card {
+  max-width: 280px;
+  width: 100%;
+  justify-self: center;
+}
+
+.promo-card .mini-title {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.promo-card .section-copy {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.promotions-section {
+  padding-bottom: 2rem;
+}
+
 .books-grid--compact {
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
