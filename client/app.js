@@ -218,8 +218,8 @@ function getResponsivePageLimit() {
   const gap = 16;
   const columns = Math.max(1, Math.floor((availableWidth + gap) / (minCardWidth + gap)));
 
-  // Show up to two visible rows of feature cards, then paginate the rest.
-  return Math.min(14, Math.max(2, columns * 2));
+  // Show up to two visible rows of books, but never request more than 10 at once.
+  return Math.min(10, Math.max(2, columns * 2));
 }
 
 function syncResponsivePageLimit() {
@@ -2199,7 +2199,7 @@ async function loadBooksData() {
     const books = await api(`/api/books?${params.toString()}`);
     state.books = books.books || [];
     state.total = books.total || state.books.length;
-    state.totalPages = Math.max(books.totalPages || 1, 1);
+    state.totalPages = Math.min(Math.max(books.totalPages || 1, 1), 10);
     state.booksLoading = false;
     state._booksLoadInProgress = false;
     if (routeNameAtStart !== 'books' || (state.route?.name || getRoute().name) !== 'books') {
