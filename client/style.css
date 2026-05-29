@@ -2295,6 +2295,18 @@ html:not([data-theme='light']) .book-row-cover {
   min-height: 0;
 }
 
+html[data-theme='light'] .book-detail .detail-cover,
+html:not([data-theme='light']) .book-detail .detail-cover {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+html[data-theme='light'] .book-detail .detail-cover img,
+html:not([data-theme='light']) .book-detail .detail-cover img {
+  border-radius: 0;
+}
+
 .book-cover {
   aspect-ratio: 3 / 4;
   display: grid;
