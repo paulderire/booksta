@@ -218,8 +218,8 @@ function getResponsivePageLimit() {
   const gap = 16;
   const columns = Math.max(1, Math.floor((availableWidth + gap) / (minCardWidth + gap)));
 
-  // Show up to two visible rows of books, but never request more than 10 at once.
-  return Math.min(10, Math.max(2, columns * 2));
+  // Fill two visible rows when space allows so the grid does not end with a partial row.
+  return Math.max(2, columns * 2);
 }
 
 function syncResponsivePageLimit() {
@@ -230,8 +230,6 @@ function syncResponsivePageLimit() {
 
   state.limit = nextLimit;
   state.totalPages = Math.max(Math.ceil(Number(state.total || 0) / state.limit), 1);
-  // Do not expose pagination beyond 10 pages to the user.
-  state.totalPages = Math.min(state.totalPages, 10);
   if (state.page > state.totalPages) {
     state.page = state.totalPages;
   }
@@ -1029,11 +1027,27 @@ function renderSkeletonGrid(count = 8) {
 }
 
 function renderPaginator(page, totalPages) {
+  const safeTotalPages = Math.max(Number(totalPages || 1), 1);
+  const safePage = Math.min(Math.max(Number(page || 1), 1), safeTotalPages);
+  const visibleWindow = 2;
+  const visiblePages = new Set([1, safeTotalPages]);
+
+  for (let number = safePage - visibleWindow; number <= safePage + visibleWindow; number += 1) {
+    if (number > 1 && number < safeTotalPages) {
+      visiblePages.add(number);
+    }
+  }
+
+  const orderedPages = Array.from(visiblePages).sort((left, right) => left - right);
+  const paginationMarkup = orderedPages.map((number, index) => {
+    const previous = orderedPages[index - 1];
+    const gap = previous && number - previous > 1;
+    return `${gap ? '<span class="page-ellipsis" aria-hidden="true">…</span>' : ''}<button class="page-number ${number === safePage ? 'is-active' : ''}" type="button" data-action="set-page" data-page="${number}">${number}</button>`;
+  }).join('');
+
   return `
-    <div class="pagination">
-      ${Array.from({ length: totalPages }, (_, index) => index + 1).map((number) => `
-        <button class="page-number ${number === page ? 'is-active' : ''}" type="button" data-action="set-page" data-page="${number}">${number}</button>
-      `).join('')}
+    <div class="pagination" aria-label="Book pages">
+      ${paginationMarkup}
     </div>
   `;
 }
@@ -2153,7 +2167,7 @@ async function loadHomeData() {
     state.books = books.books || [];
     state.total = books.total || state.books.length;
     // Clamp total pages to a maximum of 10 for UX constraints.
-    state.totalPages = Math.min(books.totalPages || 1, 10);
+    state.totalPages = Math.max(books.totalPages || 1, 1);
     state.featured = featured.books || [];
     state.genreCounts = genres.counts || {};
     // Load top authors separately so a failing authors endpoint doesn't block the home render
@@ -2199,7 +2213,7 @@ async function loadBooksData() {
     const books = await api(`/api/books?${params.toString()}`);
     state.books = books.books || [];
     state.total = books.total || state.books.length;
-    state.totalPages = Math.min(Math.max(books.totalPages || 1, 1), 10);
+    state.totalPages = Math.max(books.totalPages || 1, 1);
     state.booksLoading = false;
     state._booksLoadInProgress = false;
     if (routeNameAtStart !== 'books' || (state.route?.name || getRoute().name) !== 'books') {
@@ -3033,7 +3047,7 @@ async function handleSubmit(form) {
       });
       const targetEmail = String(values.email || '').trim();
       window.location.hash = `#/reset-password/confirm?email=${encodeURIComponent(targetEmail)}`;
-      const resetMessage = response?.message || 'Reset code sent to your email address.';
+      const resetMessage = response?.message || 'Reset code sent to your email. Check inbox for the 6-digit PIN.';
       showToast(resetMessage);
       if (feedbackNode) {
         feedbackNode.textContent = resetMessage;

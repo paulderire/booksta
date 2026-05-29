@@ -96,7 +96,7 @@ router.get('/stats', async (_req, res, next) => {
         SELECT
           COUNT(*)::int AS total_orders,
           COALESCE(SUM(total) FILTER (WHERE status = 'completed'), 0)::numeric AS completed_revenue,
-          COALESCE(SUM(total) FILTER (WHERE status IS DISTINCT FROM 'completed'), 0)::numeric AS pending_revenue
+          COALESCE(SUM(total) FILTER (WHERE status = 'pending'), 0)::numeric AS pending_revenue
         FROM orders
       `, []),
       query(`SELECT b.id, b.title, COALESCE(SUM(oi.quantity),0)::int AS qty_sold
@@ -382,13 +382,25 @@ router.patch('/books/:id/stock', async (req, res, next) => {
 });
 
 // Revenue analytics
-router.get('/analytics/revenue', async (_req, res, next) => {
+router.get('/analytics/revenue', async (req, res, next) => {
   try {
+    const range = String(req.query.range || '30d').toLowerCase();
+    const rangeDays = {
+      '7d': 7,
+      '30d': 30,
+      '90d': 90,
+      '365d': 365,
+      all: null
+    }[range] ?? 30;
+
+    const rangeClause = rangeDays
+      ? `WHERE created_at >= NOW() - INTERVAL '${rangeDays} days' AND status = 'completed'`
+      : `WHERE status = 'completed'`;
+
     const { rows } = await query(`
       SELECT DATE(created_at) as date, COALESCE(SUM(total), 0)::numeric as revenue, COUNT(*)::int as orders
       FROM orders
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-        AND status = 'completed'
+      ${rangeClause}
       GROUP BY DATE(created_at)
       ORDER BY date DESC
     `);

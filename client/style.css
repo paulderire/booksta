@@ -3326,6 +3326,7 @@ body.has-drawer-open {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
+  align-items: center;
 }
 
 .page-number {
@@ -3341,6 +3342,16 @@ body.has-drawer-open {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   box-shadow: var(--shadow-glow);
   color: white;
+}
+
+.page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  color: var(--muted);
+  font-weight: 700;
+  user-select: none;
 }
 
 .hint {

@@ -1059,11 +1059,23 @@
 
   // Analytics
   let revenueChart, genreChart, booksChart;
-  async function loadAnalytics(){
+  const analyticsRangeOptions = {
+    '7d': { label: 'Last 7 days' },
+    '30d': { label: 'Last 30 days' },
+    '90d': { label: 'Last 90 days' },
+    '365d': { label: 'Last 365 days' },
+    'all': { label: 'All time' }
+  };
+  let analyticsRange = localStorage.getItem('bookstaAnalyticsRange') || '30d';
+
+  async function loadAnalytics(selectedRange = analyticsRange){
     try {
       const view = $id('view-analytics');
+      analyticsRange = analyticsRangeOptions[selectedRange] ? selectedRange : '30d';
+      localStorage.setItem('bookstaAnalyticsRange', analyticsRange);
+      const rangeLabel = analyticsRangeOptions[analyticsRange].label;
       const [revRes, genreRes, statsRes] = await Promise.all([
-        api('/admin/analytics/revenue').catch(e => { console.warn('Analytics revenue error:', e); return { dailyRevenue: [] }; }),
+        api('/admin/analytics/revenue?range=' + encodeURIComponent(analyticsRange)).catch(e => { console.warn('Analytics revenue error:', e); return { dailyRevenue: [] }; }),
         api('/admin/analytics/genres').catch(e => { console.warn('Analytics genres error:', e); return { genreSales: [] }; }),
         api('/admin/stats').catch(e => { console.warn('Analytics stats error:', e); return { totalUsers: 0, totalBooks: 0, topBooks: [] }; })
       ]);
@@ -1081,130 +1093,162 @@
     const hasAnyData = revenueRows.length || genreRows.length || topBooks.length;
 
     if (!hasAnyData) {
-      view.innerHTML = '<h2>Analytics</h2><div class="card" style="padding:1.5rem;margin-top:1rem">No analytics data available yet. Create some orders and books first.</div>';
+      view.innerHTML = `
+        <div class="analytics-shell">
+          <div class="dashboard-panel analytics-hero">
+            <div class="dashboard-intro">
+              <span class="eyebrow">Revenue analytics</span>
+              <h2>Analytics Dashboard</h2>
+              <p class="small">Track completed revenue, order volume, and best sellers over a selected duration.</p>
+            </div>
+            <div class="analytics-pulse">
+              <span class="pulse-label">Revenue in view</span>
+              <span class="pulse-value">${formatRWF(0)}</span>
+              <span class="pulse-subtext">${rangeLabel} • completed orders only</span>
+            </div>
+          </div>
+          <div class="card" style="padding:1.5rem">No analytics data available yet. Create some orders and books first.</div>
+        </div>`;
       return;
     }
 
     // Advanced analytics with better styling
     const topBooksMarkup = topBooks.length
-      ? '<ul style="margin:0;padding:0;list-style:none">' + topBooks.map((b, index) => {
-          return '<li style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;margin-bottom:0.5rem;background:rgba(99,102,241,0.05);border-radius:8px">' +
-            '<span style="background:var(--accent);color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700">' + (index + 1) + '</span>' +
-            '<span style="flex:1"><strong>' + escapeHtml(b.title) + '</strong><br><span style="font-size:0.8rem;opacity:0.6">' + Number(b.qtySold || 0) + ' sold</span></span>' +
-          '</li>';
-        }).join('') + '</ul>'
-      : '<p class="small" style="opacity:.7;margin:0;text-align:center;padding:1rem">No top books data</p>';
+      ? '<div class="analytics-list">' + topBooks.map((b, index) => {
+          return '<article class="analytics-list-item">' +
+            '<span class="analytics-rank">' + (index + 1) + '</span>' +
+            '<div class="analytics-list-meta">' +
+              '<strong>' + escapeHtml(b.title) + '</strong>' +
+              '<span>' + Number(b.qtySold || 0) + ' sold</span>' +
+            '</div>' +
+          '</article>';
+        }).join('') + '</div>'
+      : '<p class="analytics-empty-state">No top books data</p>';
 
     const genreRowsMarkup = genreRows.length
-      ? '<ul style="margin:0;padding:0;list-style:none">' + genreRows.slice(0, 6).map((g) => {
-          return '<li style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem;margin-bottom:0.5rem;background:rgba(139,92,246,0.05);border-radius:8px">' +
-            '<span><strong>' + escapeHtml(g.genre || 'N/A') + '</strong></span>' +
-            '<span style="background:rgba(139,92,246,0.3);color:var(--accent-2);padding:0.25rem 0.75rem;border-radius:6px;font-size:0.75rem;font-weight:600">' + Number(g.totalsales || g.totalSales || 0) + ' sales</span>' +
-          '</li>';
-        }).join('') + '</ul>'
-      : '<p class="small" style="opacity:.7;margin:0;text-align:center;padding:1rem">No genre data</p>';
+      ? '<div class="analytics-list">' + genreRows.slice(0, 6).map((g) => {
+          return '<article class="analytics-list-item analytics-list-item--genre">' +
+            '<div class="analytics-list-meta">' +
+              '<strong>' + escapeHtml(g.genre || "N/A") + '</strong>' +
+              '<span>Genre performance in view</span>' +
+            '</div>' +
+            '<span class="analytics-badge">' + Number(g.totalsales || g.totalSales || 0) + ' sales</span>' +
+          '</article>';
+        }).join('') + '</div>'
+      : '<p class="analytics-empty-state">No genre data</p>';
 
     view.innerHTML = `
-      <h2 style="margin-bottom:0.5rem">Analytics Dashboard</h2>
-      <p style="opacity:0.6;margin-top:0;margin-bottom:1.5rem">Last 30 days performance metrics</p>
+      <div class="analytics-shell">
+        <div class="dashboard-panel analytics-hero">
+          <div class="dashboard-intro">
+            <span class="eyebrow">Revenue analytics</span>
+            <h2>Analytics Dashboard</h2>
+            <p class="small">Track completed revenue, order volume, and best sellers over a selected duration.</p>
+          </div>
+          <div class="analytics-pulse">
+            <span class="pulse-label">Revenue in view</span>
+            <span class="pulse-value">${formatRWF(totalRevenue)}</span>
+            <span class="pulse-subtext">${rangeLabel} • completed orders only</span>
+          </div>
+        </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;margin-bottom:2rem">
-        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(99,102,241,0.15) 0%,rgba(139,92,246,0.1) 100%);border-left:4px solid var(--accent)">
-          <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Completed Revenue</div>
-              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(totalRevenue)}</div>
+        <div class="analytics-filter-shell card">
+          <div class="analytics-filter-title">
+            <h3>Duration filters</h3>
+            <p>Cancelled orders stay excluded from revenue totals.</p>
+          </div>
+          <div class="analytics-filter-bar">
+            <div class="form-group" style="margin:0">
+              <label for="analytics-range-select">Revenue window</label>
+              <select id="analytics-range-select" class="filter-select">
+                ${Object.entries(analyticsRangeOptions).map(([value, config]) => `<option value="${value}"${value === analyticsRange ? ' selected' : ''}>${config.label}</option>`).join('')}
+              </select>
             </div>
-            <span style="font-size:1.8rem">💰</span>
-          </div>
-        </div>
-
-        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(16,185,129,0.15) 0%,rgba(34,197,94,0.1) 100%);border-left:4px solid var(--success)">
-          <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Orders</div>
-              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${totalOrders}</div>
+            <div class="stat-card" style="min-width:220px;padding:0.95rem 1rem">
+              <div class="stat-label">Filtered total amount</div>
+              <div class="stat-value">${formatRWF(totalRevenue)}</div>
+              <div class="small">Completed orders only</div>
             </div>
-            <span style="font-size:1.8rem">📦</span>
           </div>
         </div>
 
-        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(59,130,246,0.15) 0%,rgba(96,165,250,0.1) 100%);border-left:4px solid #3b82f6">
-          <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Avg Order Value</div>
-              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(avgOrderValue)}</div>
+        <div class="stats-grid analytics-summary-grid">
+          <div class="stat-card"><div class="stat-label">Orders in view</div><div class="stat-value">${totalOrders}</div><div class="small">${rangeLabel}</div></div>
+          <div class="stat-card"><div class="stat-label">Avg order value</div><div class="stat-value">${formatRWF(avgOrderValue)}</div><div class="small">Completed orders only</div></div>
+          <div class="stat-card"><div class="stat-label">Books available</div><div class="stat-value">${totalBooks}</div><div class="small">Current catalog</div></div>
+          <div class="stat-card"><div class="stat-label">Total users</div><div class="stat-value">${allUsers}</div><div class="small">Registered accounts</div></div>
+          <div class="stat-card"><div class="stat-label">Top genre</div><div class="stat-value" style="font-size:1.35rem;word-break:break-word">${escapeHtml(topGenre)}</div><div class="small">Best performer in view</div></div>
+        </div>
+
+        <div class="dashboard-grid analytics-chart-grid">
+          <div class="dashboard-panel analytics-chart-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">💹 Trend</span>
+                <h3>Revenue Over Time</h3>
+              </div>
+              <p>Daily completed revenue for the selected duration.</p>
             </div>
-            <span style="font-size:1.8rem">📊</span>
+            <canvas id="revenue-chart"></canvas>
           </div>
-        </div>
 
-        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(245,158,11,0.15) 0%,rgba(253,224,71,0.1) 100%);border-left:4px solid var(--warning)">
-          <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Books Available</div>
-              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${totalBooks}</div>
+          <div class="dashboard-panel analytics-chart-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">📊 Mix</span>
+                <h3>Sales by Genre</h3>
+              </div>
+              <p>Genre performance filtered to the same revenue window.</p>
             </div>
-            <span style="font-size:1.8rem">📚</span>
+            <canvas id="genre-chart"></canvas>
           </div>
-        </div>
 
-        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(139,92,246,0.15) 0%,rgba(168,85,247,0.1) 100%);border-left:4px solid var(--accent-2)">
-          <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Users</div>
-              <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${allUsers}</div>
+          <div class="dashboard-panel analytics-chart-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">🏆 Leaders</span>
+                <h3>Top Selling Books</h3>
+              </div>
+              <p>Titles driving the most completed sales in the selected period.</p>
             </div>
-            <span style="font-size:1.8rem">👥</span>
+            <canvas id="top-books-chart"></canvas>
           </div>
         </div>
 
-        <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(236,72,153,0.15) 0%,rgba(244,114,182,0.1) 100%);border-left:4px solid #ec4899">
-          <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Top Genre</div>
-              <div style="font-size:1.3rem;font-weight:700;margin-top:0.5rem">${escapeHtml(topGenre)}</div>
+        <div class="dashboard-grid analytics-insights-grid">
+          <div class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">🏆 Highlight</span>
+                <h3>Top Books</h3>
+              </div>
+              <p>Books driving the most completed sales in the selected period.</p>
             </div>
-            <span style="font-size:1.8rem">🎯</span>
+            ${topBooksMarkup}
           </div>
-        </div>
-      </div>
 
-      <div id="analytics-fallback-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.2rem;margin-top:1.5rem">
-        <div class="card" style="padding:1.5rem;background:var(--bg-soft)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-            <h3 style="margin:0;font-size:1.1rem">🏆 Top Books</h3>
-            <span style="background:var(--accent);color:white;padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600">${topBooks.length}</span>
+          <div class="dashboard-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">📈 Breakdown</span>
+                <h3>Sales by Genre</h3>
+              </div>
+              <p>Genre performance filtered to the same revenue window.</p>
+            </div>
+            ${genreRowsMarkup}
           </div>
-          ${topBooksMarkup}
-        </div>
-
-        <div class="card" style="padding:1.5rem;background:var(--bg-soft)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-            <h3 style="margin:0;font-size:1.1rem">📈 Sales by Genre</h3>
-            <span style="background:var(--accent-2);color:white;padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600">${genreRows.length}</span>
-          </div>
-          ${genreRowsMarkup}
         </div>
       </div>
     `;
+
+    const rangeSelect = $id('analytics-range-select');
+    if (rangeSelect) {
+      rangeSelect.addEventListener('change', (event) => loadAnalytics(event.target.value));
+    }
 
     if (typeof Chart === 'undefined') {
       return;
     }
-
-    // Append chart canvases when Chart.js is available.
-    const chartWrap = document.createElement('div');
-    chartWrap.style.display = 'grid';
-    chartWrap.style.gridTemplateColumns = 'repeat(auto-fit,minmax(340px,1fr))';
-    chartWrap.style.gap = '1.2rem';
-    chartWrap.style.marginTop = '2rem';
-    chartWrap.innerHTML = `
-      <div class="card" style="padding:1.5rem"><canvas id="revenue-chart"></canvas></div>
-      <div class="card" style="padding:1.5rem"><canvas id="genre-chart"></canvas></div>
-      <div class="card" style="padding:1.5rem"><canvas id="top-books-chart"></canvas></div>
-    `;
-    view.appendChild(chartWrap);
 
     const revCtx = $id('revenue-chart').getContext('2d');
     if (revenueChart) revenueChart.destroy();
@@ -1442,14 +1486,35 @@
     }
   }
 
-  $id('settings-form')?.addEventListener('submit', async (event) => {
+  async function saveSettings(payload, successMessage) {
+    await api('/admin/settings', { method: 'PUT', body: JSON.stringify(payload) });
+    toast(successMessage);
+    await loadSettings();
+  }
+
+  document.querySelectorAll('[data-setting-form]')?.forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const key = form.getAttribute('data-setting-form');
+      const input = form.querySelector('input');
+      const value = input && input.type === 'checkbox' ? String(input.checked) : String(input?.value || '').trim();
+
+      if (!key) {
+        return;
+      }
+
+      try {
+        const label = form.querySelector('h3')?.textContent?.trim() || 'Setting';
+        await saveSettings({ [key]: value }, `${label} saved`);
+      } catch (e) {
+        toast(e.message || 'Failed to save settings', 'error');
+      }
+    });
+  });
+
+  $id('smtp-settings-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const payload = {
-      whatsappNumber: $id('s_whatsapp')?.value?.trim() || '',
-      instagramUrl: $id('s_instagram')?.value?.trim() || '',
-      facebookUrl: $id('s_facebook')?.value?.trim() || '',
-      xUrl: $id('s_x')?.value?.trim() || '',
-      tiktokUrl: $id('s_tiktok')?.value?.trim() || '',
       smtpHost: $id('s_smtp_host')?.value?.trim() || '',
       smtpPort: $id('s_smtp_port')?.value?.trim() || '',
       smtpSecure: String(!!$id('s_smtp_secure')?.checked),
@@ -1459,9 +1524,7 @@
       clientUrl: $id('s_client_url')?.value?.trim() || ''
     };
     try {
-      await api('/admin/settings', { method: 'PUT', body: JSON.stringify(payload) });
-      toast('Settings saved');
-      await loadSettings();
+      await saveSettings(payload, 'SMTP settings saved');
     } catch (e) {
       toast(e.message || 'Failed to save settings', 'error');
     }
