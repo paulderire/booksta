@@ -652,7 +652,7 @@ function renderBookCard(book, options = {}) {
   const showShare = options.showShare === true;
   return `
     <article class="book-card card">
-      <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+      <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
@@ -697,7 +697,7 @@ function renderBookRow(book) {
   const sale = Number(book.original_price || 0) > Number(book.price || 0);
   return `
     <article class="book-row card">
-      <a class="book-row-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+      <a class="book-row-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
@@ -735,7 +735,7 @@ function renderCompactBookCard(book) {
   const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
   return `
     <article class="compact-book-card card">
-      <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+      <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
@@ -1372,7 +1372,7 @@ function renderBookView() {
     <section class="page book-detail">
       <div class="detail-grid">
         <div class="panel detail-cover-panel">
-          <div class="detail-cover" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+          <div class="detail-cover">
             ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" style="width:100%;height:100%;object-fit:contain;object-position:center;border-radius:22px;padding:0.55rem;" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
           </div>
         </div>
