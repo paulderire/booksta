@@ -868,8 +868,21 @@ html:not([data-theme='light']) .drawer-item:hover {
 }
 
 @media (max-width: 700px) {
+  .page.home-page > .hero {
+    width: 100% !important;
+  }
+
   .hero-feature-grid {
     grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .hero-panel {
+    width: 100%;
+  }
+
+  .hero-panel .glass-card {
+    width: 100%;
   }
 
   .hero-panel .book-card {
@@ -887,18 +900,26 @@ html:not([data-theme='light']) .drawer-item:hover {
   }
 
   .hero-feature-grid .book-card {
-    padding: 0;
-    gap: 0.55rem;
-    overflow: hidden;
+    padding: 0 !important;
+    gap: 0.55rem !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: none !important;
   }
 
   .hero-feature-grid .book-card .book-cover {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-    align-self: stretch;
-    border-radius: 18px 18px 0 0;
-    aspect-ratio: 3 / 4;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    align-self: stretch !important;
+    border-radius: 18px 18px 0 0 !important;
+    aspect-ratio: 3 / 4 !important;
+  }
+
+  .hero-feature-grid .book-card .book-cover .cover-swatch {
+    object-fit: contain !important;
+    object-position: center !important;
+    background: transparent !important;
   }
 
   .hero-feature-grid .book-card > *:not(.book-cover) {
