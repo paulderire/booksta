@@ -1426,10 +1426,16 @@
       if ($id('s_smtp_from')) $id('s_smtp_from').value = s.smtpFrom || '';
       if ($id('s_client_url')) $id('s_client_url').value = s.clientUrl || '';
       if ($id('s_smtp_pass')) $id('s_smtp_pass').value = '';
+      if ($id('admin-current-password')) $id('admin-current-password').value = '';
+      if ($id('admin-new-password')) $id('admin-new-password').value = '';
+      if ($id('admin-confirm-password')) $id('admin-confirm-password').value = '';
       if ($id('smtp-pass-status')) {
         $id('smtp-pass-status').textContent = s.smtpPassConfigured
           ? 'SMTP password is configured. Leave password blank to keep it unchanged.'
           : 'SMTP password is not configured yet.';
+      }
+      if ($id('admin-password-status')) {
+        $id('admin-password-status').textContent = 'Use this form to update the admin login password.';
       }
     } catch (e) {
       toast('Failed to load settings', 'error');
@@ -1458,6 +1464,42 @@
       await loadSettings();
     } catch (e) {
       toast(e.message || 'Failed to save settings', 'error');
+    }
+  });
+
+  $id('admin-password-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const currentPassword = $id('admin-current-password')?.value || '';
+    const newPassword = $id('admin-new-password')?.value || '';
+    const confirmPassword = $id('admin-confirm-password')?.value || '';
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast('Please fill in all password fields', 'error');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast('New password and confirmation do not match', 'error');
+      return;
+    }
+
+    try {
+      await api('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      if ($id('admin-password-status')) {
+        $id('admin-password-status').textContent = 'Admin password updated successfully.';
+      }
+      toast('Admin password updated');
+      $id('admin-current-password').value = '';
+      $id('admin-new-password').value = '';
+      $id('admin-confirm-password').value = '';
+    } catch (e) {
+      toast(e.message || 'Failed to update admin password', 'error');
+      if ($id('admin-password-status')) {
+        $id('admin-password-status').textContent = e.message || 'Failed to update admin password.';
+      }
     }
   });
 
