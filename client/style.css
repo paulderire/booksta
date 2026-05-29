@@ -2216,6 +2216,7 @@ html[data-theme='light'] .detail-cover,
 html[data-theme='light'] .compact-book-cover,
 html[data-theme='light'] .book-row-cover {
   background: rgba(255, 255, 255, 0.98);
+  border-color: transparent;
 }
 
 html:not([data-theme='light']) .book-cover,
