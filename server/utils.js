@@ -83,9 +83,12 @@ function serializeOrder(order) {
 }
 
 function formatCurrency(amount) {
-  return new Intl.NumberFormat('rw-RW', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'RWF'
+    currency: 'RWF',
+    currencyDisplay: 'code',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
   }).format(amount || 0);
 }
 

@@ -157,9 +157,12 @@ function escapeHtml(value) {
 }
 
 function formatMoney(value) {
-  return new Intl.NumberFormat('rw-RW', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'RWF'
+    currency: 'RWF',
+    currencyDisplay: 'code',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
   }).format(Number(value || 0));
 }
 
@@ -1215,8 +1218,7 @@ function renderHomeView() {
           <div class="pill">A modern bookstore with a cinematic reading experience</div>
           <h1 class="hero-title">Booksta.<br>for readers who want the shelf to feel alive.</h1>
           <p class="hero-copy">
-            Discover featured picks, browse by genre, keep a wishlist, and manage your cart.
-            The catalog below is powered by the live API, with search, pagination, and review-aware rating summaries.
+            Explore curated picks, filter by genre, save favorites, and checkout with confidence. The catalog updates in real time — use the header search, pagination, and reader-powered ratings to find your next great read.
           </p>
           <div class="hero-copy">Currently cycling genres: ${renderHeroTypewriter()}</div>
           <div class="hero-cta">
@@ -1262,7 +1264,7 @@ function renderHomeView() {
         <div class="toolbar">
           <div>
             <h2 class="section-title">Explore books</h2>
-            <p class="section-copy">Use sort controls to narrow the catalog. Search now lives in the header.</p>
+            <p class="section-copy">Sort and filter the catalog to find books quickly — use the search box in the header for keyword lookups.</p>
           </div>
           <div class="filter-row">
             <select class="select" data-action="sort-books">
@@ -1293,7 +1295,7 @@ function renderHomeView() {
           <div class="panel" style="padding: 2rem; text-align: center;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">💳</div>
             <h3 style="margin: 0 0 0.75rem 0;">Secure Checkout</h3>
-            <p style="opacity: 0.7;">Fast order confirmation, RWF pricing, and a smooth checkout flow.</p>
+            <p style="opacity: 0.7;">Quick order confirmations, clear RWF pricing, and a smooth, secure checkout experience.</p>
           </div>
           <div class="panel" style="padding: 2rem; text-align: center;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">⭐</div>
@@ -2122,6 +2124,7 @@ async function loadHomeData() {
   if (state._homeLoadInProgress) return;
   state._homeLoadInProgress = true;
   state.homeLoading = true;
+  const routeNameAtStart = state.route?.name || getRoute().name;
   const now = Date.now();
   if (state._lastHomeLoadAt && now - state._lastHomeLoadAt < 800) {
     // too soon since last load
@@ -2138,8 +2141,8 @@ async function loadHomeData() {
     if (state.genre) params.set('genre', state.genre);
     if (state.sort) params.set('sort', state.sort);
     params.set('page', String(state.page));
-    // Ensure we never request more than 7 books per page.
-    params.set('limit', String(Math.min(state.limit, 7)));
+    // Use the responsive page limit directly so the grid can fill the visible rows.
+    params.set('limit', String(state.limit));
 
     const [books, featured, genres] = await Promise.all([
       api(`/api/books?${params.toString()}`),
@@ -2168,6 +2171,9 @@ async function loadHomeData() {
     state.genres = discoveredGenres.length ? discoveredGenres : genreSeed;
     state.homeLoading = false;
     state._homeLoadInProgress = false;
+    if (!['home', 'search'].includes(routeNameAtStart) || !['home', 'search'].includes(state.route?.name || getRoute().name)) {
+      return;
+    }
     renderApp();
   } catch (error) {
     state.homeLoading = false;
@@ -2180,12 +2186,14 @@ async function loadBooksData() {
   if (state._booksLoadInProgress) return;
   state._booksLoadInProgress = true;
   state.booksLoading = true;
+  const routeNameAtStart = state.route?.name || getRoute().name;
   renderApp();
 
   try {
+    syncResponsivePageLimit();
     const params = new URLSearchParams();
     params.set('page', String(state.page));
-    params.set('limit', '5');
+    params.set('limit', String(state.limit));
     if (state.sort) params.set('sort', state.sort);
 
     const books = await api(`/api/books?${params.toString()}`);
@@ -2194,6 +2202,9 @@ async function loadBooksData() {
     state.totalPages = Math.max(books.totalPages || 1, 1);
     state.booksLoading = false;
     state._booksLoadInProgress = false;
+    if (routeNameAtStart !== 'books' || (state.route?.name || getRoute().name) !== 'books') {
+      return;
+    }
     renderApp();
   } catch (error) {
     state.booksLoading = false;

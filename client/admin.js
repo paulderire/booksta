@@ -26,7 +26,7 @@
   function $id(id){return document.getElementById(id)}
   function escapeHtml(s){ if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function formatRWF(amount){
-    return new Intl.NumberFormat('rw-RW', { style: 'currency', currency: 'RWF' }).format(amount||0);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'RWF', currencyDisplay: 'code', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount||0);
   }
 
   function formatNumber(value) {
