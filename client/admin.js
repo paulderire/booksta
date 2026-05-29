@@ -155,7 +155,7 @@
   async function loadDashboard(){
     try {
       const [statsRes, ordersRes, alertsRes] = await Promise.all([
-        api('/admin/stats').catch(e => ({ totalUsers: 0, totalOrders: 0, totalRevenue: 0, topBooks: [] })),
+        api('/admin/stats').catch(e => ({ totalUsers: 0, totalOrders: 0, totalRevenue: 0, pendingRevenue: 0, topBooks: [] })),
         api('/admin/orders').catch(e => ({ orders: [] })),
         api('/admin/inventory-alerts').catch(e => ({ lowStockBooks: [] }))
       ]);
@@ -165,7 +165,8 @@
     [
       { label: 'Total Users', value: statsRes.totalUsers, icon: '👥' },
       { label: 'Total Orders', value: statsRes.totalOrders, icon: '📦' },
-      { label: 'Total Revenue', value: formatRWF(statsRes.totalRevenue), icon: '💰' }
+      { label: 'Completed Revenue', value: formatRWF(statsRes.totalRevenue), icon: '💰' },
+      { label: 'Pending Revenue', value: formatRWF(statsRes.pendingRevenue || 0), icon: '⏳' }
     ].forEach(it=>{
       const el = document.createElement('div'); el.className='stat-card';
       el.innerHTML = `<div class="stat-label">${it.icon} ${it.label}</div><div class="stat-value">${it.value}</div>`;
@@ -653,13 +654,19 @@
 
   function buildOrderSummaryCards(orders) {
     const totalOrders = orders.length;
-    const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const completedRevenue = orders
+      .filter((order) => String(order.status || 'pending') === 'completed')
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const pendingRevenue = orders
+      .filter((order) => String(order.status || 'pending') !== 'completed')
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
     const pendingOrders = orders.filter((order) => String(order.status || 'pending') === 'pending').length;
     const fulfilledOrders = orders.filter((order) => ['shipped', 'completed'].includes(String(order.status || 'pending'))).length;
 
     return [
       { label: 'Orders in view', value: formatNumber(totalOrders), note: `${formatNumber(getSelectedVisibleOrders(orders).length)} selected` },
-      { label: 'Revenue in view', value: formatRWF(totalRevenue), note: 'Filtered total amount' },
+      { label: 'Completed revenue', value: formatRWF(completedRevenue), note: 'Completed orders only' },
+      { label: 'Pending revenue', value: formatRWF(pendingRevenue), note: 'Awaiting completion' },
       { label: 'Pending orders', value: formatNumber(pendingOrders), note: 'Need attention' },
       { label: 'Fulfilled orders', value: formatNumber(fulfilledOrders), note: 'Shipped or completed' }
     ].map((item) => `
@@ -1105,7 +1112,7 @@
         <div class="card" style="padding:1.5rem;background:linear-gradient(135deg,rgba(99,102,241,0.15) 0%,rgba(139,92,246,0.1) 100%);border-left:4px solid var(--accent)">
           <div style="display:flex;justify-content:space-between;align-items:start">
             <div>
-              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Total Revenue</div>
+              <div class="small" style="opacity:0.7;text-transform:uppercase;font-size:0.75rem;font-weight:600;letter-spacing:0.5px">Completed Revenue</div>
               <div style="font-size:1.6rem;font-weight:700;margin-top:0.5rem">${formatRWF(totalRevenue)}</div>
             </div>
             <span style="font-size:1.8rem">💰</span>
