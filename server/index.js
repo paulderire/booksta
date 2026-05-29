@@ -259,8 +259,68 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, status: 'healthy' });
 });
 
-app.get(/^\/(?!api).*/, (_req, res) => {
-  res.sendFile(path.join(clientDir, 'index.html'));
+const fs = require('fs').promises;
+
+app.get(/^\/(?!api).*/, async (req, res, next) => {
+  try {
+    const requestedPath = req.path || '/';
+
+    // If this is a book detail path, attempt to prerender meta tags for crawlers
+    const bookMatch = requestedPath.match(/^\/book\/(.+)$/);
+    if (bookMatch) {
+      const bookId = decodeURIComponent(bookMatch[1]);
+      try {
+        const { rows } = await query('SELECT id, title, author, description FROM books WHERE id = $1 LIMIT 1', [bookId]);
+        const book = rows && rows[0];
+        const indexHtmlPath = path.join(clientDir, 'index.html');
+        let html = await fs.readFile(indexHtmlPath, 'utf8');
+        if (book) {
+          // Inject title, description, canonical and open graph tags
+          const safeTitle = escapeXml(`${book.title} by ${book.author} | Booksta`);
+          const safeDesc = escapeXml(String(book.description || '').slice(0, 155));
+          const canonical = `${req.protocol}://${req.get('host')}/book/${encodeURIComponent(book.id)}`;
+
+          html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${safeTitle}</title>`);
+          if (html.match(/<meta name="description"/i)) {
+            html = html.replace(/<meta name="description" content="[^"]*"\s*\/?>/i, `<meta name="description" content="${safeDesc}" />`);
+          } else {
+            html = html.replace(/<head(.*?)>/i, `<head$1>\n    <meta name="description" content="${safeDesc}" />`);
+          }
+
+          if (html.match(/<link rel="canonical"/i)) {
+            html = html.replace(/<link rel="canonical" href="[^"]*"\s*\/?>/i, `<link rel="canonical" href="${canonical}" />`);
+          } else {
+            html = html.replace(/<head(.*?)>/i, `<head$1>\n    <link rel="canonical" href="${canonical}" />`);
+          }
+
+          // Open Graph
+          const ogTags = [
+            `<meta property="og:title" content="${safeTitle}" />`,
+            `<meta property="og:description" content="${safeDesc}" />`,
+            `<meta property="og:type" content="article" />`,
+            `<meta property="og:url" content="${canonical}" />`
+          ].join('\n    ');
+
+          if (html.includes('<!--OG:TAGS-->')) {
+            html = html.replace('<!--OG:TAGS-->', `\n    ${ogTags}\n`);
+          } else {
+            html = html.replace(/<head(.*?)>/i, `<head$1>\n    ${ogTags}`);
+          }
+        }
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+      } catch (err) {
+        console.warn('sitemap prerender failed for book', err && err.message ? err.message : err);
+        // fallthrough to send plain index.html
+      }
+    }
+
+    // Default: serve static index.html shell
+    res.sendFile(path.join(clientDir, 'index.html'));
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.use((error, _req, res, _next) => {

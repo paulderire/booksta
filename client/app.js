@@ -109,7 +109,7 @@ const state = {
   limit: 12,
   drawerOpen: false,
   typewriterIndex: 0,
-  theme: 'light',
+  theme: localStorage.getItem('bookstaTheme') === 'dark' ? 'dark' : 'light',
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,
@@ -208,8 +208,15 @@ function getTopGenres(limit = 16) {
 }
 
 function getResponsivePageLimit() {
-  // Keep the explore page at seven books so the first page fills the layout consistently.
-  return 7;
+  const viewportWidth = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth || 0);
+  const outerGutter = Math.min(Math.max(viewportWidth * 0.05, 32), 120);
+  const availableWidth = Math.max(220, viewportWidth - outerGutter);
+  const minCardWidth = 220;
+  const gap = 16;
+  const columns = Math.max(1, Math.floor((availableWidth + gap) / (minCardWidth + gap)));
+
+  // Show up to two visible rows of feature cards, then paginate the rest.
+  return Math.min(14, Math.max(2, columns * 2));
 }
 
 function syncResponsivePageLimit() {
@@ -314,8 +321,94 @@ function isActiveRoute(name) {
   return (state.route?.name || getRoute().name) === name;
 }
 
+function buildRouteParams(params = {}, allowedKeys = []) {
+  const query = new URLSearchParams();
+  allowedKeys.forEach((key) => {
+    const value = params[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      query.set(key, String(value));
+    }
+  });
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+function getCanonicalPath(route) {
+  if (!route) return '/';
+
+  if (route.name === 'home') return '/';
+  if (route.name === 'book') return route.params?.id ? `/book/${encodeURIComponent(route.params.id)}` : '/books';
+  if (route.name === 'books') return `/books${buildRouteParams(route.params, ['page', 'sort'])}`;
+  if (route.name === 'search') return `/search${buildRouteParams(route.params, ['q', 'genre', 'author', 'page', 'sort'])}`;
+  if (route.name === 'notifications') return '/notifications';
+  if (route.name === 'login') return '/login';
+  if (route.name === 'register') return '/register';
+  if (route.name === 'reset-password') {
+    const stage = route.params?.stage === 'confirm' ? '/reset-password/confirm' : '/reset-password';
+    return `${stage}${buildRouteParams(route.params, ['email'])}`;
+  }
+
+  const publicRoutes = new Set(['cart', 'wishlist', 'orders', 'profile']);
+  if (publicRoutes.has(route.name)) {
+    return `/${route.name}`;
+  }
+
+  return '/';
+}
+
+function updateSeo(route) {
+  const resolvedRoute = route || state.route || getRoute();
+  const origin = window.location.origin;
+  const canonicalPath = getCanonicalPath(resolvedRoute);
+  const canonicalUrl = `${origin}${canonicalPath}`;
+
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonical);
+  }
+  canonical.setAttribute('href', canonicalUrl);
+
+  let title = 'Booksta Online BookStore';
+  let description = 'Booksta online bookstore in Rwanda: discover curated books, authors, genres, and promotions.';
+
+  if (resolvedRoute?.name === 'books') {
+    title = 'All Books | Booksta Online BookStore';
+    description = 'Browse all books on Booksta by latest arrivals and best picks.';
+  } else if (resolvedRoute?.name === 'search') {
+    const q = resolvedRoute?.params?.q || resolvedRoute?.params?.genre || resolvedRoute?.params?.author;
+    title = q ? `${q} | Search | Booksta` : 'Search Books | Booksta';
+    description = q ? `Search results for ${q} on Booksta online bookstore.` : 'Search books, authors, and genres on Booksta.';
+  } else if (resolvedRoute?.name === 'book' && state.currentBook) {
+    const book = state.currentBook;
+    title = `${book.title} by ${book.author} | Booksta`;
+    description = String(book.description || '').trim().slice(0, 155) || `${book.title} by ${book.author} available on Booksta.`;
+  }
+
+  document.title = title;
+
+  let robotsMeta = document.querySelector('meta[name="robots"]');
+  if (!robotsMeta) {
+    robotsMeta = document.createElement('meta');
+    robotsMeta.setAttribute('name', 'robots');
+    document.head.appendChild(robotsMeta);
+  }
+  const noIndexRoutes = new Set(['login', 'register', 'cart', 'wishlist', 'orders', 'profile', 'notifications', 'reset-password']);
+  robotsMeta.setAttribute('content', noIndexRoutes.has(resolvedRoute?.name) ? 'noindex, nofollow' : 'index, follow');
+
+  let descriptionMeta = document.querySelector('meta[name="description"]');
+  if (!descriptionMeta) {
+    descriptionMeta = document.createElement('meta');
+    descriptionMeta.setAttribute('name', 'description');
+    document.head.appendChild(descriptionMeta);
+  }
+  descriptionMeta.setAttribute('content', description);
+}
+
 function getRoute() {
-  const raw = window.location.hash.replace(/^#/, '') || '/';
+  const hashRoute = String(window.location.hash || '').replace(/^#/, '').trim();
+  const raw = hashRoute || `${window.location.pathname || '/'}${window.location.search || ''}`;
   const [path, qs] = raw.split('?');
   const segments = (path || '/').replace(/^\/+/, '').split('/').filter(Boolean);
   const params = {};
@@ -645,7 +738,7 @@ function renderBookCard(book, options = {}) {
   const showShare = options.showShare === true;
   return `
     <article class="book-card card">
-      <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+      <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
@@ -690,7 +783,7 @@ function renderBookRow(book) {
   const sale = Number(book.original_price || 0) > Number(book.price || 0);
   return `
     <article class="book-row card">
-      <a class="book-row-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+      <a class="book-row-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
@@ -728,7 +821,7 @@ function renderCompactBookCard(book) {
   const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
   return `
     <article class="compact-book-card card">
-      <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+      <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
         ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
@@ -1365,8 +1458,8 @@ function renderBookView() {
     <section class="page book-detail">
       <div class="detail-grid">
         <div class="panel detail-cover-panel">
-          <div class="detail-cover" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
-            ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+          <div class="detail-cover">
+            ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
           </div>
         </div>
 
@@ -1415,8 +1508,8 @@ function renderBookView() {
 
       ${state.recommendations.length ? `
         <section class="section">
-          <h2 class="section-title">More books you may like</h2>
-          <div class="recommendation-rail recommendation-rail--detail">${state.recommendations.map(renderRecommendationTile).join('')}</div>
+          <h2 class="section-title">Recommended for you</h2>
+          <div class="recommendation-rail">${state.recommendations.map(renderRecommendationTile).join('')}</div>
         </section>
       ` : ''}
     </section>
@@ -2254,6 +2347,7 @@ function renderApp() {
   try {
     syncChatbotMode();
     state.route = getRoute();
+    updateSeo(state.route);
     const { name } = state.route;
 
     if (name === 'home') {

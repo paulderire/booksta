@@ -868,8 +868,21 @@ html:not([data-theme='light']) .drawer-item:hover {
 }
 
 @media (max-width: 700px) {
+  .page.home-page > .hero {
+    width: 100% !important;
+  }
+
   .hero-feature-grid {
     grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .hero-panel {
+    width: 100%;
+  }
+
+  .hero-panel .glass-card {
+    width: 100%;
   }
 
   .hero-panel .book-card {
@@ -887,18 +900,26 @@ html:not([data-theme='light']) .drawer-item:hover {
   }
 
   .hero-feature-grid .book-card {
-    padding: 0;
-    gap: 0.55rem;
-    overflow: hidden;
+    padding: 0 !important;
+    gap: 0.55rem !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: none !important;
   }
 
   .hero-feature-grid .book-card .book-cover {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-    align-self: stretch;
-    border-radius: 18px 18px 0 0;
-    aspect-ratio: 3 / 4;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    align-self: stretch !important;
+    border-radius: 18px 18px 0 0 !important;
+    aspect-ratio: 3 / 4 !important;
+  }
+
+  .hero-feature-grid .book-card .book-cover .cover-swatch {
+    object-fit: contain !important;
+    object-position: center !important;
+    background: transparent !important;
   }
 
   .hero-feature-grid .book-card > *:not(.book-cover) {
@@ -2185,8 +2206,105 @@ html[data-theme='light'] .genre-card {
   position: relative;
   border-radius: 22px;
   overflow: hidden;
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.36), rgba(15, 23, 42, 0.9));
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
+}
+
+html[data-theme='light'] .book-cover,
+html[data-theme='light'] .mini-cover,
+html[data-theme='light'] .detail-cover,
+html[data-theme='light'] .compact-book-cover,
+html[data-theme='light'] .book-row-cover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: transparent;
+}
+
+html:not([data-theme='light']) .book-cover,
+html:not([data-theme='light']) .mini-cover,
+html:not([data-theme='light']) .detail-cover,
+html:not([data-theme='light']) .compact-book-cover,
+html:not([data-theme='light']) .book-row-cover {
+  background: rgba(9, 15, 36, 0.94);
+}
+
+html:not([data-theme='light']) .book-cover,
+html:not([data-theme='light']) .mini-cover,
+html:not([data-theme='light']) .detail-cover,
+html:not([data-theme='light']) .compact-book-cover,
+html:not([data-theme='light']) .book-row-cover {
+  border-color: transparent;
+}
+
+.detail-cover {
+  min-height: 26rem;
+  display: grid;
+  place-items: center;
+}
+
+.detail-cover .cover-emoji {
+  font-size: clamp(3rem, 9vw, 6rem);
+}
+
+.detail-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 18px;
+}
+
+.detail-cover-panel {
+  display: flex;
+}
+
+.detail-book {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+.detail-book .hero-copy {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 0.88fr 1.02fr;
+  gap: 1rem;
+  align-items: stretch;
+  --detail-card-height: clamp(32rem, 66vw, 44rem);
+}
+
+.book-detail {
+  margin-top: 1rem;
+}
+
+.detail-grid > .panel {
+  min-height: 0;
+  height: var(--detail-card-height);
+}
+
+.detail-cover {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+html[data-theme='light'] .book-detail .detail-cover,
+html:not([data-theme='light']) .book-detail .detail-cover {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+html[data-theme='light'] .book-detail .detail-cover img,
+html:not([data-theme='light']) .book-detail .detail-cover img {
+  border-radius: 0;
 }
 
 .book-cover {
@@ -2205,8 +2323,32 @@ html[data-theme='light'] .genre-card {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   opacity: 1;
+}
+
+@media (max-width: 1100px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid > .panel {
+    height: auto;
+  }
+
+  .detail-cover {
+    min-height: 23rem;
+  }
+
+  .detail-book {
+    overflow: visible;
+  }
+
+  .detail-book .hero-copy {
+    overflow: visible;
+    padding-right: 0;
+  }
 }
 
 .book-badge,
@@ -2471,7 +2613,7 @@ html[data-theme='light'] .genre-card {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(15, 23, 42, 0.8));
+  background: var(--bg-elevated);
 }
 
 .compact-book-cover .cover-emoji {
@@ -2598,7 +2740,7 @@ html:not([data-theme='light']) .compact-buy-button {
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(15, 23, 42, 0.8));
+  background: var(--bg-elevated);
 }
 
 .book-row-cover .cover-emoji {
