@@ -109,7 +109,7 @@ const state = {
   limit: 12,
   drawerOpen: false,
   typewriterIndex: 0,
-  theme: 'light',
+  theme: localStorage.getItem('bookstaTheme') === 'dark' ? 'dark' : 'light',
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,

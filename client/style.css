@@ -2203,12 +2203,6 @@ html[data-theme='light'] .genre-card {
 .book-cover,
 .mini-cover,
 .detail-cover {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  max-width: 440px;
-  aspect-ratio: 31 / 44;
-  padding: 0.55rem;
   position: relative;
   border-radius: 22px;
   overflow: hidden;
@@ -2218,14 +2212,36 @@ html[data-theme='light'] .genre-card {
 
 html[data-theme='light'] .book-cover,
 html[data-theme='light'] .mini-cover,
-html[data-theme='light'] .detail-cover {
+html[data-theme='light'] .detail-cover,
+html[data-theme='light'] .compact-book-cover,
+html[data-theme='light'] .book-row-cover {
   background: rgba(255, 255, 255, 0.98);
 }
 
 html:not([data-theme='light']) .book-cover,
 html:not([data-theme='light']) .mini-cover,
-html:not([data-theme='light']) .detail-cover {
+html:not([data-theme='light']) .detail-cover,
+html:not([data-theme='light']) .compact-book-cover,
+html:not([data-theme='light']) .book-row-cover {
   background: rgba(9, 15, 36, 0.94);
+}
+
+html:not([data-theme='light']) .book-cover,
+html:not([data-theme='light']) .mini-cover,
+html:not([data-theme='light']) .detail-cover,
+html:not([data-theme='light']) .compact-book-cover,
+html:not([data-theme='light']) .book-row-cover {
+  border-color: transparent;
+}
+
+.detail-cover {
+  min-height: 26rem;
+  display: grid;
+  place-items: center;
+}
+
+.detail-cover .cover-emoji {
+  font-size: clamp(3rem, 9vw, 6rem);
 }
 
 .detail-cover img {
@@ -2239,19 +2255,43 @@ html:not([data-theme='light']) .detail-cover {
 
 .detail-cover-panel {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
 }
 
 .detail-book {
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
 }
 
-.book-detail .detail-grid {
+.detail-book .hero-copy {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.detail-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 440px) minmax(0, 1fr);
+  grid-template-columns: 0.88fr 1.02fr;
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
+  --detail-card-height: clamp(32rem, 66vw, 44rem);
+}
+
+.book-detail {
+  margin-top: 1rem;
+}
+
+.detail-grid > .panel {
+  min-height: 0;
+  height: var(--detail-card-height);
+}
+
+.detail-cover {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
 }
 
 .book-cover {
@@ -2273,6 +2313,29 @@ html:not([data-theme='light']) .detail-cover {
   object-fit: contain;
   object-position: center;
   opacity: 1;
+}
+
+@media (max-width: 1100px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid > .panel {
+    height: auto;
+  }
+
+  .detail-cover {
+    min-height: 23rem;
+  }
+
+  .detail-book {
+    overflow: visible;
+  }
+
+  .detail-book .hero-copy {
+    overflow: visible;
+    padding-right: 0;
+  }
 }
 
 .book-badge,
@@ -2537,7 +2600,7 @@ html:not([data-theme='light']) .detail-cover {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(15, 23, 42, 0.8));
+  background: var(--bg-elevated);
 }
 
 .compact-book-cover .cover-emoji {
@@ -2664,7 +2727,7 @@ html:not([data-theme='light']) .compact-buy-button {
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(15, 23, 42, 0.8));
+  background: var(--bg-elevated);
 }
 
 .book-row-cover .cover-emoji {
@@ -2773,36 +2836,6 @@ html:not([data-theme='light']) .compact-buy-button {
 }
 
 @media (max-width: 700px) {
-  main#app {
-    padding-inline: 0.75rem;
-  }
-
-  .page {
-    padding-inline: 0.75rem;
-  }
-
-  .book-detail {
-    padding-inline: 0.75rem;
-  }
-
-  .book-detail .detail-grid {
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-  }
-
-  .detail-cover {
-    max-width: none;
-    width: 100%;
-  }
-
-  .detail-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .detail-actions .compact-buy-button {
-    grid-column: 1 / -1;
-  }
-
   .book-row {
     grid-template-columns: 1fr;
   }
