@@ -208,8 +208,15 @@ function getTopGenres(limit = 16) {
 }
 
 function getResponsivePageLimit() {
-  // Keep the explore page at seven books so the first page fills the layout consistently.
-  return 7;
+  const viewportWidth = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth || 0);
+  const outerGutter = Math.min(Math.max(viewportWidth * 0.05, 32), 120);
+  const availableWidth = Math.max(220, viewportWidth - outerGutter);
+  const minCardWidth = 220;
+  const gap = 16;
+  const columns = Math.max(1, Math.floor((availableWidth + gap) / (minCardWidth + gap)));
+
+  // Show up to two visible rows of feature cards, then paginate the rest.
+  return Math.min(14, Math.max(2, columns * 2));
 }
 
 function syncResponsivePageLimit() {
@@ -1366,7 +1373,7 @@ function renderBookView() {
       <div class="detail-grid">
         <div class="panel detail-cover-panel">
           <div class="detail-cover" style="background: linear-gradient(145deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
-            ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+            ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" style="width:100%;height:100%;object-fit:contain;object-position:center;border-radius:22px;padding:0.55rem;" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
           </div>
         </div>
 

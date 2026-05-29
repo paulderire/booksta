@@ -2182,11 +2182,43 @@ html[data-theme='light'] .genre-card {
 .book-cover,
 .mini-cover,
 .detail-cover {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 31 / 44;
+  padding: 0.55rem;
   position: relative;
   border-radius: 22px;
   overflow: hidden;
   background: linear-gradient(145deg, rgba(99, 102, 241, 0.36), rgba(15, 23, 42, 0.9));
   border: 1px solid var(--border);
+}
+
+.detail-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 18px;
+}
+
+.detail-cover-panel {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.detail-book {
+  min-width: 0;
+}
+
+.book-detail .detail-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 440px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
 }
 
 .book-cover {
@@ -2707,6 +2739,36 @@ html:not([data-theme='light']) .compact-buy-button {
 }
 
 @media (max-width: 700px) {
+  main#app {
+    padding-inline: 0.75rem;
+  }
+
+  .page {
+    padding-inline: 0.75rem;
+  }
+
+  .book-detail {
+    padding-inline: 0.75rem;
+  }
+
+  .book-detail .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .detail-cover {
+    max-width: none;
+    width: 100%;
+  }
+
+  .detail-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-actions .compact-buy-button {
+    grid-column: 1 / -1;
+  }
+
   .book-row {
     grid-template-columns: 1fr;
   }
