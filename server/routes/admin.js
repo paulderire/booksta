@@ -92,7 +92,13 @@ router.get('/stats', async (_req, res, next) => {
   try {
     const [{ rows: urows }, { rows: orows }, { rows: brows }, { rows: totalBooksRows }, { rows: uniqueAuthorsRows }] = await Promise.all([
       query('SELECT COUNT(*)::int AS total_users FROM users', []),
-      query('SELECT COUNT(*)::int AS total_orders, COALESCE(SUM(total),0)::numeric AS total_revenue FROM orders', []),
+      query(`
+        SELECT
+          COUNT(*)::int AS total_orders,
+          COALESCE(SUM(total) FILTER (WHERE status = 'completed'), 0)::numeric AS completed_revenue,
+          COALESCE(SUM(total) FILTER (WHERE status IS DISTINCT FROM 'completed'), 0)::numeric AS pending_revenue
+        FROM orders
+      `, []),
       query(`SELECT b.id, b.title, COALESCE(SUM(oi.quantity),0)::int AS qty_sold
              FROM books b
              LEFT JOIN order_items oi ON oi.book_id = b.id
@@ -106,7 +112,8 @@ router.get('/stats', async (_req, res, next) => {
     res.json({
       totalUsers: urows[0].total_users,
       totalOrders: orows[0].total_orders,
-      totalRevenue: parseFloat(orows[0].total_revenue),
+      totalRevenue: parseFloat(orows[0].completed_revenue),
+      pendingRevenue: parseFloat(orows[0].pending_revenue),
       totalBooks: totalBooksRows[0].total_books,
       uniqueAuthors: uniqueAuthorsRows[0].unique_authors,
       topBooks: brows.map(r => ({ id: r.id, title: r.title, qtySold: r.qty_sold }))
@@ -381,6 +388,7 @@ router.get('/analytics/revenue', async (_req, res, next) => {
       SELECT DATE(created_at) as date, COALESCE(SUM(total), 0)::numeric as revenue, COUNT(*)::int as orders
       FROM orders
       WHERE created_at >= NOW() - INTERVAL '30 days'
+        AND status = 'completed'
       GROUP BY DATE(created_at)
       ORDER BY date DESC
     `);
@@ -398,7 +406,7 @@ router.get('/analytics/genres', async (_req, res, next) => {
       FROM books b
       JOIN LATERAL unnest(CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END) AS g(genre) ON true
       LEFT JOIN order_items oi ON oi.book_id = b.id
-      LEFT JOIN orders o ON o.id = oi.order_id
+      LEFT JOIN orders o ON o.id = oi.order_id AND o.status = 'completed'
       GROUP BY g.genre
       ORDER BY totalSales DESC
     `);
