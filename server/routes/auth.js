@@ -129,12 +129,13 @@ async function sendResetPasswordEmail({ toEmail, resetToken }) {
     await transporter.sendMail({
       from: formatFromAddress(smtpConfig.from),
       to: toEmail,
-      subject: 'Booksta 6-digit password reset code',
-      text: `Your Booksta reset code is: ${resetToken}\n\nUse this 6-digit code to reset your password.\n\nThis code expires in 30 minutes.`,
+      subject: 'Booksta password reset code',
+      text: `You requested a password reset for Booksta.\n\nYour 6-digit reset code is: ${resetToken}\n\nThis code expires in 30 minutes.`,
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:600px;">
           <h2>Reset your Booksta password</h2>
-          <p>Your reset code is:</p>
+          <p>You requested a password reset for Booksta.</p>
+          <p>Your 6-digit reset code is:</p>
           <p style="font-size:20px;font-weight:700;letter-spacing:1px;">${resetToken}</p>
           <p>This code expires in 30 minutes.</p>
         </div>
@@ -320,7 +321,7 @@ router.post('/forgot-password', async (req, res, next) => {
       return res.status(404).json({ error: 'No account found for that email.' });
     }
 
-    const resetToken = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    const resetToken = String(crypto.randomInt(100000, 1000000));
     const tokenHash = hashResetToken(resetToken);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
@@ -336,7 +337,7 @@ router.post('/forgot-password', async (req, res, next) => {
 
     res.json({
       ok: true,
-      message: 'Reset code sent to your email. Please check your inbox.'
+      message: 'Reset code sent to your email. Please check your inbox for the 6-digit code.'
     });
   } catch (error) {
     next(error);
