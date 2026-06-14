@@ -144,52 +144,57 @@ app.get('/sitemap.xml', async (req, res, next) => {
     // Active promotions overview (we'll include the promotions landing page)
     const promosRes = await query(`SELECT id, code FROM promotions WHERE is_active = TRUE AND expires_at >= CURRENT_DATE LIMIT 200`, []);
 
-    const urls = [];
-    // Add core pages
-    urls.push({ loc: base + '/', priority: 1.0, changefreq: 'daily' });
-    urls.push({ loc: base + '/books', priority: 0.8, changefreq: 'daily' });
-    urls.push({ loc: base + '/wishlist', priority: 0.4, changefreq: 'weekly' });
-    urls.push({ loc: base + '/orders', priority: 0.4, changefreq: 'weekly' });
+    // Helper to stream a single <url> entry directly to the response
+    function writeUrl(loc, { lastmod, changefreq, priority } = {}) {
+      let entry = '  <url>\n';
+      entry += `    <loc>${escapeXml(loc)}</loc>\n`;
+      if (lastmod) entry += `    <lastmod>${lastmod}</lastmod>\n`;
+      if (changefreq) entry += `    <changefreq>${changefreq}</changefreq>\n`;
+      if (priority !== undefined) entry += `    <priority>${priority}</priority>\n`;
+      entry += '  </url>\n';
+      res.write(entry);
+    }
 
+    res.setHeader('Content-Type', 'application/xml');
+    res.write('<?xml version="1.0" encoding="UTF-8"?>\n');
+    res.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
+
+    // Stream core pages
+    writeUrl(base + '/', { priority: 1.0, changefreq: 'daily' });
+    writeUrl(base + '/books', { priority: 0.8, changefreq: 'daily' });
+    writeUrl(base + '/wishlist', { priority: 0.4, changefreq: 'weekly' });
+    writeUrl(base + '/orders', { priority: 0.4, changefreq: 'weekly' });
+
+    // Stream book pages
     rows.forEach((row) => {
       const loc = `${base}/book/${encodeURIComponent(row.id)}`;
-      const lastmod = row.lastmod ? new Date(row.lastmod).toISOString() : null;
-      urls.push({ loc, lastmod, priority: 0.7, changefreq: 'monthly' });
+      const lastmod = row.lastmod ? new Date(row.lastmod).toISOString() : undefined;
+      writeUrl(loc, { lastmod, priority: 0.7, changefreq: 'monthly' });
     });
 
-    // Add genre pages
+    // Stream genre pages
     (genresRes.rows || []).forEach((g) => {
       const loc = `${base}/books?genre=${encodeURIComponent(g.genre)}`;
-      urls.push({ loc, priority: 0.6, changefreq: 'weekly' });
+      writeUrl(loc, { priority: 0.6, changefreq: 'weekly' });
     });
 
-    // Add author search pages
+    // Stream author search pages
     (authorsRes.rows || []).forEach((a) => {
       const loc = `${base}/search?author=${encodeURIComponent(a.author)}`;
-      urls.push({ loc, priority: 0.5, changefreq: 'weekly' });
+      writeUrl(loc, { priority: 0.5, changefreq: 'weekly' });
     });
 
-    // Add promotions landing page and per-promo pages
+    // Stream promotions landing page and per-promo pages
     if ((promosRes.rows || []).length) {
-      urls.push({ loc: base + '/promotions', priority: 0.6, changefreq: 'weekly' });
+      writeUrl(base + '/promotions', { priority: 0.6, changefreq: 'weekly' });
       (promosRes.rows || []).forEach((p) => {
         const loc = `${base}/promotions?code=${encodeURIComponent(p.code)}`;
-        urls.push({ loc, priority: 0.4, changefreq: 'monthly' });
+        writeUrl(loc, { priority: 0.4, changefreq: 'monthly' });
       });
     }
 
-    res.header('Content-Type', 'application/xml');
-    const xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'];
-    urls.forEach((u) => {
-      xml.push('  <url>');
-      xml.push(`    <loc>${escapeXml(u.loc)}</loc>`);
-      if (u.lastmod) xml.push(`    <lastmod>${u.lastmod}</lastmod>`);
-      if (u.changefreq) xml.push(`    <changefreq>${u.changefreq}</changefreq>`);
-      if (u.priority !== undefined) xml.push(`    <priority>${u.priority}</priority>`);
-      xml.push('  </url>');
-    });
-    xml.push('</urlset>');
-    res.send(xml.join('\n'));
+    res.write('</urlset>\n');
+    res.end();
   } catch (err) {
     next(err);
   }
