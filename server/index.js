@@ -103,17 +103,31 @@ app.use(compression()); // Enable gzip compression
 // Logging: use 'combined' in production, 'dev' in development
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
+// In-memory cache for the generated sitemap XML.
+// Regenerated at most once every 24 hours to prevent the endpoint from
+// becoming a memory-leak vector when hit frequently by crawlers.
+const SITEMAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const sitemapCache = { xml: null, generatedAt: null };
+
 // Serve static client files with aggressive caching
 // Dynamic sitemap endpoint: builds sitemap from DB (books) and key pages.
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
+    // Serve from cache when it is still fresh
+    const now = Date.now();
+    if (sitemapCache.xml && sitemapCache.generatedAt && (now - sitemapCache.generatedAt) < SITEMAP_CACHE_TTL_MS) {
+      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(sitemapCache.xml);
+    }
+
     // Build absolute base URL
     const base = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
 
-    // Fetch recent books to include in sitemap (limit to 50000)
+    // Fetch recent books to include in sitemap (limit to 10000 to reduce per-generation memory footprint)
     // Some deployments may not have an `updated_at` column; use COALESCE to fall back to `created_at` when available.
     const { rows } = await query(
-      `SELECT id, created_at, COALESCE(updated_at, created_at) AS lastmod FROM books ORDER BY created_at DESC LIMIT 50000`,
+      `SELECT id, created_at, COALESCE(updated_at, created_at) AS lastmod FROM books ORDER BY created_at DESC LIMIT 10000`,
       []
     );
 
@@ -144,57 +158,65 @@ app.get('/sitemap.xml', async (req, res, next) => {
     // Active promotions overview (we'll include the promotions landing page)
     const promosRes = await query(`SELECT id, code FROM promotions WHERE is_active = TRUE AND expires_at >= CURRENT_DATE LIMIT 200`, []);
 
-    // Helper to stream a single <url> entry directly to the response
-    function writeUrl(loc, { lastmod, changefreq, priority } = {}) {
+    // Build the full XML string in memory so it can be cached and reused.
+    const parts = [];
+
+    function buildUrl(loc, { lastmod, changefreq, priority } = {}) {
       let entry = '  <url>\n';
       entry += `    <loc>${escapeXml(loc)}</loc>\n`;
       if (lastmod) entry += `    <lastmod>${lastmod}</lastmod>\n`;
       if (changefreq) entry += `    <changefreq>${changefreq}</changefreq>\n`;
       if (priority !== undefined) entry += `    <priority>${priority}</priority>\n`;
       entry += '  </url>\n';
-      res.write(entry);
+      parts.push(entry);
     }
 
-    res.setHeader('Content-Type', 'application/xml');
-    res.write('<?xml version="1.0" encoding="UTF-8"?>\n');
-    res.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
+    parts.push('<?xml version="1.0" encoding="UTF-8"?>\n');
+    parts.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
 
-    // Stream core pages
-    writeUrl(base + '/', { priority: 1.0, changefreq: 'daily' });
-    writeUrl(base + '/books', { priority: 0.8, changefreq: 'daily' });
-    writeUrl(base + '/wishlist', { priority: 0.4, changefreq: 'weekly' });
-    writeUrl(base + '/orders', { priority: 0.4, changefreq: 'weekly' });
+    // Core pages
+    buildUrl(base + '/', { priority: 1.0, changefreq: 'daily' });
+    buildUrl(base + '/books', { priority: 0.8, changefreq: 'daily' });
+    buildUrl(base + '/wishlist', { priority: 0.4, changefreq: 'weekly' });
+    buildUrl(base + '/orders', { priority: 0.4, changefreq: 'weekly' });
 
-    // Stream book pages
+    // Book pages
     rows.forEach((row) => {
       const loc = `${base}/book/${encodeURIComponent(row.id)}`;
       const lastmod = row.lastmod ? new Date(row.lastmod).toISOString() : undefined;
-      writeUrl(loc, { lastmod, priority: 0.7, changefreq: 'monthly' });
+      buildUrl(loc, { lastmod, priority: 0.7, changefreq: 'monthly' });
     });
 
-    // Stream genre pages
+    // Genre pages
     (genresRes.rows || []).forEach((g) => {
       const loc = `${base}/books?genre=${encodeURIComponent(g.genre)}`;
-      writeUrl(loc, { priority: 0.6, changefreq: 'weekly' });
+      buildUrl(loc, { priority: 0.6, changefreq: 'weekly' });
     });
 
-    // Stream author search pages
+    // Author search pages
     (authorsRes.rows || []).forEach((a) => {
       const loc = `${base}/search?author=${encodeURIComponent(a.author)}`;
-      writeUrl(loc, { priority: 0.5, changefreq: 'weekly' });
+      buildUrl(loc, { priority: 0.5, changefreq: 'weekly' });
     });
 
-    // Stream promotions landing page and per-promo pages
+    // Promotions landing page and per-promo pages
     if ((promosRes.rows || []).length) {
-      writeUrl(base + '/promotions', { priority: 0.6, changefreq: 'weekly' });
+      buildUrl(base + '/promotions', { priority: 0.6, changefreq: 'weekly' });
       (promosRes.rows || []).forEach((p) => {
         const loc = `${base}/promotions?code=${encodeURIComponent(p.code)}`;
-        writeUrl(loc, { priority: 0.4, changefreq: 'monthly' });
+        buildUrl(loc, { priority: 0.4, changefreq: 'monthly' });
       });
     }
 
-    res.write('</urlset>\n');
-    res.end();
+    parts.push('</urlset>\n');
+
+    // Store in cache and send with browser/crawler cache headers
+    sitemapCache.xml = parts.join('');
+    sitemapCache.generatedAt = Date.now();
+
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(sitemapCache.xml);
   } catch (err) {
     next(err);
   }
@@ -349,6 +371,12 @@ async function initializeDatabase() {
   } finally {
     client.release();
   }
+
+  // Invalidate any stale sitemap cache from a previous process so the first
+  // request after a deploy always regenerates against the current dataset.
+  sitemapCache.xml = null;
+  sitemapCache.generatedAt = null;
+  console.log('booksta: sitemap cache invalidated on startup');
 }
 
 if (require.main === module) {
