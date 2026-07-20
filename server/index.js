@@ -104,6 +104,12 @@ app.use(compression()); // Enable gzip compression
 // Logging: use 'combined' in production, 'dev' in development
 app.use(morgan(isProduction ? 'combined' : 'dev'));
 
+// In-memory cache for the generated sitemap XML.
+// Regenerated at most once every 24 hours to prevent the endpoint from
+// becoming a memory-leak vector when hit frequently by crawlers.
+const SITEMAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const sitemapCache = { xml: null, generatedAt: null };
+
 // Serve static client files with aggressive caching
 // Dynamic sitemap endpoint: builds sitemap from DB (books) and key pages.
 let sitemapCache = null;
@@ -111,18 +117,21 @@ let sitemapCacheTime = 0;
 
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
+    // Serve from cache when it is still fresh
     const now = Date.now();
-    if (sitemapCache && (now - sitemapCacheTime < 3600000)) {
-      res.header('Content-Type', 'application/xml');
-      return res.send(sitemapCache);
+    if (sitemapCache.xml && sitemapCache.generatedAt && (now - sitemapCache.generatedAt) < SITEMAP_CACHE_TTL_MS) {
+      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(sitemapCache.xml);
     }
 
     // Build absolute base URL
     const base = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
 
-    // Fetch recent books to include in sitemap (limit to 50000)
+    // Fetch recent books to include in sitemap (limit to 10000 to reduce per-generation memory footprint)
+    // Some deployments may not have an `updated_at` column; use COALESCE to fall back to `created_at` when available.
     const { rows } = await query(
-      `SELECT id, created_at, created_at AS lastmod FROM books ORDER BY created_at DESC LIMIT 50000`,
+      `SELECT id, created_at, COALESCE(updated_at, created_at) AS lastmod FROM books ORDER BY created_at DESC LIMIT 10000`,
       []
     );
 
@@ -153,54 +162,65 @@ app.get('/sitemap.xml', async (req, res, next) => {
     // Active promotions overview (we'll include the promotions landing page)
     const promosRes = await query(`SELECT id, code FROM promotions WHERE is_active = TRUE AND expires_at >= CURRENT_DATE LIMIT 200`, []);
 
-    const urls = [];
-    // Add core pages
-    urls.push({ loc: base + '/', priority: 1.0, changefreq: 'daily' });
-    urls.push({ loc: base + '/books', priority: 0.8, changefreq: 'daily' });
-    urls.push({ loc: base + '/wishlist', priority: 0.4, changefreq: 'weekly' });
-    urls.push({ loc: base + '/orders', priority: 0.4, changefreq: 'weekly' });
+    // Build the full XML string in memory so it can be cached and reused.
+    const parts = [];
 
+    function buildUrl(loc, { lastmod, changefreq, priority } = {}) {
+      let entry = '  <url>\n';
+      entry += `    <loc>${escapeXml(loc)}</loc>\n`;
+      if (lastmod) entry += `    <lastmod>${lastmod}</lastmod>\n`;
+      if (changefreq) entry += `    <changefreq>${changefreq}</changefreq>\n`;
+      if (priority !== undefined) entry += `    <priority>${priority}</priority>\n`;
+      entry += '  </url>\n';
+      parts.push(entry);
+    }
+
+    parts.push('<?xml version="1.0" encoding="UTF-8"?>\n');
+    parts.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n');
+
+    // Core pages
+    buildUrl(base + '/', { priority: 1.0, changefreq: 'daily' });
+    buildUrl(base + '/books', { priority: 0.8, changefreq: 'daily' });
+    buildUrl(base + '/wishlist', { priority: 0.4, changefreq: 'weekly' });
+    buildUrl(base + '/orders', { priority: 0.4, changefreq: 'weekly' });
+
+    // Book pages
     rows.forEach((row) => {
       const loc = `${base}/book/${encodeURIComponent(row.id)}`;
-      const lastmod = row.lastmod ? new Date(row.lastmod).toISOString() : null;
-      urls.push({ loc, lastmod, priority: 0.7, changefreq: 'monthly' });
+      const lastmod = row.lastmod ? new Date(row.lastmod).toISOString() : undefined;
+      buildUrl(loc, { lastmod, priority: 0.7, changefreq: 'monthly' });
     });
 
-    // Add genre pages
+    // Genre pages
     (genresRes.rows || []).forEach((g) => {
       const loc = `${base}/books?genre=${encodeURIComponent(g.genre)}`;
-      urls.push({ loc, priority: 0.6, changefreq: 'weekly' });
+      buildUrl(loc, { priority: 0.6, changefreq: 'weekly' });
     });
 
-    // Add author search pages
+    // Author search pages
     (authorsRes.rows || []).forEach((a) => {
       const loc = `${base}/search?author=${encodeURIComponent(a.author)}`;
-      urls.push({ loc, priority: 0.5, changefreq: 'weekly' });
+      buildUrl(loc, { priority: 0.5, changefreq: 'weekly' });
     });
 
-    // Add promotions landing page and per-promo pages
+    // Promotions landing page and per-promo pages
     if ((promosRes.rows || []).length) {
-      urls.push({ loc: base + '/promotions', priority: 0.6, changefreq: 'weekly' });
+      buildUrl(base + '/promotions', { priority: 0.6, changefreq: 'weekly' });
       (promosRes.rows || []).forEach((p) => {
         const loc = `${base}/promotions?code=${encodeURIComponent(p.code)}`;
-        urls.push({ loc, priority: 0.4, changefreq: 'monthly' });
+        buildUrl(loc, { priority: 0.4, changefreq: 'monthly' });
       });
     }
 
-    res.header('Content-Type', 'application/xml');
-    const xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'];
-    urls.forEach((u) => {
-      xml.push('  <url>');
-      xml.push(`    <loc>${escapeXml(u.loc)}</loc>`);
-      if (u.lastmod) xml.push(`    <lastmod>${u.lastmod}</lastmod>`);
-      if (u.changefreq) xml.push(`    <changefreq>${u.changefreq}</changefreq>`);
-      if (u.priority !== undefined) xml.push(`    <priority>${u.priority}</priority>`);
-      xml.push('  </url>');
-    });
-    xml.push('</urlset>');
-    sitemapCache = xml.join('\n');
-    sitemapCacheTime = Date.now();
-    res.send(sitemapCache);
+    parts.push('</urlset>\n');
+
+    // Store in cache and send with browser/crawler cache headers
+    sitemapCache.xml = parts.join('');
+    sitemapCache.generatedAt = Date.now();
+
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(sitemapCache.xml);
   } catch (err) {
     next(err);
   }
@@ -390,6 +410,12 @@ async function initializeDatabase() {
   } finally {
     client.release();
   }
+
+  // Invalidate any stale sitemap cache from a previous process so the first
+  // request after a deploy always regenerates against the current dataset.
+  sitemapCache.xml = null;
+  sitemapCache.generatedAt = null;
+  console.log('booksta: sitemap cache invalidated on startup');
 }
 
 if (require.main === module) {
