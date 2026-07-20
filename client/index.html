@@ -9,57 +9,61 @@
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="/" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
-      <title>Booksta Online BookStore</title>
-        <link rel="icon" type="image/png" href="assets/logo.png?v=1" />
+    <title>Booksta Online BookStore</title>
+    <link rel="icon" type="image/png" href="assets/logo.png?v=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Syne:wght@700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=20" />
-    <link rel="stylesheet" href="ui-overrides.css?v=4" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="business-theme.css?v=49" />
+    <link rel="stylesheet" href="ui-overrides.css?v=64" />
+    <link rel="stylesheet" href="premium-ecommerce.css?v=49" />
+    <link rel="stylesheet" href="footer-styles.css?v=49" />
   </head>
   <body>
     <div class="bg-orb bg-orb-a"></div>
     <div class="bg-orb bg-orb-b"></div>
     <div class="noise"></div>
     <header class="topbar glass">
-      <div class="topbar-left">
-        <a class="brand" href="#/" aria-label="Booksta Online bookstore home">
-          <img class="site-logo" src="assets/logo.png" alt="Booksta Online bookstore" />
-          <span class="site-name"><strong>Booksta</strong><small>online bookstore</small></span>
-        </a>
-      </div>
+      <div class="topbar-inner">
+        <div class="topbar-left">
+          <a class="brand" href="#/" aria-label="Booksta Online bookstore home">
+            <img class="site-logo" src="assets/logo.png" alt="Booksta Online bookstore" />
+            <span class="site-name"><strong>Booksta</strong><small>online bookstore</small></span>
+          </a>
+        </div>
 
-      <div class="topbar-center">
-        <form class="header-search" id="header-search-form" role="search">
-          <div style="position: relative; width: 100%;">
-            <input id="header-search" type="search" placeholder="Search books, authors, genres" aria-label="Search books" />
-            <button type="button" id="search-close-btn" aria-label="Close search" style="display: none;">✕</button>
-            <div id="search-suggestions" class="search-suggestions" style="display: none; position: absolute; top: 100%; left: -0.5rem; right: -0.5rem; background: var(--bg-elevated); border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 12px 28px rgba(0,0,0,0.28);">
+        <div class="topbar-center">
+          <form class="header-search" id="header-search-form" role="search">
+            <div style="position: relative; width: 100%;">
+              <input id="header-search" type="search" placeholder="Search books, authors, genres" aria-label="Search books" />
+              <button type="button" id="search-close-btn" aria-label="Close search" style="display: none;">✕</button>
+              <div id="search-suggestions" class="search-suggestions" style="display: none; position: absolute; top: 100%; left: -0.5rem; right: -0.5rem; background: var(--bg-elevated); border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 12px 28px rgba(0,0,0,0.28);">
+              </div>
             </div>
-          </div>
-          <button type="submit" aria-label="Search books" class="search-submit-btn">Search</button>
-        </form>
-      </div>
+            <button type="submit" aria-label="Search books" class="search-submit-btn">Search</button>
+          </form>
+        </div>
 
-      <div class="topbar-right topbar-actions">
-        <nav class="topnav" aria-label="Primary navigation">
-          <a href="#/">Home</a>
-          <a href="#/wishlist">Wishlist</a>
-          <a href="#/orders">Orders</a>
-          <a href="#/profile">Profile</a>
-        </nav>
-        <!-- Mobile-only search icon -->
-        <button class="mobile-search-toggle" aria-label="Open search" data-action="open-mobile-search">🔍</button>
-        <button class="icon-button notification-button" id="notification-button" type="button" aria-label="Open notifications" data-action="open-notifications">
-          🔔 <span class="badge" id="notification-count">0</span>
-        </button>
-        <button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
-        <button class="icon-button" id="cart-button" type="button" aria-label="Open cart">
-          Cart <span class="badge" id="cart-count">0</span>
-        </button>
-        <!-- Mobile hamburger menu button - integrated into header -->
-        <button id="mobile-hamburger" class="nav-toggle" aria-label="Toggle navigation" data-action="toggle-mobile-menu">☰</button>
-        <div class="auth-slot" id="auth-slot"></div>
+        <div class="topbar-right topbar-actions">
+          <nav class="topnav" aria-label="Primary navigation">
+            <a href="#/">Home</a>
+            <a href="#/wishlist">Wishlist</a>
+            <a href="#/orders">Orders</a>
+            <a href="#/profile">Profile</a>
+          </nav>
+          <!-- Mobile-only search icon -->
+          <button class="mobile-search-toggle" aria-label="Open search" data-action="open-mobile-search">🔍</button>
+          <button class="icon-button notification-button" id="notification-button" type="button" aria-label="Open notifications" data-action="open-notifications">
+            🔔 <span class="badge" id="notification-count">0</span>
+          </button>
+          <button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle theme">◐</button>
+          <button class="icon-button" id="cart-button" type="button" aria-label="Open cart">
+            🛒 <span class="badge" id="cart-count">0</span>
+          </button>
+          <!-- Mobile hamburger menu button - integrated into header -->
+          <button id="mobile-hamburger" class="nav-toggle" aria-label="Toggle navigation" data-action="toggle-mobile-menu">☰</button>
+          <div class="auth-slot" id="auth-slot"></div>
+        </div>
       </div>
     </header>
 
@@ -67,7 +71,7 @@
     <div class="mobile-menu-backdrop" id="mobile-menu-backdrop" aria-hidden="true" data-action="close-mobile-menu"></div>
     <nav class="mobile-menu-overlay" id="mobile-menu" aria-hidden="true" role="navigation">
       <div class="mobile-menu-header">
-        <h2>Menu</h2>
+        <h2 id="mobile-menu-title">Menu</h2>
         <button class="mobile-menu-close" aria-label="Close menu" data-action="close-mobile-menu">✕</button>
       </div>
       <div class="mobile-menu-content">
@@ -107,6 +111,7 @@
         <div class="mobile-menu-divider"></div>
         <div class="mobile-menu-section" id="mobile-menu-auth"></div>
       </div>
+      <div class="mobile-menu-footer" id="mobile-menu-footer"></div>
     </nav>
 
     <main id="app" class="app-shell" aria-live="polite"></main>
@@ -118,8 +123,8 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <a class="brand" href="#/">
-            <img class="footer-logo" src="assets/logo.png" alt="Booksta Online bookstore" />
-            <span>
+            <img class="footer-logo" src="assets/logo.png" alt="Booksta Online bookstore" loading="lazy" />
+            <span class="site-name">
               <strong>Booksta</strong>
               <small>online bookstore</small>
             </span>
@@ -165,7 +170,7 @@
         <div class="footer-newsletter">
           <h4>Subscribe</h4>
           <p class="hint">Subscribe for curated recommendations, exclusive offers, and restock alerts delivered to your inbox.</p>
-          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Thanks — you\'ll receive book recommendations and restock updates via email.')">
+          <form class="newsletter-form">
             <input type="email" placeholder="Enter your email" required aria-label="Email address" style="flex: 1;" />
             <button type="submit" style="padding: 0.5rem 1rem;">Subscribe</button>
           </form>
@@ -176,6 +181,6 @@
       </div>
     </footer>
     <script src="scroll-animations.js?v=1"></script>
-    <script type="module" src="app.js?v=17"></script>
+    <script type="module" src="app.js?v=66"></script>
   </body>
 </html>

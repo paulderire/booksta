@@ -27,11 +27,13 @@ function buildFilters({ genre, search }) {
   const clauses = [];
   const values = [];
   const normalizedSearch = typeof search === 'string' ? search.trim() : '';
-  const genresExpr = "CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END";
 
   if (genre) {
-    values.push(genre);
-    clauses.push(`$${values.length} = ANY(${genresExpr})`);
+    values.push(genre.toLowerCase());
+    clauses.push(`EXISTS (
+      SELECT 1 FROM unnest(b.genres) AS g(name)
+      WHERE LOWER(g.name) = $${values.length}
+    )`);
   }
 
   if (normalizedSearch) {
@@ -43,7 +45,7 @@ function buildFilters({ genre, search }) {
       OR b.genre ILIKE $${values.length}
       OR EXISTS (
         SELECT 1
-        FROM unnest(${genresExpr}) AS g(genre)
+        FROM unnest(b.genres) AS g(genre)
         WHERE g.genre ILIKE $${values.length}
       )
       OR COALESCE(b.isbn, '') ILIKE $${values.length}
@@ -92,7 +94,7 @@ async function getBooks(req, res, extraWhere = [], extraValues = [], extraOrder 
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}
   `;
 
-  const countQuery = `SELECT COUNT(DISTINCT b.id)::int AS total FROM books b LEFT JOIN reviews r ON r.book_id = b.id ${whereSql}`;
+  const countQuery = `SELECT COUNT(b.id)::int AS total FROM books b ${whereSql}`;
 
   const [booksResult, countResult] = await Promise.all([
     query(booksQuery, [...params, limit, offset]),
@@ -140,10 +142,10 @@ router.get('/genres', async (_req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT genre, COUNT(*)::int AS book_count
-       FROM (
-         SELECT b.id, unnest(CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END) AS genre
-         FROM books b
-       ) genre_values
+        FROM (
+          SELECT b.id, unnest(b.genres) AS genre
+          FROM books b
+        ) genre_values
        WHERE genre IS NOT NULL AND genre <> ''
        GROUP BY genre
        ORDER BY genre ASC`,

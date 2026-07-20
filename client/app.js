@@ -1,7 +1,7 @@
 // Instrumentation: mark module load early to help diagnose blank-page issues
 window.__bookstaInitStart = Date.now();
 window.__bookstaErrors = window.__bookstaErrors || [];
-console.log('booksta: app.js module executing', { time: new Date(window.__bookstaInitStart).toISOString() });
+
 const API_BASE_URL = localStorage.getItem('API_BASE_URL') || document.querySelector('meta[name="api-base-url"]')?.content || window.API_BASE_URL || '';
 const app = document.getElementById('app');
 const authSlot = document.getElementById('auth-slot');
@@ -21,6 +21,7 @@ overlay.addEventListener('click', () => setDrawerOpen(false));
 const mobileMenu = document.getElementById('mobile-menu');
 const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
 const mobileMenuAuth = document.getElementById('mobile-menu-auth');
+const mobileHamburger = document.getElementById('mobile-hamburger');
 const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
 const mobileCartButton = document.getElementById('mobile-cart-button');
 const mobileCartCount = document.getElementById('mobile-cart-count');
@@ -32,7 +33,7 @@ function openMobileMenu() {
     mobileMenu.setAttribute('aria-hidden', 'false');
     if (mobileMenuBackdrop) {
       mobileMenuBackdrop.classList.add('is-open');
-      mobileMenuBackdrop.setAttribute('aria-hidden', 'true');
+      mobileMenuBackdrop.setAttribute('aria-hidden', 'false'); // because it's now clickable
     }
     mobileHamburger?.setAttribute('aria-expanded', 'true');
   }
@@ -50,23 +51,6 @@ function closeMobileMenu() {
   }
 }
 
-// Direct hamburger click handler - bypasses complex initialization
-const mobileHamburger = document.getElementById('mobile-hamburger');
-if (mobileHamburger) {
-  mobileHamburger.addEventListener('click', () => {
-    if (mobileMenu && mobileMenu.classList.contains('is-open')) {
-      closeMobileMenu();
-    } else {
-      openMobileMenu();
-    }
-    // Close account menu if open
-    const accountMenu = document.querySelector('[data-account-menu]');
-    if (accountMenu) {
-      accountMenu.classList.remove('is-open');
-      accountMenu.setAttribute('aria-hidden', 'true');
-    }
-  });
-}
 
 const genreSeed = ['Fiction', 'Sci-Fi', 'Fantasy', 'Thriller', 'Romance', 'Self-Help', 'History', 'Manga'];
 const chatbotFaq = {
@@ -93,6 +77,7 @@ const state = {
   featuredAuthors: [],
   recommendationProfile: null,
   unreadNotifications: 0,
+  kidsBooks: [],
   currentBook: null,
   currentReviews: [],
   route: null,
@@ -101,15 +86,16 @@ const state = {
   bookLoading: true,
   cartLoading: true,
   wishlistLoading: true,
-  ordersLoading: true,
   search: '',
+  catalogSearch: '',
   genre: '',
-  sort: 'newest',
+  sort: 'featured',
   page: 1,
   limit: 12,
   drawerOpen: false,
+  loadingMore: false,
   typewriterIndex: 0,
-  theme: localStorage.getItem('bookstaTheme') === 'dark' ? 'dark' : 'light',
+  theme: 'light',
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,
@@ -181,10 +167,20 @@ function shorten(text, max = 140) {
 }
 
 function getBookGenres(book) {
-  if (Array.isArray(book?.genres) && book.genres.length) {
-    return book.genres.filter(Boolean);
+  if (!book) return [];
+  if (Array.isArray(book.genres)) return book.genres;
+  if (typeof book.genres === 'string') {
+    return book.genres.split(',').map((g) => g.trim()).filter(Boolean);
   }
-  return book?.genre ? [book.genre] : [];
+  if (book.genre) {
+    if (typeof book.genre === 'string') {
+      return [book.genre];
+    }
+    if (Array.isArray(book.genre)) {
+      return book.genre;
+    }
+  }
+  return [];
 }
 
 function getTopAuthors(books = [], limit = 6) {
@@ -208,33 +204,6 @@ function getTopGenres(limit = 16) {
     .filter((item) => item.name)
     .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
     .slice(0, limit);
-}
-
-function getResponsivePageLimit() {
-  const viewportWidth = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth || 0);
-  const outerGutter = Math.min(Math.max(viewportWidth * 0.05, 32), 120);
-  const availableWidth = Math.max(220, viewportWidth - outerGutter);
-  const minCardWidth = 220;
-  const gap = 16;
-  const columns = Math.max(1, Math.floor((availableWidth + gap) / (minCardWidth + gap)));
-
-  // Fill two visible rows when space allows so the grid does not end with a partial row.
-  return Math.max(2, columns * 2);
-}
-
-function syncResponsivePageLimit() {
-  const nextLimit = getResponsivePageLimit();
-  if (nextLimit === state.limit) {
-    return false;
-  }
-
-  state.limit = nextLimit;
-  state.totalPages = Math.max(Math.ceil(Number(state.total || 0) / state.limit), 1);
-  if (state.page > state.totalPages) {
-    state.page = state.totalPages;
-  }
-
-  return true;
 }
 
 function cartTotal() {
@@ -274,6 +243,25 @@ function getBestPromotion(subtotal = cartTotal()) {
     .map((promo) => ({ promo, discount: getPromotionDiscountValue(promo, subtotal) }))
     .sort((left, right) => right.discount - left.discount)[0]
     .promo;
+}
+
+function getResponsivePageLimit() {
+  return 8;
+}
+
+function syncResponsivePageLimit() {
+  const nextLimit = getResponsivePageLimit();
+  if (nextLimit === state.limit) {
+    return false;
+  }
+
+  state.limit = nextLimit;
+  state.totalPages = Math.max(Math.ceil(Number(state.total || 0) / state.limit), 1);
+  if (state.page > state.totalPages) {
+    state.page = state.totalPages;
+  }
+
+  return true;
 }
 
 function getOrderPricing(subtotal = null) {
@@ -416,7 +404,7 @@ function getRoute() {
   if (qs) {
     try {
       new URLSearchParams(qs).forEach((v, k) => { params[k] = v; });
-    } catch (e) {}
+    } catch (e) { }
   }
 
   if (!segments.length) {
@@ -468,14 +456,51 @@ function getRoute() {
     return { name: 'reset-password', params: { stage, ...params } };
   }
 
+  if (segments[0] === 'track') {
+    return { name: 'track', params: params };
+  }
+
   return { name: 'home', params };
-} 
+}
+
+function getRouteFromHash(hashString) {
+  const hashRoute = String(hashString || '').replace(/^#/, '').trim();
+  const [path, qs] = hashRoute.split('?');
+  const segments = (path || '/').replace(/^\/+/, '').split('/').filter(Boolean);
+  const params = {};
+  if (qs) {
+    try {
+      new URLSearchParams(qs).forEach((v, k) => { params[k] = v; });
+    } catch (e) { }
+  }
+
+  if (!segments.length) {
+    return { name: 'home', params };
+  }
+  if (segments[0] === 'search') return { name: 'search', params };
+  if (segments[0] === 'books') return { name: 'books', params };
+  if (segments[0] === 'book') return { name: 'book', params: { id: segments[1], ...params } };
+  if (segments[0] === 'cart') return { name: 'cart', params };
+  if (segments[0] === 'wishlist') return { name: 'wishlist', params };
+  if (segments[0] === 'orders') return { name: 'orders', params };
+  if (segments[0] === 'profile') return { name: 'profile', params };
+  if (segments[0] === 'notifications') return { name: 'notifications', params };
+  if (segments[0] === 'login') return { name: 'login', params };
+  if (segments[0] === 'register') return { name: 'register', params };
+  if (segments[0] === 'reset-password') {
+    const stage = segments[1] === 'confirm' ? 'confirm' : 'request';
+    return { name: 'reset-password', params: { stage, ...params } };
+  }
+  return { name: 'home', params };
+}
 
 function setTheme(theme) {
-  state.theme = theme === 'light' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = state.theme;
-    localStorage.setItem('bookstaTheme', state.theme);
-  themeToggle.textContent = state.theme === 'dark' ? '◐' : '◑';
+  state.theme = 'light';
+  document.documentElement.dataset.theme = 'light';
+  localStorage.setItem('bookstaTheme', 'light');
+  if (themeToggle) {
+    themeToggle.textContent = '◑';
+  }
 }
 
 function showToast(message, type = 'success') {
@@ -568,6 +593,9 @@ function setDrawerOpen(isOpen) {
 }
 
 function renderChrome() {
+  const currentRouteName = state.route?.name || getRoute()?.name || 'home';
+  document.documentElement.dataset.route = currentRouteName;
+  document.body.classList.toggle('is-logged-in', !!state.user);
   const cartQuantity = state.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
   if (cartCount) {
@@ -588,16 +616,24 @@ function renderChrome() {
     notificationButton.style.display = state.user ? 'inline-flex' : 'none';
   }
 
+  // Hide ALL topnav links when not logged in
+  const topnav = document.querySelector('.topnav');
+  if (topnav) {
+    topnav.style.display = state.user ? 'flex' : 'none';
+  }
+
+  // Hide ALL mobile menu nav items when not logged in
+  const mobileMenuItems = document.querySelectorAll('.mobile-menu-overlay .mobile-menu-section:first-child .mobile-menu-item');
+  mobileMenuItems.forEach((item) => {
+    item.style.display = state.user ? 'flex' : 'none';
+  });
+
   if (authSlot) {
     authSlot.innerHTML = state.user
       ? `
         <div class="account-menu">
           <button class="account-trigger" type="button" data-action="toggle-account-menu" aria-expanded="false" aria-haspopup="menu">
             <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
-            <span class="account-trigger-copy">
-              <span class="account-trigger-label">${escapeHtml(state.user.name || 'Reader')}</span>
-              <span class="account-trigger-sub">${state.user.role === 'admin' ? escapeHtml(state.user.role) : ''}</span>
-            </span>
             <span class="account-caret">⌄</span>
           </button>
           <div class="account-dropdown" data-account-menu aria-hidden="true">
@@ -612,27 +648,35 @@ function renderChrome() {
       `;
   }
 
+  const mobileMenuTitle = document.getElementById('mobile-menu-title');
+  if (mobileMenuTitle) {
+    mobileMenuTitle.textContent = state.user
+      ? (state.user.name || 'Reader')
+      : 'Menu';
+  }
+
   if (mobileMenuAuth) {
     mobileMenuAuth.innerHTML = state.user
-      ? `
-        <div class="mobile-account-card">
-          <div class="mobile-account-top">
-            <span class="account-avatar">${escapeHtml(initials(state.user.name || state.user.email || 'Reader'))}</span>
-            <div>
-              <div class="mobile-account-name">${escapeHtml(state.user.name || 'Reader')}</div>
-              <div class="mobile-account-role">${state.user.role === 'admin' ? escapeHtml(state.user.role) : ''}</div>
-            </div>
-          </div>
-          <a class="ghost-button" href="#/profile" data-action="close-mobile-menu">Profile</a>
-          <button class="ghost-button" type="button" data-action="logout">Logout</button>
-        </div>
-      `
+      ? ''
       : `
         <div class="mobile-account-card">
           <a class="ghost-button" href="#/login" data-action="close-mobile-menu">Login</a>
           <a class="primary-button" href="#/register" data-action="close-mobile-menu">Register</a>
         </div>
       `;
+  }
+
+  const mobileMenuFooter = document.getElementById('mobile-menu-footer');
+  if (mobileMenuFooter) {
+    if (state.user) {
+      mobileMenuFooter.style.display = 'block';
+      mobileMenuFooter.innerHTML = `
+        <button class="mobile-logout-btn" type="button" data-action="logout">Logout</button>
+      `;
+    } else {
+      mobileMenuFooter.style.display = 'none';
+      mobileMenuFooter.innerHTML = '';
+    }
   }
 
   if (drawer) {
@@ -654,14 +698,14 @@ function renderChrome() {
 function syncFooterLinks() {
   const settings = state.settings || {};
   const whatsappNumber = String(settings.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
-  
+
   // Update WhatsApp link with text
   const whatsappNode = document.getElementById('footer-whatsapp-link');
   if (whatsappNode) {
     whatsappNode.href = whatsappNumber ? `https://wa.me/${whatsappNumber}` : 'https://wa.me/250782781575';
     whatsappNode.textContent = `+${whatsappNumber || '250782781575'}`;
   }
-  
+
   // Update social links with only href, preserve emoji icons
   const socialLinks = [
     ['footer-instagram-link', settings.instagramUrl || '#/social/instagram'],
@@ -669,7 +713,7 @@ function syncFooterLinks() {
     ['footer-x-link', settings.xUrl || '#/social/x'],
     ['footer-tiktok-link', settings.tiktokUrl || '#/social/tiktok']
   ];
-  
+
   socialLinks.forEach(([id, href]) => {
     const node = document.getElementById(id);
     if (node) node.href = href;
@@ -690,7 +734,7 @@ function renderDrawer() {
       ${items.length ? items.map((item) => `
         <article class="drawer-item">
           <div class="mini-cover" style="background: linear-gradient(145deg, ${escapeHtml(item.book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
-            ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" class="review-avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 22px;" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
+            ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" class="review-avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 22px;" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
           </div>
           <div>
             <h3 class="mini-title">${escapeHtml(item.book.title)}</h3>
@@ -736,32 +780,23 @@ function renderRatingDistribution(reviews = []) {
 function renderBookCard(book, options = {}) {
   const sale = book.original_price && Number(book.original_price) > Number(book.price);
   const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
-  const showShare = options.showShare === true;
   return `
     <article class="book-card card">
-      <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
-        ${sale ? '<span class="sale-badge">SALE</span>' : ''}
-        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
-      </a>
-      <div>
-        <div class="book-meta">${escapeHtml((book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book')}</div>
+      <div class="book-cover-container">
+        <a href="#/book/${book.id}" class="book-cover" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
+          ${sale ? '<span class="sale-badge">SALE</span>' : ''}
+          ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+        </a>
+        <button class="cover-wishlist-btn ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-label="Wishlist">${isWishlisted ? '♥' : '♡'}</button>
+      </div>
+      <div class="book-card-details">
         <h3 class="book-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
-        <div class="book-meta">${escapeHtml(book.author)}</div>
-      </div>
-      <div class="price-row">
-        <strong class="price">${formatMoney(book.price)}</strong>
-        ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
-      </div>
-      <div class="rating-line">
-        <span class="hint">${renderStars(book.avg_rating)}</span>
-        <div class="hint">${Number(book.review_count || 0)} reviews</div>
-        <span class="hint">${book.stock} in stock</span>
-      </div>
-      <div class="card-actions">
-        <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
-        <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
-        ${showShare ? `<button class="icon-button compact-action-button share-icon-button" type="button" data-action="share-book" data-book-id="${escapeHtml(book.id)}" aria-label="Share ${escapeHtml(book.title)}">↗</button>` : ''}
-        <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
+        <div class="book-author">${escapeHtml(book.author)}</div>
+        <div class="book-price-row">
+          <span class="price">${formatMoney(book.price)}</span>
+          ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+        </div>
+        <button class="quick-add-btn" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
       </div>
     </article>
   `;
@@ -772,7 +807,7 @@ function renderRecommendationTile(book) {
   return `
     <a class="recommendation-tile" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}" aria-label="Open ${escapeHtml(book.title)}">
       <span class="recommendation-cover" style="${coverStyle}">
-        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </span>
       <strong class="recommendation-name">${escapeHtml(book.title)}</strong>
     </a>
@@ -786,7 +821,7 @@ function renderBookRow(book) {
     <article class="book-row card">
       <a class="book-row-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
         ${sale ? '<span class="sale-badge">SALE</span>' : ''}
-        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
       </a>
       <div class="book-row-content">
         <div class="book-row-head">
@@ -817,32 +852,25 @@ function renderBookRow(book) {
 }
 
 function renderCompactBookCard(book) {
-  const genres = (book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book';
-  const sale = Number(book.original_price || 0) > Number(book.price || 0);
+  const sale = book.original_price && Number(book.original_price) > Number(book.price);
   const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
   return `
     <article class="compact-book-card card">
-      <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
-        ${sale ? '<span class="sale-badge">SALE</span>' : ''}
-        ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
-      </a>
+      <div class="book-cover-container">
+        <a class="compact-book-cover" href="#/book/${book.id}" data-action="open-book" data-book-id="${escapeHtml(book.id)}">
+          ${sale ? '<span class="sale-badge">SALE</span>' : ''}
+          ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" class="cover-swatch" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+        </a>
+        <button class="cover-wishlist-btn ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-label="Wishlist">${isWishlisted ? '♥' : '♡'}</button>
+      </div>
       <div class="compact-book-content">
-        <div class="book-row-meta">${escapeHtml(genres)}</div>
         <h3 class="compact-book-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
         <div class="book-row-author">${escapeHtml(book.author)}</div>
-        <div class="compact-book-stats">
-          <span class="hint">${renderStars(book.avg_rating)}</span>
-          <span class="hint">${Number(book.review_count || 0)} reviews</span>
-        </div>
         <div class="compact-book-price">
           <strong>${formatMoney(book.price)}</strong>
           ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
         </div>
-      </div>
-      <div class="compact-book-actions">
-        <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
-        <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
-        <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
+        <button class="quick-add-btn" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
       </div>
     </article>
   `;
@@ -853,52 +881,68 @@ function renderAllBooksView() {
   const booksMarkup = state.booksLoading
     ? `<div class="books-grid books-grid--compact">${Array.from({ length: 5 }, () => `
         <article class="compact-book-card card is-loading">
-          <div class="compact-book-cover skeleton"></div>
-          <div class="compact-book-content">
-            <div class="skeleton" style="width: 40%; height: 0.8rem; border-radius: 999px;"></div>
-            <div class="skeleton" style="width: 82%; height: 1.4rem; border-radius: 999px;"></div>
-            <div class="skeleton" style="width: 54%; height: 0.85rem; border-radius: 999px;"></div>
-            <div class="skeleton" style="width: 70%; height: 0.85rem; border-radius: 999px;"></div>
-            <div class="skeleton" style="width: 50%; height: 1rem; border-radius: 999px;"></div>
+          <div class="book-cover-container">
+            <div class="compact-book-cover skeleton"></div>
           </div>
-          <div class="compact-book-actions">
-            <div class="skeleton" style="width: 2.5rem; height: 2.5rem; border-radius: 999px;"></div>
-            <div class="skeleton" style="width: 2.5rem; height: 2.5rem; border-radius: 999px;"></div>
+          <div class="compact-book-content">
+            <div class="skeleton" style="width: 80%; height: 1.2rem; border-radius: 0; margin-bottom: 0.5rem;"></div>
+            <div class="skeleton" style="width: 50%; height: 0.8rem; border-radius: 0; margin-bottom: 0.8rem;"></div>
+            <div class="skeleton" style="width: 40%; height: 1rem; border-radius: 0; margin-bottom: 1rem;"></div>
+            <div class="skeleton" style="width: 100%; height: 2.2rem; border-radius: 0; margin-top: auto;"></div>
           </div>
         </article>`).join('')}</div>`
     : state.books.length
       ? `<div class="books-grid books-grid--compact">${state.books.map(renderCompactBookCard).join('')}</div>`
       : `<div class="empty-state"><p>No books were found in the database.</p><a class="primary-button" href="#/">Back to home</a></div>`;
-
+  const isKids = String(state.genre || '').toLowerCase() === 'kids';
   return `
-    <section class="page books-page full-width section full-bleed">
-      <div class="toolbar books-toolbar">
-        <div></div>
-        <div class="filter-row">
-          <select class="select" data-action="sort-books">
-            ${[
-              ['featured', 'Featured'],
-              ['price_asc', 'Price: Low to High'],
-              ['price_desc', 'Price: High to Low'],
-              ['rating', 'Top Rated'],
-              ['newest', 'Newest'],
-              ['title_asc', 'Title A-Z']
-            ].map(([value, label]) => `<option value="${value}" ${state.sort === value ? 'selected' : ''}>${label}</option>`).join('')}
-          </select>
-          <a class="secondary-button" href="#/">Back to explore</a>
+    <section class="page books-page section ${isKids ? 'kids-collection-page' : ''}">
+      <div class="catalog-page-header">
+        <h2 class="catalog-page-title">
+          ${state.genre ? `Explore ${escapeHtml(state.genre)}` : 'Explore Our Library'}
+        </h2>
+        <p class="catalog-page-subtitle">
+          ${state.genre
+      ? `Browse our curated selection of prime ${escapeHtml(state.genre)} publications.`
+      : 'Discover timeless classics, recent releases, and handpicked recommendations.'}
+        </p>
+      </div>
+
+      <div class="catalog-toolbar">
+        <div class="catalog-search-row">
+          <form class="catalog-search-box" data-form="catalog-search" autocomplete="off">
+            <span class="catalog-search-icon">🔍</span>
+            <input class="catalog-search-input" type="text" placeholder="Search by title or author.." value="${escapeHtml(state.catalogSearch || '')}" data-action="catalog-search-input" />
+            ${state.catalogSearch ? '<button class="catalog-search-clear" type="button" data-action="clear-catalog-search">✕</button>' : ''}
+            <div class="catalog-suggestions" id="catalog-suggestions"></div>
+          </form>
+        </div>
+
+        <div class="catalog-genre-chips">
+          <button class="genre-chip ${!state.genre ? 'genre-chip--active' : ''}" type="button" data-action="clear-genre">
+            All
+          </button>
+          ${['Fantasy', 'Fiction', 'Mystery', 'Non-Fiction', 'Romance', 'Science Fiction'].map(gName => {
+        const active = String(state.genre).toLowerCase() === gName.toLowerCase();
+        return `
+              <button class="genre-chip ${active ? 'genre-chip--active' : ''}" type="button" data-action="set-genre" data-genre="${escapeHtml(gName)}">
+                ${escapeHtml(gName)}
+              </button>
+            `;
+      }).join('')}
         </div>
       </div>
 
-      <section class="section">
-        <div class="recommendation-strip">
-          <div>
-            <div class="hint">Catalog overview</div>
-            <h3 class="section-title" style="margin:0.2rem 0 0.4rem 0;">${totalBooks} books available</h3>
-            <p class="section-copy" style="margin:0;">Browse the complete library in a compact, full-width reading list.</p>
-          </div>
-        </div>
+      <section class="section" style="padding-top: 0 !important; width: 100%;">
         ${booksMarkup}
-        ${state.booksLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
+        ${!state.booksLoading && state.page < state.totalPages
+      ? `<div class="load-more-container" style="text-align: center; margin-top: 3rem; margin-bottom: 2rem;">
+               <button class="primary-button" type="button" data-action="load-more-books" style="padding: 0.8rem 2.5rem; border-radius: 999px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                 ${state.loadingMore ? 'Loading...' : 'See More'}
+               </button>
+             </div>`
+      : ''
+    }
       </section>
     </section>
   `;
@@ -909,26 +953,85 @@ function renderFeaturedAuthorsStrip(authors = []) {
     return '';
   }
 
+  const AUTHOR_DETAILS = {
+    'Elena Voss': {
+      image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Award-winning novelist specializing in modern psychological thrillers and crime fiction.',
+      genre: 'Mystery & Thriller'
+    },
+    'Mason Pike': {
+      image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Science fiction theorist and author, crafting expansive space operas and futurescapes.',
+      genre: 'Science Fiction'
+    },
+    'Sera Linden': {
+      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Historical fiction expert whose works explore the intricate social landscapes of 19th-century Europe.',
+      genre: 'Historical Fiction'
+    },
+    'Noah Vale': {
+      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Philosopher and essayist whose thought-provoking pieces address existentialism in the digital age.',
+      genre: 'Philosophy'
+    },
+    'Iris Beaumont': {
+      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Celebrated poet and lyrical essayist focusing on themes of nature, solitude, and human connection.',
+      genre: 'Poetry'
+    },
+    'Talia Reed': {
+      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Biologist turned author, writing gripping narratives about ecological dynamics and climate shifts.',
+      genre: 'Science & Nature'
+    },
+    'Dr. Julian Mercer': {
+      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Cognitive scientist sharing insights into behavioral patterns and human performance.',
+      genre: 'Psychology'
+    },
+    'Ren Kisaragi': {
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200&h=200',
+      bio: 'Manga artist and graphic novelist blending traditional folklore with cybernetic themes.',
+      genre: 'Graphic Novels'
+    }
+  };
+
+  const defaultDetails = (name) => ({
+    image: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+    bio: 'Distinguished author contributing compelling works and rich narratives to our catalog.',
+    genre: 'Featured Author'
+  });
+
+  const displayedAuthors = authors.slice(0, 2);
   return `
-    <section class="section featured-authors-section">
-      <div class="toolbar featured-authors-toolbar">
+    <section class="section featured-authors-section header-fitting-container">
+      <div class="toolbar featured-authors-toolbar" style="margin-bottom: 2rem;">
         <div>
-          <h2 class="section-title">Featured authors</h2>
-          <p class="section-copy">Top authors by number of books in the catalog.</p>
+          <div class="hint">Curated Spotlights</div>
+          <h2 class="section-title">Featured Authors</h2>
+          <p class="section-copy">Meet the creative minds behind our top-rated reads and curated collections.</p>
         </div>
-        <div class="hint">Top 6</div>
       </div>
-      <div class="featured-authors-row" role="list" aria-label="Featured authors">
-        ${authors.map((author) => `
-          <a class="author-card panel" href="#/search?q=${encodeURIComponent(author.name)}" role="listitem">
-            <span class="author-avatar">${escapeHtml(initials(author.name))}</span>
-            <span class="author-copy">
-              <strong>${escapeHtml(author.name)}</strong>
-              <small>${Number(author.count || 0)} books</small>
-            </span>
-            <span class="author-arrow">→</span>
-          </a>
-        `).join('')}
+      <div class="featured-authors-grid" role="list" aria-label="Featured authors">
+        ${displayedAuthors.map((author) => {
+    const details = AUTHOR_DETAILS[author.name] || defaultDetails(author.name);
+    return `
+            <a class="author-profile-card panel" href="#/search?q=${encodeURIComponent(author.name)}" role="listitem">
+              <div class="author-profile-image-wrapper">
+                <img class="author-profile-image" src="${escapeHtml(details.image)}" alt="${escapeHtml(author.name)}" loading="lazy" />
+              </div>
+              <div class="author-profile-info">
+                <span class="author-profile-genre">${escapeHtml(details.genre)}</span>
+                <h3 class="author-profile-name">${escapeHtml(author.name)}</h3>
+                <p class="author-profile-bio">${escapeHtml(details.bio)}</p>
+                <div class="author-profile-footer">
+                  <span class="author-profile-count">📚 ${Number(author.count || 0)} ${author.count === 1 ? 'book' : 'books'}</span>
+                  <span class="author-profile-link">View books →</span>
+                </div>
+              </div>
+            </a>
+          `;
+  }).join('')}
       </div>
     </section>
   `;
@@ -938,7 +1041,7 @@ function renderMiniBook(item) {
   return `
     <article class="mini-book card">
       <div class="mini-cover" style="background: linear-gradient(145deg, ${escapeHtml(item.book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
-        ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
+        ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:22px;" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
       </div>
       <div>
         <h3 class="mini-title"><a href="#/book/${item.book.id}">${escapeHtml(item.book.title)}</a></h3>
@@ -959,7 +1062,7 @@ function renderWishlistCard(item) {
     <article class="wishlist-card card">
       <div class="wishlist-row">
         <div class="wishlist-thumb" style="background: linear-gradient(145deg, ${escapeHtml(item.book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9)); display:grid; place-items:center;">
-          ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:18px;" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
+          ${item.book.cover_url ? `<img src="${escapeHtml(item.book.cover_url)}" alt="${escapeHtml(item.book.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:18px;" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(item.book.emoji || '📚')}</span>`}
         </div>
         <div>
           <h3 class="wishlist-title"><a href="#/book/${item.book.id}">${escapeHtml(item.book.title)}</a></h3>
@@ -987,7 +1090,7 @@ function renderOrderCard(order) {
         ${order.items.map((item) => `
           <div class="order-item">
             <div class="order-thumb" style="background: linear-gradient(145deg, ${escapeHtml(item.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9)); display:grid; place-items:center;">
-              ${item.cover_url ? `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" />` : `<span class="cover-emoji">${escapeHtml(item.emoji || '📚')}</span>`}
+              ${item.cover_url ? `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" loading="lazy" />` : `<span class="cover-emoji">${escapeHtml(item.emoji || '📚')}</span>`}
             </div>
             <div>
               <strong>${escapeHtml(item.title || 'Book')}</strong>
@@ -1010,7 +1113,7 @@ function renderReviewCard(review) {
   return `
     <article class="review-card">
       <div class="review-meta">
-        <img class="review-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(review.user_name || 'Reviewer')}" />
+        <img class="review-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(review.user_name || 'Reviewer')}" loading="lazy" />
         <div>
           <strong class="review-author">${escapeHtml(review.user_name || 'Reviewer')}</strong>
           <div class="review-date">${new Date(review.created_at).toLocaleDateString()}</div>
@@ -1087,8 +1190,37 @@ function renderChatbotWidget() {
 function renderFloatingUi() {
   const mount = document.getElementById('floating-ui');
   if (!mount) return;
-  mount.innerHTML = renderChatbotWidget();
-  setTimeout(positionChatbotFromStorage, 0);
+
+  // Ensure chatbot float is present
+  if (!mount.querySelector('.chatbot-float')) {
+    const chatbotWrapper = document.createElement('div');
+    chatbotWrapper.innerHTML = renderChatbotWidget();
+    mount.appendChild(chatbotWrapper.firstElementChild);
+    setTimeout(positionChatbotFromStorage, 0);
+  }
+
+  // Ensure auth-modal-container exists
+  let authContainer = document.getElementById('auth-modal-container');
+  if (!authContainer) {
+    authContainer = document.createElement('div');
+    authContainer.id = 'auth-modal-container';
+    mount.appendChild(authContainer);
+  }
+
+  // Render auth modal if in auth route
+  const name = state.route?.name;
+  if (name === 'login' || name === 'register' || name === 'reset-password') {
+    let authHtml = '';
+    if (name === 'reset-password') {
+      const stage = state.route?.params?.stage === 'confirm' ? 'confirm' : 'request';
+      authHtml = stage === 'confirm' ? renderResetPasswordConfirmView() : renderResetPasswordRequestView();
+    } else {
+      authHtml = renderAuthView(name === 'login' ? 'login' : 'register');
+    }
+    authContainer.innerHTML = authHtml;
+  } else {
+    authContainer.innerHTML = '';
+  }
 }
 
 function syncChatbotMode() {
@@ -1189,31 +1321,113 @@ function endChatbotDrag(event) {
   }
 }
 
+function getWeeklyFeaturedAuthor() {
+  // Use DB-sourced authors if available (from /api/featured-authors)
+  const dbAuthors = Array.isArray(state.featuredAuthors) && state.featuredAuthors.length
+    ? state.featuredAuthors
+    : null;
+
+  const authors = dbAuthors || [
+    {
+      name: "Elena Voss",
+      badge: "Featured Author",
+      specialty: "High Fantasy & Sci-Fi",
+      description: "Elena Voss is an acclaimed author specializing in epic world-building and complex magical systems. Her novels transport readers to distant realms full of danger, intrigue, and unforgettable heroes.",
+      publishedBooks: 8,
+      readers: "2M+",
+      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=600",
+      query: "Elena Voss"
+    },
+    {
+      name: "Mason Pike",
+      badge: "Featured Author",
+      specialty: "Crime Fiction & Mystery",
+      description: "Mason Pike is a master of suspense, known for fast-paced thrillers that keep readers guessing until the very last page. Drawing from years of investigative journalism, his stories feel incredibly real and gritty.",
+      publishedBooks: 12,
+      readers: "4M+",
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=600",
+      query: "Mason Pike"
+    },
+    {
+      name: "Sera Linden",
+      badge: "Featured Author",
+      specialty: "Contemporary Romance & Drama",
+      description: "Sera Linden writes emotional, heartwarming contemporary fiction exploring relationships, family dynamics, and second chances. Her rich prose and relatable characters have won her a dedicated global following.",
+      publishedBooks: 15,
+      readers: "3M+",
+      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=600",
+      query: "Sera Linden"
+    },
+    {
+      name: "Noah Vale",
+      badge: "Featured Author",
+      specialty: "Historical Fiction & Biographies",
+      description: "Noah Vale is a historian and novelist dedicated to bringing the past to life. Through rigorous research and cinematic narration, his biographies and historical epics reveal the human stories behind major events.",
+      publishedBooks: 6,
+      readers: "1M+",
+      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=600",
+      query: "Noah Vale"
+    }
+  ];
+
+  // Cycle monthly — uses absolute month index so it advances each calendar month
+  const now = new Date();
+  const monthIndex = now.getFullYear() * 12 + now.getMonth();
+  const authorIndex = monthIndex % authors.length;
+  const author = authors[authorIndex];
+
+  // Normalize DB author shape to match the expected UI shape
+  if (dbAuthors) {
+    return {
+      name: author.name || '',
+      badge: 'Featured Author',
+      specialty: author.specialty || '',
+      description: author.description || '',
+      publishedBooks: author.published_books || author.publishedBooks || 0,
+      readers: author.readers || '0',
+      image: author.image_url || author.image || '',
+      query: author.name || ''
+    };
+  }
+  return author;
+}
+
 function renderHomeView() {
+  const weeklyAuthor = getWeeklyFeaturedAuthor();
   const isSearchMode = Boolean(String(state.search || '').trim());
   const whatsappNumber = String(state.settings?.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
   const featuredCount = state.featured.length;
   const genreCount = state.genres.length;
   const featuredAuthors = state.featuredAuthors || [];
   const topGenres = getTopGenres(16);
-  // Ensure the hero always displays three books.
-  // Priority: explicit `state.featured` -> `state.books` -> static placeholders.
-  let heroBooks = Array.isArray(state.featured) && state.featured.length ? state.featured.slice(0, 3) : [];
-  if (heroBooks.length < 3 && Array.isArray(state.books) && state.books.length) {
-    const needed = 3 - heroBooks.length;
-    const fromBooks = state.books.slice(0, needed).filter(Boolean);
-    heroBooks = [...heroBooks, ...fromBooks];
+  let heroBooks = Array.isArray(state.featured) ? [...state.featured] : [];
+  if (heroBooks.length < 5 && Array.isArray(state.books)) {
+    for (const book of state.books) {
+      if (heroBooks.length >= 5) break;
+      if (!heroBooks.some((b) => b.id === book.id)) {
+        heroBooks.push(book);
+      }
+    }
   }
-  if (heroBooks.length < 3) {
-    // Fallback placeholders when no data is available.
-    const placeholders = [
-      { id: 'ph-1', title: 'The Quiet Library', author: 'Various', cover_color: '#334155', price: 1200, avg_rating: 4.5, review_count: 12, emoji: '📘' },
-      { id: 'ph-2', title: 'Night Stories', author: 'A. Storyteller', cover_color: '#0f172a', price: 980, avg_rating: 4.2, review_count: 8, emoji: '📗' },
-      { id: 'ph-3', title: 'Journeys', author: 'M. Traveler', cover_color: '#7c3aed', price: 1500, avg_rating: 4.7, review_count: 21, emoji: '📙' }
-    ];
-    const needed = 3 - heroBooks.length;
-    heroBooks = [...heroBooks, ...placeholders.slice(0, needed)];
+  const staticPlaceholders = [
+    { id: 'ph-1', title: 'The Quiet Library', author: 'Various', cover_color: '#334155', price: 1200, avg_rating: 4.5, review_count: 12, emoji: '📘' },
+    { id: 'ph-2', title: 'Night Stories', author: 'A. Storyteller', cover_color: '#0f172a', price: 980, avg_rating: 4.2, review_count: 8, emoji: '📗' },
+    { id: 'ph-3', title: 'Journeys', author: 'M. Traveler', cover_color: '#7c3aed', price: 1500, avg_rating: 4.7, review_count: 21, emoji: '📙' },
+    { id: 'ph-4', title: 'Deep Ocean', author: 'S. Diver', cover_color: '#0369a1', price: 1100, avg_rating: 4.4, review_count: 15, emoji: '📕' },
+    { id: 'ph-5', title: 'Lost Woods', author: 'E. Ranger', cover_color: '#15803d', price: 1350, avg_rating: 4.6, review_count: 19, emoji: '📓' }
+  ];
+  if (heroBooks.length < 5) {
+    for (const ph of staticPlaceholders) {
+      if (heroBooks.length >= 5) break;
+      if (!heroBooks.some((b) => b.id === ph.id)) {
+        heroBooks.push(ph);
+      }
+    }
   }
+
+  // Ensure it has exactly 5 books
+  heroBooks = heroBooks.slice(0, 5);
+
 
   const featuredMarkup = heroBooks.length
     ? `<div class="books-grid hero-feature-grid">${heroBooks.map((book) => renderBookCard(book, { showShare: false })).join('')}</div>`
@@ -1225,183 +1439,300 @@ function renderHomeView() {
       ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
       : `<div class="empty-state"><p>No books match your current filters.</p><button class="primary-button" type="button" data-action="reset-filters">Clear filters</button></div>`;
 
+  const activePromo = Array.isArray(state.promotions) && state.promotions.length
+    ? (state.promotions.find((p) => p.code === 'READ20') || state.promotions[0])
+    : null;
+
+  const badgeHtml = '';
+
   return `
-    <section class="page home-page full-width section full-bleed">
-      <div class="hero glass">
-        <div>
-          <div class="pill">A modern bookstore with a cinematic reading experience</div>
-          <h1 class="hero-title">Booksta.<br>for readers who want the shelf to feel alive.</h1>
-          <p class="hero-copy">
-            Explore curated picks, filter by genre, save favorites, and checkout with confidence. The catalog updates in real time — use the header search, pagination, and reader-powered ratings to find your next great read.
-          </p>
-          <div class="hero-copy">Currently cycling genres: ${renderHeroTypewriter()}</div>
-          <div class="hero-cta">
-            <a class="primary-button" href="#/">Browse books</a>
-            <a class="secondary-button" href="#/cart">Go to cart</a>
+    <section class="page home-page full-width">
+      <div class="hero">
+        <div class="hero-inner">
+          <div class="hero-left">
+            <span class="hero-badge">NEW SEASON</span>
+            <h1 class="hero-title">Booksta.<br>for readers who want the <span class="highlight">shelf to feel alive</span>.</h1>
+            <p class="hero-copy">
+              Explore curated picks, filter by genre, save favorites, and checkout with confidence. The catalog updates in real time — use the header search, pagination, and reader-powered ratings to find your next great read.
+            </p>
+            <div class="hero-copy typewriter-container">Featured book genre: <span class="typewriter">${escapeHtml(getBookGenres(heroBooks[0])[0] || 'Fiction')}</span></div>
+            <div class="hero-cta">
+              <a class="primary-button" href="#/books">Browse books</a>
+              <a class="secondary-button" href="#/cart">View cart</a>
+            </div>
+            <div class="hero-trust-badges">
+              <div class="trust-badge">🛡️ Secure Payments</div>
+              <div class="trust-badge">📦 Delivery Nationwide</div>
+            </div>
           </div>
-          <div class="hero-search-hint">Use the header search to find books by title, author, or genre.</div>
-          <div class="hero-stats" style="margin-top: 1rem;">
-            <div class="stat"><span class="stat-value">100+</span><span class="stat-label">featured books</span></div>
-            <div class="stat"><span class="stat-value">50+</span><span class="stat-label">authors</span></div>
-            <div class="stat"><span class="stat-value">16+</span><span class="stat-label">genres</span></div>
-          </div>
-        </div>
-        <div class="hero-panel">
-          <div class="glass-card">
+
+          <div class="hero-panel">
             ${isSearchMode
-              ? `<div class="hint">Search results</div><h3 class="mini-title" style="margin:0;">\"${escapeHtml(state.search)}\"</h3><p class="section-copy">Found ${Number(state.total || state.books.length || 0)} matching book(s). Browse the results section below.</p>`
-              : `<div class="hint">Featured titles</div>${featuredMarkup}`}
+      ? `<div class="glass-card">
+                   <div class="hint">Search results</div>
+                   <h3 class="mini-title" style="margin:0;">\"${escapeHtml(state.search)}\"</h3>
+                   <p class="section-copy">Found ${Number(state.total || state.books.length || 0)} matching book(s). Browse the results section below.</p>
+                 </div>`
+      : `<div class="hero-showcase-container">
+                   <button class="hero-arrow prev" aria-label="Previous Slide">←</button>
+                   ${heroBooks.map((book, idx) => `
+                     <div class="hero-showcase-slide ${idx === 0 ? 'active' : ''}" data-slide-index="${idx}" data-genre="${escapeHtml(getBookGenres(book)[0] || 'Fiction')}">
+                       ${book.cover_url
+          ? `<img class="hero-showcase-img" src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" />`
+          : `<div class="hero-showcase-emoji-placeholder" style="background: linear-gradient(135deg, ${escapeHtml(book.cover_color || '#1f2937')}, rgba(15, 23, 42, 0.9));">
+                              <span class="hero-showcase-emoji">${escapeHtml(book.emoji || '📚')}</span>
+                            </div>`
+        }
+                     </div>
+                   `).join('')}
+                   <button class="hero-arrow next" aria-label="Next Slide">→</button>
+                 </div>
+                 <div class="hero-showcase-controls">
+                   <div class="hero-pagination">
+                     ${heroBooks.map((_, idx) => `
+                       <span class="dot ${idx === 0 ? 'active' : ''}" data-slide-dot="${idx}"></span>
+                     `).join('')}
+                   </div>
+                 </div>`
+    }
           </div>
         </div>
       </div>
 
-      <section class="section" ${isSearchMode ? 'style="display:none;"' : ''}>
-        <div class="marquee glass-card">
-          <div class="marquee-track">${[...state.featured, ...state.books, ...state.featured, ...state.books].map((book) => `<span class="marquee-item">${escapeHtml(book.title || 'Featured book')}</span>`).join('')}</div>
+      <div class="homepage-stats-row">
+        <div class="stat-col">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="3" width="15" height="13" rx="2" ry="2"></rect>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+              <circle cx="5.5" cy="18.5" r="2.5"></circle>
+              <circle cx="18.5" cy="18.5" r="2.5"></circle>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-title">Nationwide Shipping</span>
+            <span class="stat-desc">Kigali city and Provinces</span>
+          </div>
         </div>
-      </section>
+        <div class="stat-col">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <path d="m9 11 2 2 4-4"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-title">Secure Payment</span>
+            <span class="stat-desc">100% Secure Payment</span>
+          </div>
+        </div>
+        <div class="stat-col">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l4.58-4.58c.94-.94.94-2.48 0-3.42L12 2Z"></path>
+              <path d="M7 7h.01"></path>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-title">Best Price</span>
+            <span class="stat-desc">Guaranteed Price</span>
+          </div>
+        </div>
+      </div>
 
-      ${!isSearchMode ? renderFeaturedAuthorsStrip(featuredAuthors) : ''}
-
-      <section class="section">
-        ${state.user && state.recommendations.length ? `
-          <div class="recommendation-strip">
-            <div>
-              <div class="hint">Personalized</div>
-              <h2 class="section-title" style="margin:0.2rem 0 0.4rem 0;">Recommended for you</h2>
-              <p class="section-copy" style="margin:0;">Matched from your views, wishlist, reviews, and purchases.</p>
-            </div>
-            <a class="secondary-button" href="#/notifications">See all recommendations</a>
-          </div>
-          <div class="recommendation-rail">${state.recommendations.map(renderRecommendationTile).join('')}</div>
-        ` : ''}
-        <div class="toolbar">
-          <div>
-            <h2 class="section-title">Explore books</h2>
-            <p class="section-copy">Sort and filter the catalog to find books quickly — use the search box in the header for keyword lookups.</p>
-          </div>
-          <div class="filter-row">
-            <select class="select" data-action="sort-books">
-              ${[
-                ['featured', 'Featured'],
-                ['price_asc', 'Price: Low to High'],
-                ['price_desc', 'Price: High to Low'],
-                ['rating', 'Top Rated'],
-                ['newest', 'Newest'],
-                ['title_asc', 'Title A-Z']
-              ].map(([value, label]) => `<option value="${value}" ${state.sort === value ? 'selected' : ''}>${label}</option>`).join('')}
-            </select>
-            <button class="secondary-button" type="button" data-action="view-all-books">View all books</button>
-          </div>
+      <section class="section" style="margin-top: 5rem !important;">
+        <div class="toolbar" style="margin-bottom: 2.5rem; position: relative; display: flex; justify-content: center; align-items: center; width: 100%; min-height: 48px;">
+          <h2 class="section-title" style="margin: 0; font-size: 2.2rem; text-align: center; width: 100%;">Explore books</h2>
+          <span class="view-all-link" data-action="view-all-books" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--accent); transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.25rem;">
+            View all <span style="font-size: 1.1rem; line-height: 1;">&rarr;</span>
+          </span>
         </div>
         ${booksMarkup}
         ${state.homeLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
       </section>
 
-      <section class="section" style="padding: 4rem 0;">
-        <h2 class="section-title">Why Choose Booksta?</h2>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2rem;">
-          <div class="panel" style="padding: 2rem; text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📚</div>
-            <h3 style="margin: 0 0 0.75rem 0;">Curated Collection</h3>
-            <p style="opacity: 0.7;">Hand-picked books across 8 genres, all reviewed by real readers.</p>
+
+      <section class="section featured-author-section">
+        <h2 class="section-title text-center" style="text-align: center !important;">Featured Author</h2>
+        <div class="featured-author-grid">
+          <div class="author-image-column">
+            <img src="${escapeHtml(weeklyAuthor.image)}" alt="${escapeHtml(weeklyAuthor.name)}" class="featured-author-img" />
           </div>
-          <div class="panel" style="padding: 2rem; text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">💳</div>
-            <h3 style="margin: 0 0 0.75rem 0;">Secure Checkout</h3>
-            <p style="opacity: 0.7;">Quick order confirmations, clear RWF pricing, and a smooth, secure checkout experience.</p>
-          </div>
-          <div class="panel" style="padding: 2rem; text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">⭐</div>
-            <h3 style="margin: 0 0 0.75rem 0;">Real Reviews</h3>
-            <p style="opacity: 0.7;">Read authentic reviews from verified purchasers to guide your choices.</p>
-          </div>
-          <div class="panel" style="padding: 2rem; text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">❤️</div>
-            <h3 style="margin: 0 0 0.75rem 0;">Wishlist Saved</h3>
-            <p style="opacity: 0.7;">Keep track of books you love and never forget a great read.</p>
-          </div>
-          <div class="panel" style="padding: 2rem; text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
-            <h3 style="margin: 0 0 0.75rem 0;">Fast Shipping</h3>
-            <p style="opacity: 0.7;">Real-time inventory tracking ensures your order ships immediately.</p>
-          </div>
-          <div class="panel" style="padding: 2rem; text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
-            <h3 style="margin: 0 0 0.75rem 0;">Current Promotions</h3>
-            <p style="opacity: 0.7;">Active discounts and deal codes configured by the store team.</p>
+          <div class="author-details-column">
+            <span class="author-badge">${escapeHtml(weeklyAuthor.badge)}</span>
+            <h3 class="featured-author-name">${escapeHtml(weeklyAuthor.name)}</h3>
+            <p class="author-genre-specialty">Specializes in ${escapeHtml(weeklyAuthor.specialty)}</p>
+            <p class="featured-author-description">
+              ${escapeHtml(weeklyAuthor.description)}
+            </p>
+            <div class="author-stats">
+              <div class="author-stat-item">
+                <span class="stat-value">${weeklyAuthor.publishedBooks}</span>
+                <span class="stat-label">Published Books</span>
+              </div>
+              <div class="author-stat-item">
+                <span class="stat-value">${escapeHtml(weeklyAuthor.readers)}</span>
+                <span class="stat-label">Readers Globally</span>
+              </div>
+            </div>
+            <a class="secondary-button" href="#/search?search=${encodeURIComponent(weeklyAuthor.query)}" style="margin-top: 1.5rem !important; display: inline-block !important;">Explore books</a>
           </div>
         </div>
       </section>
 
-      <section class="section" style="padding: 4rem 0;">
-        <h2 class="section-title">Browse by Genre</h2>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
-          ${topGenres.map(({ name: genre, count: genreBooks }) => {
-            const isActive = state.genre === genre;
-            return `<button class="genre-card ${isActive ? 'is-active' : ''}" style="padding: 2rem; text-align: center; cursor: pointer; transition: transform 0.25s, background 0.25s; border: none; background: transparent; border-radius: 18px;" data-action="set-genre" data-genre="${escapeHtml(genre)}">
-              <h3>${escapeHtml(genre)}</h3>
-              <p class="genre-count">${genreBooks} books</p>
-            </button>`;
-          }).join('')}
-        </div>
-      </section>
-
-      <section class="section contact-section" style="padding: 4rem 0;">
-        <h2 class="section-title">Contact Booksta</h2>
-        <p class="section-copy">Need help with orders, payments, or recommendations? Reach us directly on your preferred channel.</p>
-        <div class="contact-grid">
-          <a class="panel contact-card" href="https://wa.me/${escapeHtml(whatsappNumber || '250782781575')}" target="_blank" rel="noopener noreferrer">
-            <h3>WhatsApp</h3>
-            <p>+${escapeHtml(whatsappNumber || '250782781575')}</p>
-          </a>
-          <a class="panel contact-card" href="mailto:booksta.online.store@gmail.com">
-            <h3>Email</h3>
-            <p>booksta.online.store@gmail.com</p>
-          </a>
-          <a class="panel contact-card" href="${escapeHtml(state.settings?.instagramUrl || '#/social/instagram')}" target="_blank" rel="noopener noreferrer">
-            <h3>Instagram</h3>
-            <p>Quick updates and replies</p>
-          </a>
-          <a class="panel contact-card" href="${escapeHtml(state.settings?.facebookUrl || '#/social/facebook')}" target="_blank" rel="noopener noreferrer">
-            <h3>Facebook</h3>
-            <p>Community and announcements</p>
-          </a>
-        </div>
-      </section>
-
-      <section class="section" style="padding: 4rem 0; background: var(--bg-soft); border-radius: var(--radius-lg); padding: 3rem;">
-        <h2 class="section-title" style="text-align: center;">Ready to Start Reading?</h2>
-        <p class="section-copy" style="text-align: center; max-width: 600px; margin: 1rem auto;">
+      <section class="section ready-to-read-section">
+        <h2 class="ready-title">Ready to Start Reading?</h2>
+        <p class="ready-copy">
           Join thousands of readers discovering their next favorite book. Sign up today to unlock wishlist, reviews, and personalized recommendations.
         </p>
-        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-          <a class="primary-button" href="#/register">Create Account</a>
-          <a class="secondary-button" href="#/">Browse Now</a>
+        <div class="ready-actions">
+          <a class="primary-button ready-btn-primary" href="#/register">Create Account</a>
+          <a class="secondary-button ready-btn-secondary" href="#/books">Browse Now</a>
         </div>
       </section>
 
-      ${state.promotions.length ? `
-      <section class="section promotions-section" style="padding: 3rem 0;">
-        <h2 class="section-title">Active Promotions</h2>
-        <div class="promotions-grid" style="margin-top: 1.25rem;">
-          ${state.promotions.map((promo) => `
-            <article class="panel promo-card" style="padding: 1rem 1.1rem;">
-              <div class="hint">${escapeHtml(promo.code)}</div>
-              <h3 class="mini-title" style="margin: 0.35rem 0 0.5rem 0;">${escapeHtml(promo.description || 'Special offer')}</h3>
-              <p class="section-copy" style="margin: 0 0 0.75rem 0;">${promo.discount_type === 'percentage' ? `${promo.discount_value}% off` : formatMoney(promo.discount_value)} on orders above ${formatMoney(promo.min_order_amount || 0)}.</p>
-              <div class="pill">Valid until ${new Date(promo.expires_at).toLocaleDateString()}</div>
-            </article>
-          `).join('')}
+      ${state.user && state.recommendations.length ? `
+        <section class="section home-recommendations-section">
+          <div class="toolbar" style="margin-bottom: 2.5rem; position: relative; display: flex; justify-content: center; align-items: center; width: 100%; min-height: 48px;">
+            <h2 class="section-title" style="margin: 0; font-size: 2.2rem; text-align: center; width: 100%;">Recommended for you</h2>
+            <a class="view-all-link" href="#/notifications" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--accent); transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.25rem; text-decoration: none;">
+              See all recommendations <span style="font-size: 1.1rem; line-height: 1;">&rarr;</span>
+            </a>
+          </div>
+          <div class="books-grid">${state.recommendations.slice(0, 4).map(book => renderBookCard(book)).join('')}</div>
+        </section>
+      ` : ''}
+
+      ${(() => {
+      // Dynamic bestseller discount: find highest-discount book from DB
+      const allBooks = [...(state.books || []), ...(state.featured || [])];
+      // Deduplicate by id
+      const seen = new Set();
+      const uniqueBooks = allBooks.filter(b => { if (seen.has(b.id)) return false; seen.add(b.id); return true; });
+
+      // Pick book with largest % discount (original_price > price)
+      let promoBook = uniqueBooks
+        .filter(b => b.original_price && b.price && Number(b.original_price) > Number(b.price))
+        .sort((a, b) => {
+          const discA = (Number(a.original_price) - Number(a.price)) / Number(a.original_price);
+          const discB = (Number(b.original_price) - Number(b.price)) / Number(b.original_price);
+          return discB - discA;
+        })[0];
+
+      // Fallback: highest rated/featured book
+      if (!promoBook) {
+        promoBook = uniqueBooks.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))[0];
+      }
+
+      if (!promoBook) {
+        // Ultimate fallback if no books loaded yet
+        return `<section class="section promotions-section full-width full-bleed">
+          <div class="promo-editorial-container">
+            <div class="promo-left-image">
+              <img src="assets/atomic_habits.png" alt="Featured Bestseller" class="yellow-book-img" style="border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3) !important;" />
+            </div>
+            <div class="promo-details-content">
+              <span class="promo-category-tag">Bestseller Discount</span>
+              <h2 class="promo-editorial-title">Special Offers<br><span class="highlight-title">Today's Deals</span></h2>
+              <p class="promo-editorial-text">Discover great deals on our bestselling books. Limited time offers on top titles.</p>
+              <a class="promo-shop-now-btn" href="#/books">Shop Now</a>
+            </div>
+          </div>
+        </section>`;
+      }
+
+      const discountPct = promoBook.original_price && promoBook.price
+        ? Math.round((1 - Number(promoBook.price) / Number(promoBook.original_price)) * 100)
+        : 0;
+
+      const coverImg = promoBook.cover_url || promoBook.cover_image_url || promoBook.thumbnail || '';
+      const coverMarkup = coverImg
+        ? `<img src="${escapeHtml(coverImg)}" alt="${escapeHtml(promoBook.title || '')}" class="yellow-book-img" style="border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3) !important; object-fit: cover; width: 220px; height: 300px;" />`
+        : `<div class="yellow-book-img" style="width:220px;height:300px;border-radius:12px;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:4rem;">📖</div>`;
+
+      const displayTitle = promoBook.title ? promoBook.title.length > 30 ? promoBook.title.substring(0, 30) + '…' : promoBook.title : 'Featured Pick';
+      const authorName = promoBook.author || '';
+      const tagline = discountPct > 0
+        ? `${discountPct}% Off — ${authorName ? `by ${authorName}` : 'Limited Time Offer'}`
+        : `Featured Bestseller${authorName ? ` by ${authorName}` : ''}`;
+      const description = promoBook.description
+        ? promoBook.description.substring(0, 150) + (promoBook.description.length > 150 ? '…' : '')
+        : 'A must-read book available now at Booksta. Grab your copy before the deal ends!';
+      const label = discountPct > 0 ? `${discountPct}% Discount` : 'Featured Deal';
+
+      return `<section class="section promotions-section full-width full-bleed">
+          <div class="promo-editorial-container">
+            <div class="promo-left-image">
+              ${coverMarkup}
+            </div>
+            <div class="promo-details-content">
+              <span class="promo-category-tag">${escapeHtml(label)}</span>
+              <h2 class="promo-editorial-title">${escapeHtml(tagline)}<br><span class="highlight-title">${escapeHtml(displayTitle)}</span></h2>
+              <p class="promo-editorial-text">${escapeHtml(description)}</p>
+              <a class="promo-shop-now-btn" href="#/book/${promoBook.id}">Shop Now</a>
+            </div>
+          </div>
+        </section>`;
+    })()}
+
+      <!-- Kids Books Advertisement Section -->
+      ${(() => {
+      const kidsBooks = state.kidsBooks || [];
+      const kidsBooksMarkup = kidsBooks.length
+        ? kidsBooks.map(book => renderBookCard(book, { showShare: false })).join('')
+        : `<p class="kids-no-books">Kids books coming soon!</p>`;
+
+      return `
+        <section class="section kids-promo-section full-width full-bleed">
+          <div class="kids-promo-layout">
+            <!-- Left: Text content -->
+            <div class="kids-promo-content">
+              <span class="kids-category-tag">Kids Collection</span>
+              <h2 class="kids-promo-title">Spark Their Imagination</h2>
+              <p class="kids-promo-text">
+                Discover our curated selection of colorful storybooks, educational adventures, and bedtime tales designed to inspire young minds and foster a lifelong love for reading.
+              </p>
+              <a class="kids-promo-btn" href="#/books?genre=Kids">Explore Kids Books</a>
+            </div>
+
+            <!-- Right: Featured Kids book cards side by side -->
+            <div class="kids-books-row">
+              ${kidsBooksMarkup}
+            </div>
+          </div>
+        </section>`;
+    })()}
+
+      <!-- Wonderful Gifts Promo Banner Section -->
+      <section class="section promo-banner-section" style="background-image: linear-gradient(rgba(15, 27, 33, 0.76), rgba(15, 27, 33, 0.76)), url('https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=1200') !important; background-attachment: scroll !important; background-position: center !important; background-size: cover !important; border: none !important;">
+        <div class="promo-banner-content" style="padding: 4.5rem 2rem !important; text-align: center !important; color: #ffffff !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; width: 100% !important; max-width: 650px !important; margin: 0 auto !important; box-sizing: border-box !important;">
+          <h2 class="promo-title" style="font-size: 2.6rem !important; font-weight: 700 !important; margin-bottom: 0.5rem !important; color: #ffffff !important; letter-spacing: -0.02em !important; font-family: var(--font-body) !important; text-transform: none !important;">Wonderful Gifts</h2>
+          <p class="promo-subtitle" style="font-size: 1.15rem !important; opacity: 0.95 !important; margin-bottom: 1.8rem !important; color: #cbd5e1 !important; line-height: 1.5 !important; font-family: var(--font-body) !important;">Give your family and friends a book</p>
+          <a class="primary-button promo-btn" href="#/books" style="padding: 0.75rem 2.2rem !important; font-weight: 600 !important; border-radius: 999px !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; display: inline-block !important; text-decoration: none !important; font-size: 0.9rem !important;">Shop Now</a>
         </div>
       </section>
-      ` : ''}
+
+      <!-- Newsletter Subscription Section -->
+      <section class="section newsletter-section full-width full-bleed">
+        <div class="newsletter-container">
+          <h2 class="newsletter-title">Subscribe to our Newsletter</h2>
+          <p class="newsletter-subtitle">
+            Enter your email address to receive regular updates, as well as news on upcoming events and specific offers.
+          </p>
+          <form class="newsletter-form" data-form="newsletter">
+            <div class="newsletter-form-group">
+              <input type="email" name="email" placeholder="Email Address" required class="newsletter-input" />
+              <button type="submit" class="newsletter-submit-btn">Subscribe</button>
+            </div>
+          </form>
+        </div>
+      </section>
 
     </section>
   `;
 }
-
-function renderSearchView() {
+/*
+function renderSearchViewFixed() {
   const query = String(state.search || '').trim();
   const genre = String(state.genre || '').trim();
   const resultCount = Number(state.total || state.books.length || 0);
@@ -1414,64 +1745,40 @@ function renderSearchView() {
   return `
     <section class="page search-page full-width">
       <section class="section">
-        <div class="toolbar">
-          <div>
-            <h2 class="section-title">${genre ? `Books in ${escapeHtml(genre)}` : query ? `Books by ${escapeHtml(query)}` : 'Refine results'}</h2>
-            <p class="section-copy">${genre ? 'Showing the selected genre in compact cards.' : query ? 'Showing the author’s books in compact cards.' : 'Use sort controls to narrow the current query.'}</p>
-          </div>
-          <div class="filter-row">
-            <select class="select" data-action="sort-books">
+        <div class="search-header-container" style="text-align: center; margin-bottom: 2.5rem; display: flex; flex-direction: column; align-items: center;">
+          <h2 class="section-title" style="font-size: 2.2rem; margin-bottom: 0.6rem; text-align: center;">
+            ${genre ? `Explore ${escapeHtml(genre)}` : query ? `Search Results for "${escapeHtml(query)}"` : 'Refine Results'}
+          </h2>
+          <p class="section-copy" style="max-width: 600px; margin: 0 auto 1.5rem auto; font-size: 1.05rem; opacity: 0.85; text-align: center; line-height: 1.6;">
+            ${genre 
+              ? `Browse our handpicked collection of prime ${escapeHtml(genre)} masterpieces.` 
+              : query 
+                ? `Here are the matching matches we found for your query "${escapeHtml(query)}".` 
+                : 'Browse our catalog using the controls below to find your next favorite read.'}
+          </p>
+          <div class="filter-row" style="justify-content: center; display: flex; gap: 0.75rem; align-items: center;">
+            <select class="select" data-action="sort-books" style="width: auto !important; min-width: 140px !important;">
               ${[
                 ['featured', 'Featured'],
                 ['price_asc', 'Price: Low to High'],
                 ['price_desc', 'Price: High to Low'],
                 ['rating', 'Top Rated'],
-                ['newest', 'Newest'],
                 ['title_asc', 'Title A-Z']
               ].map(([value, label]) => `<option value="${value}" ${state.sort === value ? 'selected' : ''}>${label}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        ${booksMarkup}
-        ${state.homeLoading ? '' : renderPaginator(state.page, state.totalPages || 1)}
-      </section>
-    </section>
-  `;
-}
-
-function renderBookView() {
-  if (state.bookLoading) {
-    return `<section class="page">${renderSkeletonGrid(1)}</section>`;
-  }
-
-  const book = state.currentBook;
-  if (!book) {
-    return `<section class="page"><div class="empty-state"><p>Book not found.</p><a class="primary-button" href="#/">Back to catalog</a></div></section>`;
-  }
-
-  const purchasedNotice = state.user ? '<div class="hint">Only customers who purchased a title can post a review. The server enforces this rule.</div>' : '<div class="hint">Sign in to add this title to your cart, wishlist, and review queue.</div>';
-  const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((item) => String(item?.book?.id || item?.book_id || item?.id) === String(book.id));
-
-  const reviewsMarkup = state.currentReviews.length
-    ? state.currentReviews.map(renderReviewCard).join('')
-    : '<div class="empty-state"><p>No reviews yet. Be the first to leave one.</p></div>';
-
-  const reviewFormMarkup = state.user
-    ? `
-      <form class="review-form panel" data-form="review" data-book-id="${escapeHtml(book.id)}">
-        <h3 class="mini-title">Write a review</h3>
-        <input type="hidden" name="rating" value="5" />
-        <div class="star-input" data-star-input>
-          ${Array.from({ length: 5 }, (_, index) => `<button type="button" data-action="set-star" data-star="${index + 1}" class="is-active">★</button>`).join('')}
-        </div>
-        <textarea class="textarea" name="body" rows="5" placeholder="Share what stood out, how it read, and who you would recommend it to."></textarea>
-        <button class="primary-button" type="submit">Post review</button>
       </form>
     `
     : '<div class="panel"><a class="primary-button" href="#/login">Sign in to review</a></div>';
 
   return `
     <section class="page book-detail">
+      <div class="product-breadcrumbs">
+        <a href="#/">Home</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="#/books">Explore Catalog</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current">${escapeHtml(book.title)}</span>
+      </div>
+
       <div class="detail-grid">
         <div class="panel detail-cover-panel">
           <div class="detail-cover">
@@ -1483,9 +1790,9 @@ function renderBookView() {
           <div class="detail-header">
             <div class="pill">${escapeHtml((book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book')}</div>
             <h1 class="detail-title">${escapeHtml(book.title)}</h1>
-            <div class="detail-subtitle">${escapeHtml(book.author)}</div>
+            <div class="detail-subtitle product-author-by">by <span class="author-name">${escapeHtml(book.author)}</span></div>
             <div class="detail-price">
-              <strong>${formatMoney(book.price)}</strong>
+              <strong class="price-current">${formatMoney(book.price)}</strong>
               ${book.original_price ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
             </div>
           </div>
@@ -1496,31 +1803,70 @@ function renderBookView() {
             <span class="hint">${book.pages || '—'} pages · ${book.year || '—'}</span>
           </div>
 
-          <p class="hero-copy">${escapeHtml(book.description || '')}</p>
-
-          <div class="detail-actions">
+          <div class="detail-actions" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
             <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
             <button class="icon-button compact-action-button share-icon-button" type="button" data-action="share-book" data-book-id="${escapeHtml(book.id)}" aria-label="Share ${escapeHtml(book.title)}">↗</button>
             <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
             <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
           </div>
 
-          <div class="rating-summary panel">
-            <h3 class="mini-title">Rating breakdown</h3>
-            <div class="chart">${renderRatingDistribution(state.currentReviews)}</div>
-          </div>
+          <!-- CSS Tabs Container -->
+          <div class="book-tabs-container">
+            <input type="radio" id="book-tab-about" name="book-detail-tabs" checked class="book-tab-radio" />
+            <input type="radio" id="book-tab-specs" name="book-detail-tabs" class="book-tab-radio" />
+            <input type="radio" id="book-tab-reviews" name="book-detail-tabs" class="book-tab-radio" />
 
-          ${purchasedNotice}
+            <div class="book-tab-nav">
+              <label for="book-tab-about" class="book-tab-label">About the Book</label>
+              <label for="book-tab-specs" class="book-tab-label">Specifications</label>
+              <label for="book-tab-reviews" class="book-tab-label">Reviews (${state.currentReviews.length})</label>
+            </div>
+
+            <div class="book-tab-content">
+              <div class="book-tab-panel panel-about">
+                <p class="hero-copy" style="margin-top: 1rem;">
+                  ${escapeHtml(displayDesc)}
+                  ${toggleButtonMarkup}
+                </p>
+              </div>
+
+              <div class="book-tab-panel panel-specs">
+                <div style="margin-top: 1rem;">
+                  <table class="specs-table">
+                    <tr>
+                      <th>Author</th>
+                      <td>${escapeHtml(book.author)}</td>
+                    </tr>
+                    <tr>
+                      <th>Genre</th>
+                      <td>${escapeHtml((book.genres && book.genres.length ? book.genres.join(', ') : book.genre) || 'General')}</td>
+                    </tr>
+                    <tr>
+                      <th>Publication Year</th>
+                      <td>${escapeHtml(String(book.year || 'N/A'))}</td>
+                    </tr>
+                    <tr>
+                      <th>Pages</th>
+                      <td>${escapeHtml(String(book.pages || 'N/A'))}</td>
+                    </tr>
+                    <tr>
+                      <th>ISBN</th>
+                      <td>${escapeHtml(book.isbn || 'N/A')}</td>
+                    </tr>
+                  </table>
+                </div>
+              </div>
+
+              <div class="book-tab-panel panel-reviews">
+                <div class="reviews-tab-layout">
+                  <div class="reviews-list-panel">${reviewsMarkup}</div>
+                  <div class="reviews-form-panel">${reviewFormMarkup}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <section class="section">
-        <h2 class="section-title">Reviews</h2>
-        <div class="orders-grid">
-          <div class="panel">${reviewsMarkup}</div>
-          ${reviewFormMarkup}
-        </div>
-      </section>
 
       ${state.recommendations.length ? `
         <section class="section">
@@ -1531,6 +1877,7 @@ function renderBookView() {
     </section>
   `;
 }
+*/
 
 function renderNotificationItem(notification) {
   const isRead = Boolean(notification.read_at);
@@ -1552,6 +1899,224 @@ function renderNotificationItem(notification) {
   `;
 }
 
+function renderSearchView() {
+  const query = String(state.search || '').trim();
+  const genre = String(state.genre || '').trim();
+  const resultCount = Number(state.total || state.books.length || 0);
+  const booksMarkup = state.booksLoading
+    ? renderSkeletonGrid(12)
+    : state.books.length
+      ? `<div class="books-grid">${state.books.map(renderBookCard).join('')}</div>`
+      : `<div class="empty-state"><p>No books match "${escapeHtml(genre || query)}".</p><a class="primary-button" href="#/">Back to home</a></div>`;
+
+  return `
+    <section class="page search-page">
+      <section class="section" style="padding-top: 0 !important; width: 100%;">
+        <div class="catalog-page-header">
+          <div class="hint" style="text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.8rem; opacity: 0.7;">
+            Search Results &bull; ${resultCount} match${resultCount === 1 ? '' : 'es'} found
+          </div>
+          <h2 class="catalog-page-title">
+            ${genre ? `Explore ${escapeHtml(genre)}` : query ? `Search: "${escapeHtml(query)}"` : 'Refine Results'}
+          </h2>
+          <p class="catalog-page-subtitle">
+            ${genre
+      ? `Browse our handpicked collection of prime ${escapeHtml(genre)} masterpieces.`
+      : query
+        ? `Here are the matching results we found for "${escapeHtml(query)}".`
+        : 'Browse our catalog using the controls below to find your next favorite read.'}
+          </p>
+          
+          <div class="filter-row" style="justify-content: flex-start; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 1.5rem; width: 100%;">
+            <select class="select" data-action="sort-books" style="width: auto !important; min-width: 140px !important;">
+              ${[
+      ['featured', 'Featured'],
+      ['price_asc', 'Price: Low to High'],
+      ['price_desc', 'Price: High to Low'],
+      ['rating', 'Top Rated'],
+      ['title_asc', 'Title A-Z']
+    ].map(([value, label]) => `<option value="${value}" ${state.sort === value ? 'selected' : ''}>${label}</option>`).join('')}
+            </select>
+            <a class="secondary-button" href="#/books" style="margin: 0 !important;">Clear filters</a>
+          </div>
+        </div>
+
+        ${booksMarkup}
+        ${state.totalPages > 1 ? renderPaginator(state.page || 1, state.totalPages) : ''}
+      </section>
+    </section>
+  `;
+}
+
+function renderBookView() {
+  if (state.bookLoading) {
+    return `
+      <section class="page book-detail">
+        <section class="section">
+          ${renderSkeletonGrid(2)}
+        </section>
+      </section>
+    `;
+  }
+
+  const book = state.currentBook;
+  if (!book) {
+    return `
+      <section class="page">
+        <div class="empty-state">
+          <p>Book details are unavailable right now.</p>
+          <a class="primary-button" href="#/books">Back to catalog</a>
+        </div>
+      </section>
+    `;
+  }
+
+  const isWishlisted = Array.isArray(state.wishlist) && state.wishlist.some((entry) => String(entry.id) === String(book.id));
+  const fullDescription = String(book.description || '').trim() || 'No description available for this book yet.';
+  const descriptionPreview = fullDescription.length > 260 ? `${fullDescription.slice(0, 260).trimEnd()}...` : fullDescription;
+  const displayDesc = state.descExpanded ? fullDescription : descriptionPreview;
+  const toggleButtonMarkup = fullDescription.length > 260
+    ? `<button class="text-button" type="button" data-action="toggle-description">${state.descExpanded ? 'Show less' : 'Read more'}</button>`
+    : '';
+  const purchasedNotice = state.user
+    ? `<div class="panel" style="margin-bottom: 1rem;"><p class="section-copy" style="margin: 0;">Logged in readers can leave reviews once they have purchased the book.</p></div>`
+    : `<div class="panel" style="margin-bottom: 1rem;"><a class="primary-button" href="#/login" style="display: block !important; text-align: center !important; width: 100% !important; box-sizing: border-box !important;">Sign in to review</a></div>`;
+  const reviewsMarkup = state.currentReviews.length
+    ? state.currentReviews.map(renderReviewCard).join('')
+    : `<div class="empty-state" style="min-height: 12rem;"><p>No reviews yet. Be the first to share your thoughts.</p></div>`;
+  const reviewFormMarkup = state.user
+    ? `
+      <form class="review-form" data-form="review" data-book-id="${escapeHtml(book.id)}">
+        <div class="form-grid" style="gap: 0.9rem;">
+          <label class="field-group">
+            <span class="field-label">Rating</span>
+            <select class="select" name="rating" required>
+              <option value="">Choose rating</option>
+              <option value="5">5 - Excellent</option>
+              <option value="4">4 - Very good</option>
+              <option value="3">3 - Good</option>
+              <option value="2">2 - Fair</option>
+              <option value="1">1 - Poor</option>
+            </select>
+          </label>
+          <label class="field-group">
+            <span class="field-label">Review</span>
+            <textarea class="text-input" name="body" rows="5" placeholder="Write your review..." required></textarea>
+          </label>
+          <button class="primary-button" type="submit">Submit review</button>
+        </div>
+      </form>
+    `
+    : `<div class="panel"><a class="primary-button" href="#/login" style="display: block !important; text-align: center !important; width: 100% !important; box-sizing: border-box !important;">Sign in to review</a></div>`;
+
+  return `
+    <section class="page book-detail">
+      <div class="product-breadcrumbs">
+        <a href="#/">Home</a>
+        <span class="breadcrumb-separator">/</span>
+        <a href="#/books">Explore Catalog</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current">${escapeHtml(book.title)}</span>
+      </div>
+
+      <div class="detail-grid">
+        <div class="panel detail-cover-panel">
+          <div class="detail-cover">
+            ${book.cover_url ? `<img src="${escapeHtml(book.cover_url)}" alt="${escapeHtml(book.title)}" />` : `<span class="cover-emoji">${escapeHtml(book.emoji || '📚')}</span>`}
+          </div>
+        </div>
+
+        <div class="panel detail-book">
+          <div class="detail-header">
+            <div class="pill">${escapeHtml((book.genres && book.genres.length ? book.genres.join(' • ') : book.genre) || 'Book')}</div>
+            <h1 class="detail-title">${escapeHtml(book.title)}</h1>
+            <div class="detail-subtitle product-author-by">by <span class="author-name">${escapeHtml(book.author)}</span></div>
+            <div class="detail-price">
+              <strong class="price-current">${formatMoney(book.price)}</strong>
+              ${book.original_price ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+            </div>
+          </div>
+
+          <div class="detail-meta">
+            <span class="hint">${renderStars(book.avg_rating)} ${Number(book.review_count)} reviews</span>
+            <span class="hint">${book.stock} in stock</span>
+            <span class="hint">${book.pages || '—'} pages · ${book.year || '—'}</span>
+          </div>
+
+          <div class="detail-actions" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+            <button class="icon-button compact-action-button cart-icon-button" type="button" data-action="add-to-cart" data-book-id="${escapeHtml(book.id)}" aria-label="Add ${escapeHtml(book.title)} to cart">🛒</button>
+            <button class="icon-button compact-action-button share-icon-button" type="button" data-action="share-book" data-book-id="${escapeHtml(book.id)}" aria-label="Share ${escapeHtml(book.title)}">↗</button>
+            <button class="icon-button compact-action-button wishlist-icon-button ${isWishlisted ? 'is-active' : ''}" type="button" data-action="toggle-wishlist" data-book-id="${escapeHtml(book.id)}" aria-pressed="${isWishlisted ? 'true' : 'false'}" aria-label="${isWishlisted ? 'Remove' : 'Add'} ${escapeHtml(book.title)} ${isWishlisted ? 'from' : 'to'} wishlist">${isWishlisted ? '♥' : '♡'}</button>
+            <button class="secondary-button compact-buy-button" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
+          </div>
+
+          <div class="book-tabs-container">
+            <input type="radio" id="book-tab-about" name="book-detail-tabs" checked class="book-tab-radio" />
+            <input type="radio" id="book-tab-specs" name="book-detail-tabs" class="book-tab-radio" />
+            <input type="radio" id="book-tab-reviews" name="book-detail-tabs" class="book-tab-radio" />
+
+            <div class="book-tab-nav">
+              <label for="book-tab-about" class="book-tab-label">About the Book</label>
+              <label for="book-tab-specs" class="book-tab-label">Specifications</label>
+              <label for="book-tab-reviews" class="book-tab-label">Reviews (${state.currentReviews.length})</label>
+            </div>
+
+            <div class="book-tab-content">
+              <div class="book-tab-panel panel-about">
+                <p class="hero-copy" style="margin-top: 1rem;">
+                  ${escapeHtml(displayDesc)}
+                  ${toggleButtonMarkup}
+                </p>
+              </div>
+
+              <div class="book-tab-panel panel-specs">
+                <div style="margin-top: 1rem;">
+                  <table class="specs-table">
+                    <tr>
+                      <th>Author</th>
+                      <td>${escapeHtml(book.author)}</td>
+                    </tr>
+                    <tr>
+                      <th>Genre</th>
+                      <td>${escapeHtml((book.genres && book.genres.length ? book.genres.join(', ') : book.genre) || 'General')}</td>
+                    </tr>
+                    <tr>
+                      <th>Publication Year</th>
+                      <td>${escapeHtml(String(book.year || 'N/A'))}</td>
+                    </tr>
+                    <tr>
+                      <th>Pages</th>
+                      <td>${escapeHtml(String(book.pages || 'N/A'))}</td>
+                    </tr>
+                    <tr>
+                      <th>ISBN</th>
+                      <td>${escapeHtml(book.isbn || 'N/A')}</td>
+                    </tr>
+                  </table>
+                </div>
+              </div>
+
+              <div class="book-tab-panel panel-reviews">
+                <div class="reviews-tab-layout">
+                  <div class="reviews-list-panel">${reviewsMarkup}</div>
+                  <div class="reviews-form-panel">${reviewFormMarkup}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${state.recommendations.length ? `
+        <section class="section">
+          <h2 class="section-title">Recommended for you</h2>
+          <div class="books-grid">${state.recommendations.map(book => renderBookCard(book)).join('')}</div>
+        </section>
+      ` : ''}
+    </section>
+  `;
+}
+
 function renderNotificationsView() {
   if (!state.user) {
     return `
@@ -1569,7 +2134,7 @@ function renderNotificationsView() {
     : '<div class="empty-state"><p>No notifications yet.</p><span class="pill">We will alert you when liked books return.</span></div>';
 
   const recommendationsMarkup = state.recommendations.length
-    ? `<div class="recommendation-rail">${state.recommendations.map(renderRecommendationTile).join('')}</div>`
+    ? `<div class="books-grid">${state.recommendations.map(book => renderBookCard(book)).join('')}</div>`
     : '<div class="empty-state"><p>No recommendations available yet.</p><span class="pill">Read, wish list, and review books to improve suggestions.</span></div>';
 
   const profile = state.recommendationProfile || {};
@@ -1627,16 +2192,20 @@ function renderCartView() {
     <section class="page checkout-grid full-width">
       <div class="panel popup-shell">
         <div class="order-head">
-          <div class="hint">Cart</div>
-          <h1 class="section-title">Review your items</h1>
+          <div>
+            <div class="hint">Cart</div>
+            <h1 class="section-title">Review your items</h1>
+          </div>
         </div>
         ${content}
       </div>
 
       <form class="checkout-form panel popup-shell" data-form="checkout">
         <div class="order-head">
-          <div class="hint">Checkout</div>
-          <h2 class="mini-title">Shipping address</h2>
+          <div>
+            <div class="hint">Checkout</div>
+            <h2 class="mini-title">Shipping address</h2>
+          </div>
         </div>
         <input class="text-input" name="line1" placeholder="Street address" />
         <div class="checkout-row">
@@ -1644,17 +2213,17 @@ function renderCartView() {
           <input class="text-input" name="country" placeholder="Country" />
         </div>
         ${(() => {
-          const pricing = getOrderPricing();
-          let html = '<div class="cart-row"><strong>Subtotal</strong><strong class="price">' + formatMoney(pricing.subtotal) + '</strong></div>';
-          if (pricing.promotion) {
-            html += '<div class="cart-row"><strong>Promotion (' + escapeHtml(pricing.promotion.code) + ')</strong><strong class="price">-' + formatMoney(pricing.discount) + '</strong></div>';
-          }
-          html += '<div class="cart-row"><strong>Total</strong><strong class="price">' + formatMoney(pricing.total) + '</strong></div>';
-          if (pricing.promotion) {
-            html += '<div class="hint">Promotion applied automatically before ordering.</div>';
-          }
-          return html;
-        })()}
+      const pricing = getOrderPricing();
+      let html = '<div class="cart-row"><strong>Subtotal</strong><strong class="price">' + formatMoney(pricing.subtotal) + '</strong></div>';
+      if (pricing.promotion) {
+        html += '<div class="cart-row"><strong>Promotion (' + escapeHtml(pricing.promotion.code) + ')</strong><strong class="price">-' + formatMoney(pricing.discount) + '</strong></div>';
+      }
+      html += '<div class="cart-row"><strong>Total</strong><strong class="price">' + formatMoney(pricing.total) + '</strong></div>';
+      if (pricing.promotion) {
+        html += '<div class="hint">Promotion applied automatically before ordering.</div>';
+      }
+      return html;
+    })()}
         <button class="primary-button" type="submit" ${state.cart.length ? '' : 'disabled'}>Order now on WhatsApp</button>
       </form>
     </section>
@@ -1682,10 +2251,93 @@ function renderWishlistView() {
   return `
     <section class="page">
       <div class="order-head">
-        <div class="hint">Wishlist</div>
-        <h1 class="section-title">Books you want to come back to</h1>
+        <div>
+          <div class="hint">Wishlist</div>
+          <h1 class="section-title">Books you want to come back to</h1>
+        </div>
       </div>
       ${content}
+    </section>
+  `;
+}
+
+function renderTrackView() {
+  const order = state.trackedOrder;
+  if (state.trackedOrderLoading) {
+    return `
+      <section class="page">
+        <div class="empty-state">
+          <p>Loading order tracking details...</p>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!order) {
+    return `
+      <section class="page">
+        <div class="empty-state">
+          <p>Order not found or invalid tracking ID.</p>
+          <a class="primary-button" href="#/">Return Home</a>
+        </div>
+      </section>
+    `;
+  }
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const statusLabel = String(order.status).toUpperCase();
+  const dateStr = new Date(order.created_at).toLocaleString();
+
+  return `
+    <section class="page">
+      <div class="order-head">
+        <div>
+          <div class="hint">WhatsApp Order Tracking</div>
+          <h1 class="section-title">Order Status: <span style="color: var(--accent); font-weight:700;">${escapeHtml(statusLabel)}</span></h1>
+          <p class="hint">Placed on ${escapeHtml(dateStr)} · ID: ${escapeHtml(order.anonymous_id)}</p>
+        </div>
+      </div>
+
+      <div class="glass-card panel" style="margin-top: 2rem; max-width: 650px; padding: 2rem; border-radius: 16px;">
+        <h2 style="font-size: 1.4rem; margin-bottom: 1.5rem; font-family: var(--font-body); font-weight:600;">Items Ordered</h2>
+        <div class="table-list" style="display:flex; flex-direction:column; gap:1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+          ${items.map(item => `
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:1.2rem;">
+              <div style="display:flex; align-items:center; gap:1rem;">
+                <div style="width: 50px; height: 70px; border-radius: 8px; background: rgba(255,255,255,0.06); display:grid; place-items:center; overflow:hidden;">
+                  ${item.cover_url ? `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" style="width:100%;height:100%;object-fit:cover;" />` : `📖`}
+                </div>
+                <div>
+                  <strong style="display:block; font-size:1rem; color:var(--text);">${escapeHtml(item.title)}</strong>
+                  <span class="hint">by ${escapeHtml(item.author || '')}</span>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:600; color:var(--text);">${formatMoney(item.unit_price)}</div>
+                <span class="hint">Qty ${Number(item.quantity)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.15rem; font-weight:700; margin-bottom: 2rem;">
+          <span>Total Price</span>
+          <span style="color: var(--accent); font-size:1.35rem;">${formatMoney(order.total)}</span>
+        </div>
+
+        <div style="background: rgba(15, 43, 53, 0.25); border-left: 4px solid var(--accent); padding: 1.2rem; border-radius: 8px; margin-bottom: 2rem; font-size:0.92rem; line-height:1.5; color:var(--text-muted);">
+          ℹ️ <strong>Direct WhatsApp Order:</strong> This is a pending anonymous order. Please message us on WhatsApp to confirm delivery details, shipping address, and payment. No payment is processed inside the app.
+        </div>
+
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <a class="primary-button" href="https://wa.me/${escapeHtml(String(state.settings?.whatsappNumber || '250782781575').replace(/[^\d+]/g, ''))}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:0.5rem;">
+            💬 Message Support
+          </a>
+          <a class="secondary-button" href="#/">
+            Browse More Books
+          </a>
+        </div>
+      </div>
     </section>
   `;
 }
@@ -1711,8 +2363,10 @@ function renderOrdersView() {
   return `
     <section class="page">
       <div class="order-head">
-        <div class="hint">Orders</div>
-        <h1 class="section-title">Purchase history</h1>
+        <div>
+          <div class="hint">Orders</div>
+          <h1 class="section-title">Purchase history</h1>
+        </div>
       </div>
       ${content}
     </section>
@@ -1844,56 +2498,62 @@ function renderAuthView(mode) {
   return `
     <div class="auth-modal" role="dialog" aria-modal="true">
       <div class="auth-modal-backdrop" data-action="close-auth"></div>
-      <div class="auth-modal-panel popup-shell auth-large">
-        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
-        <div class="auth-grid auth-large">
-          <div class="auth-branding auth-large">
-              <div class="auth-brand-row">
-                <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
-                <div>
-                  <strong class="auth-brand-name">Booksta</strong>
-                </div>
+      <div class="auth-modal-panel auth-large">
+        <button class="icon-button auth-close" type="button" data-action="close-auth" aria-label="Close" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted); z-index: 10;">✕</button>
+        <div class="auth-fullpage-card">
+          <div class="auth-fullpage-brand">
+            <div class="auth-fullpage-brand-inner">
+              <div class="auth-brand-logo-row">
+                <img src="assets/logo.png" alt="Booksta" class="auth-brand-logo" />
+                <strong class="auth-brand-wordmark">Booksta</strong>
               </div>
-              <h2 class="section-title">${isLogin ? 'Welcome back' : 'Create your account'}</h2>
-              <p class="section-copy">A curated bookstore delivering carefully selected titles across genres. Contact us for support, partnerships, and promotions.</p>
-              <div class="auth-brand-note">
-                <div class="auth-brand-copy">Curated books · Fast checkout · Great selection</div>
+              <h1 class="auth-brand-headline">${isLogin ? 'Welcome back.' : 'Create your shelf.'}</h1>
+              <p class="auth-brand-subtext">
+                ${isLogin
+      ? 'Sign in to continue your cart, wishlist, reviews, and order history.'
+      : 'Create an account to save books, track orders, and review your favorite titles.'}
+              </p>
+              <div class="auth-brand-footer">
+                <span>🛡️ Secure checkout</span>
+                <span>📦 Rwanda delivery</span>
               </div>
+            </div>
           </div>
 
-          <div class="auth-form-panel auth-large">
-            <div class="auth-header">
-              <div class="hint">${isLogin ? 'Welcome back' : 'Join Booksta'}</div>
-              <h2 class="section-title">${isLogin ? 'Sign in to pick up where you left off' : 'Create your account and start building a shelf'}</h2>
-              <p class="section-copy">${isLogin ? 'Use your email and password to unlock cart, wishlist, reviews, and orders.' : 'Create a profile to save books, place orders, and write reviews after purchase.'}</p>
+          <div class="auth-fullpage-form">
+            <div class="auth-form-head">
+              <div class="auth-form-hint">${isLogin ? 'Sign in' : 'Register'}</div>
+              <h2 class="auth-form-title">${isLogin ? 'Use your Booksta account' : 'Join Booksta today'}</h2>
+              <p class="auth-form-subtitle">
+                ${isLogin
+      ? 'Enter your account details to continue.'
+      : 'Create your profile and start building a shelf that feels like yours.'}
+              </p>
             </div>
 
-            
-
-            <form class="auth-form" data-form="${isLogin ? 'login' : 'register'}">
-              <input class="text-input" name="name" placeholder="Full name" ${isLogin ? 'style="display:none;"' : 'required'} />
-              <input class="text-input" name="email" type="email" placeholder="Email address" required />
-              <input class="text-input" name="password" type="password" placeholder="Password" required minlength="8" />
-              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
-                <button class="primary-button" type="submit">${isLogin ? 'Sign in' : 'Create account'}</button>
-                <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
-              </div>
+            <form class="auth-form auth-form--clean auth-form--grid" data-form="${isLogin ? 'login' : 'register'}">
+              ${isLogin ? '' : '<label class="auth-field"><span class="auth-field-label">Full name</span><input class="text-input" name="name" type="text" placeholder="Your full name" required /></label>'}
+              <label class="auth-field"><span class="auth-field-label">Email address</span><input class="text-input" name="email" type="email" placeholder="you@example.com" required /></label>
+              <label class="auth-field"><span class="auth-field-label">Password</span><input class="text-input" name="password" type="password" placeholder="Minimum 8 characters" required minlength="8" /></label>
               ${isLogin ? `
-                <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;">
+                <label class="auth-remember-row">
                   <input type="checkbox" name="remember" value="1" />
-                  <span style="font-size:0.95rem;color:var(--muted)">Remember me on this device</span>
+                  <span>Remember me on this device</span>
                 </label>
               ` : ''}
-              <p class="helper-text" style="margin-top:0.75rem; color:inherit;">${isLogin ? 'Need an account?' : 'Already have an account?'} <a href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Register' : 'Login'}</a></p>
-              <div style="margin-top:0.75rem; display:flex; gap:0.6rem; align-items:center;">
-                <button class="ghost-button" type="button">G</button>
-                <button class="ghost-button" type="button">f</button>
-                <button class="ghost-button" type="button"></button>
+              <div class="auth-submit-row">
+                <button class="primary-button auth-submit-btn" type="submit">${isLogin ? 'Sign in' : 'Create account'}</button>
               </div>
             </form>
-            ${isLogin ? `<button class="ghost-button" type="button" data-action="open-reset-password" style="margin-top:0.75rem;">Forgot password?</button>` : ''}
+
+            <div class="auth-card-foot">
+              <p class="auth-helper-text">
+                ${isLogin ? 'Need an account?' : 'Already have an account?'} 
+                <a href="#/${isLogin ? 'register' : 'login'}">${isLogin ? 'Register' : 'Login'}</a>
+              </p>
+              ${isLogin ? `<button class="ghost-button forgot-password-btn" type="button" data-action="open-reset-password">Forgot password?</button>` : ''}
+            </div>
           </div>
-          
         </div>
       </div>
     </div>
@@ -1905,39 +2565,49 @@ function renderResetPasswordRequestView() {
   return `
     <div class="auth-modal" role="dialog" aria-modal="true">
       <div class="auth-modal-backdrop" data-action="close-auth"></div>
-      <div class="auth-modal-panel popup-shell auth-large">
-        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
-        <div class="auth-grid auth-large">
-          <div class="auth-branding auth-large">
-            <div class="auth-brand-row">
-              <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
-              <div><strong class="auth-brand-name">Booksta</strong></div>
-            </div>
-            <h2 class="section-title">Reset your password</h2>
-            <p class="section-copy">Request a reset code and we will send it to your email.</p>
-            <div class="auth-brand-note">
-              <div class="auth-brand-copy">Secure reset · Email verification</div>
+      <div class="auth-modal-panel auth-large">
+        <button class="icon-button auth-close" type="button" data-action="close-auth" aria-label="Close" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted); z-index: 10;">✕</button>
+        <div class="auth-fullpage-card">
+          <div class="auth-fullpage-brand">
+            <div class="auth-fullpage-brand-inner">
+              <div class="auth-brand-logo-row">
+                <img src="assets/logo.png" alt="Booksta" class="auth-brand-logo" />
+                <strong class="auth-brand-wordmark">Booksta</strong>
+              </div>
+              <h1 class="auth-brand-headline">Reset your password</h1>
+              <p class="auth-brand-subtext">
+                Request a reset code and we'll send it straight to your email inbox.
+              </p>
+              <div class="auth-brand-footer">
+                <span>🛡️ Secure reset</span>
+                <span>📧 Email verification</span>
+              </div>
             </div>
           </div>
 
-          <div class="auth-form-panel auth-large">
-            <div class="auth-header">
-              <div class="hint">Password recovery</div>
-              <h2 class="section-title">Get a reset code</h2>
-              <p class="section-copy">Enter your email and we will send a reset code to your inbox.</p>
+          <div class="auth-fullpage-form">
+            <div class="auth-form-head">
+              <div class="auth-form-hint">Password recovery</div>
+              <h2 class="auth-form-title">Get a reset code</h2>
+              <p class="auth-form-subtitle">Enter your email and we'll send a reset code to your inbox.</p>
             </div>
 
-            <form class="auth-form" data-form="forgot-password">
-              <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
-              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
-                <button class="primary-button" type="submit">Send reset code</button>
-                <button class="ghost-button" type="button" data-action="close-auth">Cancel</button>
+            <form class="auth-form auth-form--clean" data-form="forgot-password">
+              <label class="auth-field"><span class="auth-field-label">Email address</span><input class="text-input" name="email" type="email" placeholder="you@example.com" value="${routeEmail}" required /></label>
+              <div class="auth-submit-row">
+                <button class="primary-button auth-submit-btn" type="submit">Send reset code</button>
               </div>
-              <p class="helper-text reset-feedback" data-reset-feedback aria-live="polite"></p>
             </form>
-            <p class="helper-text" style="margin-top:1rem;">
-              Already have your code? <a href="#/reset-password/confirm${routeEmail ? `?email=${encodeURIComponent(state.route?.params?.email || '')}` : ''}">Use reset code</a>
-            </p>
+            <p class="helper-text reset-feedback" data-reset-feedback aria-live="polite"></p>
+
+            <div class="auth-card-foot">
+              <p class="auth-helper-text">
+                Already have your code? <a href="#/reset-password/confirm${routeEmail ? `?email=${encodeURIComponent(state.route?.params?.email || '')}` : ''}">Use reset code</a>
+              </p>
+              <p class="auth-helper-text">
+                <a href="#/login">Back to login</a>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -1952,38 +2622,51 @@ function renderResetPasswordConfirmView() {
   return `
     <div class="auth-modal" role="dialog" aria-modal="true">
       <div class="auth-modal-backdrop" data-action="close-auth"></div>
-      <div class="auth-modal-panel popup-shell auth-large">
-        <button class="icon-button" type="button" data-action="close-auth" aria-label="Close">✕</button>
-        <div class="auth-grid auth-large">
-          <div class="auth-branding auth-large">
-            <div class="auth-brand-row">
-              <img src="assets/logo.png" alt="Booksta" style="height:56px;width:56px;border-radius:50%;margin-right:0.75rem" />
-              <div><strong class="auth-brand-name">Booksta</strong></div>
-            </div>
-            <h2 class="section-title">Use your reset code</h2>
-            <p class="section-copy">Enter the code from your email and choose a new password.</p>
-            <div class="auth-brand-note">
-              <div class="auth-brand-copy">Secure reset · Code-based verification</div>
+      <div class="auth-modal-panel auth-large">
+        <button class="icon-button auth-close" type="button" data-action="close-auth" aria-label="Close" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; font-size: 1.25rem; cursor: pointer; color: var(--muted); z-index: 10;">✕</button>
+        <div class="auth-fullpage-card">
+          <div class="auth-fullpage-brand">
+            <div class="auth-fullpage-brand-inner">
+              <div class="auth-brand-logo-row">
+                <img src="assets/logo.png" alt="Booksta" class="auth-brand-logo" />
+                <strong class="auth-brand-wordmark">Booksta</strong>
+              </div>
+              <h1 class="auth-brand-headline">Use your reset code</h1>
+              <p class="auth-brand-subtext">
+                Enter the code from your email and choose a new password.
+              </p>
+              <div class="auth-brand-footer">
+                <span>🛡️ Secure reset</span>
+                <span>🔑 Code-based verification</span>
+              </div>
             </div>
           </div>
 
-          <div class="auth-form-panel auth-large">
-            <div class="auth-header">
-              <div class="hint">Password recovery</div>
-              <h2 class="section-title">Set your new password</h2>
-              <p class="section-copy">Paste your reset code from email, then set your new password.</p>
+          <div class="auth-fullpage-form">
+            <div class="auth-form-head">
+              <div class="auth-form-hint">Password recovery</div>
+              <h2 class="auth-form-title">Set your new password</h2>
+              <p class="auth-form-subtitle">Paste your reset code from email, then set your new password.</p>
             </div>
 
-            <form class="auth-form auth-recovery-form" data-form="reset-password">
-              <input class="text-input" name="email" type="email" placeholder="Email address" value="${routeEmail}" required />
-              <input class="text-input" name="token" placeholder="Reset code" value="${routeToken}" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" minlength="6" required />
-              <input class="text-input" name="newPassword" type="password" placeholder="New password" required minlength="8" />
-              <input class="text-input" name="confirmPassword" type="password" placeholder="Confirm new password" required minlength="8" />
-              <div style="display:flex;gap:0.5rem;margin-top:1rem;align-items:center;flex-wrap:wrap;">
-                <button class="primary-button" type="submit">Reset password</button>
-                <a class="ghost-button" href="#/reset-password${routeEmailRaw ? `?email=${encodeURIComponent(routeEmailRaw)}` : ''}">Get reset code</a>
+            <form class="auth-form auth-form--clean auth-form--grid" data-form="reset-password">
+              <label class="auth-field"><span class="auth-field-label">Email address</span><input class="text-input" name="email" type="email" placeholder="you@example.com" value="${routeEmail}" required /></label>
+              <label class="auth-field"><span class="auth-field-label">Reset code</span><input class="text-input" name="token" placeholder="6-digit code" value="${routeToken}" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" minlength="6" required /></label>
+              <label class="auth-field"><span class="auth-field-label">New password</span><input class="text-input" name="newPassword" type="password" placeholder="Minimum 8 characters" required minlength="8" /></label>
+              <label class="auth-field"><span class="auth-field-label">Confirm password</span><input class="text-input" name="confirmPassword" type="password" placeholder="Re-enter new password" required minlength="8" /></label>
+              <div class="auth-submit-row">
+                <button class="primary-button auth-submit-btn" type="submit">Reset password</button>
               </div>
             </form>
+
+            <div class="auth-card-foot">
+              <p class="auth-helper-text">
+                Need a new code? <a href="#/reset-password${routeEmailRaw ? `?email=${encodeURIComponent(routeEmailRaw)}` : ''}">Get reset code</a>
+              </p>
+              <p class="auth-helper-text">
+                <a href="#/login">Back to login</a>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -2008,6 +2691,9 @@ async function refreshSession() {
     state.user = data.user;
     renderChrome();
     await refreshPersonalization();
+    if (state.user) {
+      renderApp();
+    }
   } catch (error) {
     // If no remote session exists, clear any client-side token
     // but don't show a notification during normal startup.
@@ -2158,10 +2844,11 @@ async function loadHomeData() {
     // Use the responsive page limit directly so the grid can fill the visible rows.
     params.set('limit', String(state.limit));
 
-    const [books, featured, genres] = await Promise.all([
+    const [books, featured, genres, kidsBooksRes] = await Promise.all([
       api(`/api/books?${params.toString()}`),
       api('/api/books/featured'),
-      api('/api/books/genres')
+      api('/api/books/genres'),
+      api('/api/books?limit=100').catch(() => ({ books: [] }))
     ]);
 
     state.books = books.books || [];
@@ -2170,14 +2857,26 @@ async function loadHomeData() {
     state.totalPages = Math.max(books.totalPages || 1, 1);
     state.featured = featured.books || [];
     state.genreCounts = genres.counts || {};
-    // Load top authors separately so a failing authors endpoint doesn't block the home render
+
+    // Filter books matching kids/children/juvenile/school stories/etc.
+    const childrenKeywords = ['kids', 'children', 'juvenile', 'school story', 'school stories', 'bedtime', 'fairy tale', 'fairy tales', 'fable', 'fables', 'storybook', 'storybooks'];
+    state.kidsBooks = (kidsBooksRes?.books || [])
+      .filter(b => {
+        const genres = Array.isArray(b.genres) && b.genres.length ? b.genres : [b.genre];
+        return genres.some(g => {
+          const name = String(g || '').toLowerCase();
+          return childrenKeywords.some(keyword => name.includes(keyword));
+        });
+      })
+      .slice(0, 3);
+    // Load configured featured authors from DB (public endpoint)
     try {
-      const authors = await api('/api/books/authors/top?limit=6');
-      state.featuredAuthors = Array.isArray(authors.authors) && authors.authors.length
-        ? authors.authors
-        : getTopAuthors(state.books, 6);
+      const authorsRes = await api('/api/public/featured-authors');
+      state.featuredAuthors = Array.isArray(authorsRes.authors) && authorsRes.authors.length
+        ? authorsRes.authors
+        : [];
     } catch (err) {
-      state.featuredAuthors = getTopAuthors(state.books, 6);
+      state.featuredAuthors = [];
     }
     const discoveredGenres = Array.isArray(genres.genres) && genres.genres.length
       ? genres.genres
@@ -2195,6 +2894,64 @@ async function loadHomeData() {
     app.innerHTML = `<section class="page"><div class="empty-state"><p>${escapeHtml(error.message)}</p></div></section>`;
   }
 }
+async function loadMoreSearchBooks() {
+  if (state.loadingMore) return;
+  state.loadingMore = true;
+  renderApp();
+
+  try {
+    const nextPage = state.page + 1;
+    const params = new URLSearchParams();
+    if (state.search) params.set('search', state.search);
+    if (state.genre) params.set('genre', state.genre);
+    if (state.sort) params.set('sort', state.sort);
+    params.set('page', String(nextPage));
+    params.set('limit', String(state.limit));
+
+    const data = await api(`/api/books?${params.toString()}`);
+    const newBooks = data.books || [];
+
+    // Append the new books to state.books
+    state.books = [...state.books, ...newBooks];
+    state.page = nextPage;
+    state.totalPages = Math.max(data.totalPages || 1, 1);
+    state.loadingMore = false;
+    renderApp();
+  } catch (error) {
+    state.loadingMore = false;
+    showToast(error.message, 'error');
+    renderApp();
+  }
+}
+
+async function loadMoreAllBooks() {
+  if (state.loadingMore) return;
+  state.loadingMore = true;
+  renderApp();
+
+  try {
+    const nextPage = state.page + 1;
+    const params = new URLSearchParams();
+    params.set('page', String(nextPage));
+    params.set('limit', String(state.limit));
+    if (state.sort) params.set('sort', state.sort);
+    if (state.genre) params.set('genre', state.genre);
+
+    const data = await api(`/api/books?${params.toString()}`);
+    const newBooks = data.books || [];
+
+    // Append the new books to state.books
+    state.books = [...state.books, ...newBooks];
+    state.page = nextPage;
+    state.totalPages = Math.max(data.totalPages || 1, 1);
+    state.loadingMore = false;
+    renderApp();
+  } catch (error) {
+    state.loadingMore = false;
+    showToast(error.message, 'error');
+    renderApp();
+  }
+}
 
 async function loadBooksData() {
   if (state._booksLoadInProgress) return;
@@ -2209,8 +2966,37 @@ async function loadBooksData() {
     params.set('page', String(state.page));
     params.set('limit', String(state.limit));
     if (state.sort) params.set('sort', state.sort);
+    if (state.genre) {
+      let queryGenre = state.genre;
+      const lowerG = state.genre.toLowerCase();
+      if (lowerG === 'mystery') queryGenre = 'Crime Fiction';
+      else if (lowerG === 'non-fiction') queryGenre = 'Juvenile Nonfiction';
+      else if (lowerG === 'science fiction') queryGenre = 'Fiction';
+      else if (lowerG === 'fantasy') queryGenre = 'Classics';
+      else if (lowerG === 'romance') queryGenre = 'Fiction';
+      params.set('genre', queryGenre);
+    }
+    if (state.catalogSearch) params.set('search', state.catalogSearch);
 
-    const books = await api(`/api/books?${params.toString()}`);
+    const genreCountsLoaded = Object.keys(state.genreCounts || {}).length > 0;
+    const promises = [
+      api(`/api/books?${params.toString()}`)
+    ];
+    if (!genreCountsLoaded) {
+      promises.push(api('/api/books/genres').catch(() => ({ counts: {}, genres: [] })));
+    }
+
+    const results = await Promise.all(promises);
+    const books = results[0];
+
+    if (!genreCountsLoaded && results[1]) {
+      state.genreCounts = results[1].counts || {};
+      const discoveredGenres = Array.isArray(results[1].genres) && results[1].genres.length
+        ? results[1].genres
+        : Object.keys(state.genreCounts || {});
+      state.genres = discoveredGenres.length ? discoveredGenres : genreSeed;
+    }
+
     state.books = books.books || [];
     state.total = books.total || state.books.length;
     state.totalPages = Math.max(books.totalPages || 1, 1);
@@ -2249,6 +3035,33 @@ async function loadBookData(id) {
   }
 }
 
+async function loadTrackData(trackingId) {
+  state.trackedOrderLoading = true;
+  state.trackedOrder = null;
+  renderApp();
+
+  if (!trackingId) {
+    state.trackedOrderLoading = false;
+    renderApp();
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/public/orders/track/${encodeURIComponent(trackingId)}`);
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      state.trackedOrder = data.order;
+    } else {
+      console.warn('Track order failed:', data.error);
+    }
+  } catch (error) {
+    console.error('Track order error:', error);
+  } finally {
+    state.trackedOrderLoading = false;
+    renderApp();
+  }
+}
+
 async function loadCartData() {
   state.cartLoading = true;
   renderApp();
@@ -2263,64 +3076,64 @@ async function loadCartData() {
     showToast(error.message, 'error');
     renderApp();
   }
-
-    function updateMobileViewFlag() {
-      const topbar = document.querySelector('.topbar');
-      if (!topbar) return;
-      const isMobile = window.innerWidth <= 700;
-      topbar.classList.toggle('mobile-view', !!isMobile);
-    }
-
-    // Initialize mobile flag on load and update on resize (debounced)
-    window.addEventListener('load', () => {
-      updateMobileViewFlag();
-      let resizeTimer = null;
-      window.addEventListener('resize', () => {
-        window.clearTimeout(resizeTimer);
-        resizeTimer = window.setTimeout(updateMobileViewFlag, 120);
-      });
-    });
-
-    // Move header-search into topbar when mobile to prevent crowding
-    const _mobileDomState = { moved: false, placeholder: null };
-    function ensureHeaderSearchPlacement() {
-      const topbar = document.querySelector('.topbar');
-      const headerSearch = document.querySelector('.header-search');
-      if (!topbar || !headerSearch) return;
-      const isMobile = window.innerWidth <= 700;
-
-      if (isMobile && !_mobileDomState.moved) {
-        // insert a placeholder where headerSearch was so we can restore later
-        const placeholder = document.createElement('div');
-        placeholder.className = 'header-search-placeholder';
-        headerSearch.parentNode.insertBefore(placeholder, headerSearch);
-        _mobileDomState.placeholder = placeholder;
-        // move headerSearch into topbar, below the left area
-        const left = topbar.querySelector('.topbar-left');
-        if (left && left.parentNode) {
-          left.parentNode.insertBefore(headerSearch, left.nextSibling);
-        } else {
-          topbar.appendChild(headerSearch);
-        }
-        _mobileDomState.moved = true;
-      }
-
-      if (!isMobile && _mobileDomState.moved) {
-        // restore to original location if placeholder exists
-        const ph = _mobileDomState.placeholder;
-        if (ph && ph.parentNode) {
-          ph.parentNode.insertBefore(headerSearch, ph);
-          ph.parentNode.removeChild(ph);
-        }
-        _mobileDomState.moved = false;
-        _mobileDomState.placeholder = null;
-      }
-    }
-
-    // Run placement check on load and resize alongside mobile flag
-    window.addEventListener('load', () => { ensureHeaderSearchPlacement(); });
-    window.addEventListener('resize', () => { window.clearTimeout(window._headerSearchPlacementTimer); window._headerSearchPlacementTimer = window.setTimeout(ensureHeaderSearchPlacement, 140); });
 }
+
+function updateMobileViewFlag() {
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+  const isMobile = window.innerWidth <= 700;
+  topbar.classList.toggle('mobile-view', !!isMobile);
+}
+
+// Initialize mobile flag on load and update on resize (debounced)
+window.addEventListener('load', () => {
+  updateMobileViewFlag();
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(updateMobileViewFlag, 120);
+  });
+});
+
+// Move header-search into topbar when mobile to prevent crowding
+const _mobileDomState = { moved: false, placeholder: null };
+function ensureHeaderSearchPlacement() {
+  const topbar = document.querySelector('.topbar');
+  const headerSearch = document.querySelector('.header-search');
+  if (!topbar || !headerSearch) return;
+  const isMobile = window.innerWidth <= 700;
+
+  if (isMobile && !_mobileDomState.moved) {
+    // insert a placeholder where headerSearch was so we can restore later
+    const placeholder = document.createElement('div');
+    placeholder.className = 'header-search-placeholder';
+    headerSearch.parentNode.insertBefore(placeholder, headerSearch);
+    _mobileDomState.placeholder = placeholder;
+    // move headerSearch into topbar, below the left area
+    const left = topbar.querySelector('.topbar-left');
+    if (left && left.parentNode) {
+      left.parentNode.insertBefore(headerSearch, left.nextSibling);
+    } else {
+      topbar.appendChild(headerSearch);
+    }
+    _mobileDomState.moved = true;
+  }
+
+  if (!isMobile && _mobileDomState.moved) {
+    // restore to original location if placeholder exists
+    const ph = _mobileDomState.placeholder;
+    if (ph && ph.parentNode) {
+      ph.parentNode.insertBefore(headerSearch, ph);
+      ph.parentNode.removeChild(ph);
+    }
+    _mobileDomState.moved = false;
+    _mobileDomState.placeholder = null;
+  }
+}
+
+// Run placement check on load and resize alongside mobile flag
+window.addEventListener('load', () => { ensureHeaderSearchPlacement(); });
+window.addEventListener('resize', () => { window.clearTimeout(window._headerSearchPlacementTimer); window._headerSearchPlacementTimer = window.setTimeout(ensureHeaderSearchPlacement, 140); });
 
 async function loadWishlistData() {
   state.wishlistLoading = true;
@@ -2368,16 +3181,160 @@ async function loadAdminOrdersData() {
 }
 
 
+let sliderInterval = null;
+let currentSlideIndex = 0;
+
+function initHeroSlider() {
+  if (sliderInterval) {
+    clearInterval(sliderInterval);
+  }
+
+  const slides = document.querySelectorAll('.hero-showcase-slide');
+  const dots = document.querySelectorAll('.hero-pagination .dot');
+  if (!slides.length) return;
+
+  currentSlideIndex = 0;
+
+  function showSlide(index) {
+    const total = slides.length;
+    slides.forEach((slide, idx) => {
+      slide.classList.remove('active', 'prev-slide', 'next-slide');
+
+      const isActive = idx === index;
+      if (isActive) {
+        slide.classList.add('active');
+        const genre = slide.dataset.genre || 'Fiction';
+        const typewriter = document.querySelector('.typewriter');
+        if (typewriter) {
+          typewriter.textContent = genre;
+        }
+      } else if (total >= 3) {
+        const prevIdx = (index - 1 + total) % total;
+        const nextIdx = (index + 1) % total;
+        if (idx === prevIdx) {
+          slide.classList.add('prev-slide');
+        } else if (idx === nextIdx) {
+          slide.classList.add('next-slide');
+        }
+      }
+    });
+    dots.forEach((dot, idx) => {
+      dot.classList.toggle('active', idx === index);
+    });
+    currentSlideIndex = index;
+  }
+
+  // Trigger initial state
+  showSlide(0);
+
+  // Auto slide every 4 seconds
+  sliderInterval = setInterval(() => {
+    const nextIdx = (currentSlideIndex + 1) % slides.length;
+    showSlide(nextIdx);
+  }, 4000);
+
+  // Click handlers
+  const prevBtn = document.querySelector('.hero-arrow.prev');
+  const nextBtn = document.querySelector('.hero-arrow.next');
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      clearInterval(sliderInterval);
+      const prevIdx = (currentSlideIndex - 1 + slides.length) % slides.length;
+      showSlide(prevIdx);
+      sliderInterval = setInterval(() => {
+        const nextIdx = (currentSlideIndex + 1) % slides.length;
+        showSlide(nextIdx);
+      }, 4000);
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      clearInterval(sliderInterval);
+      const nextIdx = (currentSlideIndex + 1) % slides.length;
+      showSlide(nextIdx);
+      sliderInterval = setInterval(() => {
+        const nextIdx = (currentSlideIndex + 1) % slides.length;
+        showSlide(nextIdx);
+      }, 4000);
+    });
+  }
+
+  dots.forEach((dot, idx) => {
+    dot.addEventListener('click', () => {
+      clearInterval(sliderInterval);
+      showSlide(idx);
+      sliderInterval = setInterval(() => {
+        const nextIdx = (currentSlideIndex + 1) % slides.length;
+        showSlide(nextIdx);
+      }, 4000);
+    });
+  });
+}
+
+function animateStats() {
+  const elements = document.querySelectorAll('.stat-number');
+  elements.forEach(el => {
+    const targetText = el.textContent || '';
+    if (!targetText) return;
+
+    // Parse target number
+    let target = 0;
+    let suffix = '';
+
+    if (targetText.includes('k')) {
+      target = parseFloat(targetText.replace(/[^\d.]/g, '')) * 1000;
+      suffix = 'k+';
+    } else {
+      target = parseInt(targetText.replace(/[^\d]/g, ''), 10) || 0;
+      suffix = targetText.includes('+') ? '+' : '';
+    }
+
+    const duration = 1500; // 1.5 seconds count-up duration
+    const startTime = performance.now();
+
+    function update(currentTime) {
+      const elapsedTime = currentTime - startTime;
+      const progress = Math.min(elapsedTime / duration, 1);
+
+      // Smooth ease-out cubic progress
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.floor(easeProgress * target);
+
+      if (suffix === 'k+') {
+        el.textContent = (currentValue / 1000).toFixed(currentValue % 1000 === 0 ? 0 : 1) + 'k+';
+      } else {
+        el.textContent = currentValue + suffix;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      } else {
+        el.textContent = targetText; // Ensure exact final text
+      }
+    }
+
+    requestAnimationFrame(update);
+  });
+}
+
 function renderApp() {
   try {
     syncChatbotMode();
     state.route = getRoute();
     updateSeo(state.route);
+    // Retrigger smooth page-transition animation
+    app.style.animation = 'none';
+    void app.offsetHeight; // force reflow
+    app.style.animation = '';
     const { name } = state.route;
 
     if (name === 'home') {
       app.innerHTML = renderHomeView();
       renderFloatingUi();
+      initHeroSlider();
+      animateStats();
       // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
@@ -2436,6 +3393,13 @@ function renderApp() {
       return;
     }
 
+    if (name === 'track') {
+      app.innerHTML = renderTrackView();
+      renderFloatingUi();
+      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+      return;
+    }
+
     if (name === 'profile') {
       app.innerHTML = renderProfileView();
       renderFloatingUi();
@@ -2466,20 +3430,38 @@ function renderApp() {
       return;
     }
 
-    if (name === 'login' || name === 'register') {
-      // Render the home background and show auth modal on top
-      app.innerHTML = renderHomeView() + renderAuthModal(name === 'login' ? 'login' : 'register');
-      renderFloatingUi();
-      // Re-observe sections for scroll animations
-      setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
-      return;
-    }
+    if (name === 'login' || name === 'register' || name === 'reset-password') {
+      const baseHash = state.lastActiveHash || '#/';
+      const baseRoute = getRouteFromHash(baseHash);
 
-    if (name === 'reset-password') {
-      const stage = state.route?.params?.stage === 'confirm' ? 'confirm' : 'request';
-      app.innerHTML = stage === 'confirm' ? renderResetPasswordConfirmView() : renderResetPasswordRequestView();
+      const currentBaseRouteAttr = app.getAttribute('data-base-route');
+      if (!app.innerHTML || currentBaseRouteAttr !== baseRoute.name) {
+        let baseHtml = '';
+        if (baseRoute.name === 'books') {
+          baseHtml = renderAllBooksView();
+        } else if (baseRoute.name === 'book') {
+          baseHtml = renderBookView();
+        } else if (baseRoute.name === 'cart') {
+          baseHtml = renderCartView();
+        } else if (baseRoute.name === 'wishlist') {
+          baseHtml = renderWishlistView();
+        } else if (baseRoute.name === 'orders') {
+          baseHtml = renderOrdersView();
+        } else if (baseRoute.name === 'profile') {
+          baseHtml = renderProfileView();
+        } else if (baseRoute.name === 'notifications') {
+          baseHtml = renderNotificationsView();
+        } else {
+          baseHtml = renderHomeView();
+        }
+        app.innerHTML = baseHtml;
+        app.setAttribute('data-base-route', baseRoute.name);
+        if (baseRoute.name === 'home') {
+          try { initHeroSlider(); animateStats(); } catch (e) { }
+        }
+      }
+
       renderFloatingUi();
-      // Re-observe sections for scroll animations
       setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
       return;
     }
@@ -2488,6 +3470,15 @@ function renderApp() {
     renderFloatingUi();
     // Re-observe sections for scroll animations
     setTimeout(() => window.scrollAnimations?.reObserveSections(), 0);
+
+    // Restore scroll position if saved
+    if (state.scrollPositions && state.route) {
+      const canonicalKey = getCanonicalPath(state.route) || '#/';
+      const saved = state.scrollPositions[canonicalKey];
+      if (saved !== undefined) {
+        window.scrollTo(0, saved);
+      }
+    }
   } catch (error) {
     console.error(error);
     app.innerHTML = `<section class="page"><div class="empty-state"><p>${escapeHtml(error?.message || String(error))}</p></div></section>`;
@@ -2498,13 +3489,30 @@ function renderApp() {
 }
 
 async function loadRoute() {
+  const prevRouteName = state.route?.name || '';
+  // Save previous route's scroll position before changing route
+  if (!state.scrollPositions) state.scrollPositions = {};
+  if (state.route) {
+    const prevKey = getCanonicalPath(state.route) || '#/';
+    state.scrollPositions[prevKey] = window.scrollY;
+  }
+
   state.route = getRoute();
+  if (state.route.name !== 'login' && state.route.name !== 'register' && state.route.name !== 'reset-password') {
+    state.lastActiveHash = window.location.hash || '#/';
+  }
   renderChrome();
-  
-  // Smooth scroll to top when route changes
-  window.scrollTo({ top: 0, behavior: 'auto' });
-  // Also scroll main content to top for anchored navigation
-  document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'auto' });
+
+  const currentKey = getCanonicalPath(state.route) || '#/';
+  const savedScroll = state.scrollPositions[currentKey];
+  if (savedScroll !== undefined) {
+    setTimeout(() => {
+      window.scrollTo(0, savedScroll);
+    }, 0);
+  } else {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'auto' });
+  }
 
   if (state.route.name === 'home') {
     state.search = '';
@@ -2515,7 +3523,7 @@ async function loadRoute() {
   }
 
   if (state.route.name === 'search') {
-    state.search = state.route.params?.q || '';
+    state.search = state.route.params?.q || state.route.params?.search || '';
     state.genre = state.route.params?.genre || '';
     state.page = 1;
     await loadHomeData();
@@ -2524,7 +3532,14 @@ async function loadRoute() {
 
   if (state.route.name === 'books') {
     state.search = '';
-    state.genre = '';
+    state.catalogSearch = '';
+    // Preserve genre selection if we were already on the books page,
+    // or set it if it was passed explicitly via the route parameters (e.g. from Home page clicks).
+    if (state.route.params?.genre !== undefined) {
+      state.genre = state.route.params.genre || '';
+    } else if (prevRouteName !== 'books') {
+      state.genre = '';
+    }
     state.page = Math.max(Number(state.route.params?.page || 1), 1);
     state.sort = state.route.params?.sort || state.sort || 'featured';
     await loadBooksData();
@@ -2568,6 +3583,11 @@ async function loadRoute() {
     return;
   }
 
+  if (state.route.name === 'track') {
+    await loadTrackData(state.route.params?.id || '');
+    return;
+  }
+
   if (state.route.name === 'notifications') {
     if (!state.user) {
       renderApp();
@@ -2599,6 +3619,9 @@ function startHeroCycle() {
     const dynamicGenres = Array.isArray(state.genres) && state.genres.length ? state.genres : genreSeed;
     state.typewriterIndex = (state.typewriterIndex + 1) % dynamicGenres.length;
     const typewriter = document.querySelector('.typewriter');
+    if (document.querySelector('.hero-showcase-slide')) {
+      return; // Skip cycling if hero slider is active
+    }
     if (typewriter) {
       typewriter.textContent = dynamicGenres[state.typewriterIndex];
     }
@@ -2607,6 +3630,12 @@ function startHeroCycle() {
 
 function handleAction(target) {
   const action = target.dataset.action;
+
+  if (action === 'toggle-description') {
+    state.descExpanded = !state.descExpanded;
+    renderApp();
+    return;
+  }
 
   if (action === 'toggle-mobile-menu') {
     if (mobileMenu && mobileMenu.classList.contains('is-open')) {
@@ -2651,9 +3680,7 @@ function handleAction(target) {
   }
 
   if (action === 'close-auth') {
-    // Close auth modal by going home
-    window.location.hash = '#/';
-    // Re-render route
+    window.location.hash = state.lastActiveHash || '#/';
     try { loadRoute(); } catch (e) { renderApp(); }
     return;
   }
@@ -2740,6 +3767,16 @@ function handleAction(target) {
     return;
   }
 
+  if (action === 'load-more-search') {
+    loadMoreSearchBooks();
+    return;
+  }
+
+  if (action === 'load-more-books') {
+    loadMoreAllBooks();
+    return;
+  }
+
   if (action === 'view-all-books') {
     state.page = 1;
     const params = new URLSearchParams();
@@ -2747,10 +3784,60 @@ function handleAction(target) {
     window.location.hash = `#/books?${params.toString()}`;
     return;
   }
-
   if (action === 'set-genre') {
     const genre = target.dataset.genre || '';
-    window.location.hash = `#/search?genre=${encodeURIComponent(genre)}`;
+    const route = state.route?.name || getRoute().name;
+    if (route === 'books') {
+      // Toggle genre selection inline on the all books page without navigating!
+      state.genre = String(state.genre).toLowerCase() === String(genre).toLowerCase() ? '' : genre;
+      state.page = 1;
+      loadBooksData();
+      return;
+    }
+    window.location.hash = `#/books?genre=${encodeURIComponent(genre)}`;
+    return;
+  }
+
+  if (action === 'clear-genre') {
+    state.genre = '';
+    state.page = 1;
+    const route = state.route?.name || getRoute().name;
+    if (route === 'books') {
+      loadBooksData();
+    } else {
+      window.location.hash = `#/search`;
+    }
+    return;
+  }
+
+  if (action === 'clear-catalog-search') {
+    state.catalogSearch = '';
+    state.page = 1;
+    const suggestionsDiv = document.getElementById('catalog-suggestions');
+    if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+    loadBooksData();
+    return;
+  }
+
+  if (action === 'close-suggestions') {
+    const item = target.closest('[data-id]');
+    const bookId = item?.dataset.id;
+    if (bookId) {
+      window.location.hash = `#/book/${bookId}`;
+    }
+    const suggestionsDiv = document.getElementById('catalog-suggestions');
+    if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+    return;
+  }
+
+  if (action === 'catalog-search-submit') {
+    event.preventDefault();
+    const input = document.querySelector('.catalog-search-input');
+    const suggestionsDiv = document.getElementById('catalog-suggestions');
+    if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+    state.catalogSearch = (input?.value || '').trim();
+    state.page = 1;
+    loadBooksData();
     return;
   }
 
@@ -2983,10 +4070,53 @@ async function shareBook(bookId) {
   }
 }
 
+function showFormAlert(form, message, type = 'error') {
+  if (!form) return;
+  let alertNode = form.querySelector('.form-alert');
+  if (!alertNode) {
+    alertNode = document.createElement('div');
+    alertNode.className = 'form-alert';
+    form.prepend(alertNode);
+  }
+  alertNode.textContent = message;
+  alertNode.className = `form-alert is-${type}`;
+  alertNode.style.display = 'block';
+  // Scroll form container to top if it's scrollable, or scroll window slightly
+  form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearFormAlert(form) {
+  if (!form) return;
+  const alertNode = form.querySelector('.form-alert');
+  if (alertNode) {
+    alertNode.textContent = '';
+    alertNode.className = 'form-alert';
+    alertNode.style.display = 'none';
+  }
+}
+
 async function handleSubmit(form) {
   const formType = form.dataset.form;
 
+  if (formType === 'newsletter') {
+    showToast('Thank you for subscribing to our newsletter!', 'success');
+    form.reset();
+    return;
+  }
+
+  if (formType === 'catalog-search') {
+    const input = form.querySelector('.catalog-search-input');
+    const suggestionsDiv = document.getElementById('catalog-suggestions');
+    if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+    state.catalogSearch = (input?.value || '').trim();
+    state.page = 1;
+    input?.blur();
+    loadBooksData();
+    return;
+  }
+
   if (formType === 'login') {
+    clearFormAlert(form);
     const values = Object.fromEntries(new FormData(form).entries());
     try {
       const response = await api('/api/auth/login', {
@@ -2994,7 +4124,7 @@ async function handleSubmit(form) {
         body: JSON.stringify(values)
       });
       saveSession(response.token, response.user);
-      showToast('Signed in successfully');
+      showFormAlert(form, 'Signed in successfully. Redirecting...', 'success');
       await refreshCart();
       await refreshWishlist();
       await refreshOrders();
@@ -3003,16 +4133,19 @@ async function handleSubmit(form) {
       if (response.user && response.user.role === 'admin') {
         window.location.href = '/admin.html';
       } else {
-        window.location.hash = '#/';
-        await loadRoute();
+        setTimeout(async () => {
+          window.location.hash = state.lastActiveHash || '#/';
+          await loadRoute();
+        }, 800);
       }
     } catch (error) {
-      showToast(error.message, 'error');
+      showFormAlert(form, error.message, 'error');
     }
     return;
   }
 
   if (formType === 'register') {
+    clearFormAlert(form);
     const values = Object.fromEntries(new FormData(form).entries());
     try {
       const response = await api('/api/auth/register', {
@@ -3020,56 +4153,49 @@ async function handleSubmit(form) {
         body: JSON.stringify(values)
       });
       saveSession(response.token, response.user);
-      showToast('Account created');
+      showFormAlert(form, 'Account created successfully. Redirecting...', 'success');
       await refreshCart();
       await refreshWishlist();
       await refreshOrders();
       await refreshPersonalization();
-      window.location.hash = '#/';
-      await loadRoute();
+      setTimeout(async () => {
+        window.location.hash = state.lastActiveHash || '#/';
+        await loadRoute();
+      }, 800);
     } catch (error) {
-      showToast(error.message, 'error');
+      showFormAlert(form, error.message, 'error');
     }
     return;
   }
 
   if (formType === 'forgot-password') {
+    clearFormAlert(form);
     const values = Object.fromEntries(new FormData(form).entries());
-    const feedbackNode = form.querySelector('[data-reset-feedback]');
-    if (feedbackNode) {
-      feedbackNode.textContent = '';
-      feedbackNode.classList.remove('is-error', 'is-success');
-    }
     try {
       const response = await api('/api/auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify(values)
       });
       const targetEmail = String(values.email || '').trim();
-      window.location.hash = `#/reset-password/confirm?email=${encodeURIComponent(targetEmail)}`;
       const resetMessage = response?.message || 'Reset code sent to your email. Check inbox for the 6-digit PIN.';
-      showToast(resetMessage);
-      if (feedbackNode) {
-        feedbackNode.textContent = resetMessage;
-        feedbackNode.classList.add('is-success');
-      }
+      showFormAlert(form, resetMessage, 'success');
+      setTimeout(() => {
+        window.location.hash = `#/reset-password/confirm?email=${encodeURIComponent(targetEmail)}`;
+      }, 1500);
     } catch (error) {
       const userMessage = error?.status === 401
         ? 'Please sign out and try again, or refresh the page and retry.'
         : (error.message || 'Could not send reset code.');
-      showToast(userMessage, 'error');
-      if (feedbackNode) {
-        feedbackNode.textContent = userMessage;
-        feedbackNode.classList.add('is-error');
-      }
+      showFormAlert(form, userMessage, 'error');
     }
     return;
   }
 
   if (formType === 'reset-password') {
+    clearFormAlert(form);
     const values = Object.fromEntries(new FormData(form).entries());
     if (values.newPassword !== values.confirmPassword) {
-      showToast('New password and confirmation must match.', 'error');
+      showFormAlert(form, 'New password and confirmation must match.', 'error');
       return;
     }
 
@@ -3083,15 +4209,18 @@ async function handleSubmit(form) {
         })
       });
       form.reset();
-      showToast('Password reset successfully. You can now sign in.');
-      window.location.hash = '#/login';
+      showFormAlert(form, 'Password reset successfully. Redirecting to login...', 'success');
+      setTimeout(() => {
+        window.location.hash = '#/login';
+      }, 1500);
     } catch (error) {
-      showToast(error.message, 'error');
+      showFormAlert(form, error.message, 'error');
     }
     return;
   }
 
   if (formType === 'profile') {
+    clearFormAlert(form);
     const values = Object.fromEntries(new FormData(form).entries());
     try {
       const response = await api('/api/auth/me', {
@@ -3101,14 +4230,15 @@ async function handleSubmit(form) {
       state.user = response.user;
       renderChrome();
       await refreshPersonalization();
-      showToast('Profile updated');
+      showFormAlert(form, 'Profile updated successfully.', 'success');
     } catch (error) {
-      showToast(error.message, 'error');
+      showFormAlert(form, error.message, 'error');
     }
     return;
   }
 
   if (formType === 'password') {
+    clearFormAlert(form);
     const values = Object.fromEntries(new FormData(form).entries());
     try {
       await api('/api/auth/change-password', {
@@ -3116,9 +4246,9 @@ async function handleSubmit(form) {
         body: JSON.stringify(values)
       });
       form.reset();
-      showToast('Password updated');
+      showFormAlert(form, 'Password updated successfully.', 'success');
     } catch (error) {
-      showToast(error.message, 'error');
+      showFormAlert(form, error.message, 'error');
     }
     return;
   }
@@ -3161,7 +4291,7 @@ async function handleSubmit(form) {
       });
       const targetNumber = whatsappNumber || '250782781575';
       openWhatsAppOrder(targetNumber, message);
-      
+
       // Reload orders data to show new pending order
       await loadRoute();
       await refreshPersonalization();
@@ -3198,6 +4328,7 @@ app.addEventListener('click', (event) => {
 
 // Global delegated handler for elements outside #app (header auth-slot, footer)
 document.addEventListener('click', (event) => {
+  if (!document.body.contains(event.target)) return;
   if (event.target.closest('#app')) return;
   const target = event.target.closest('[data-action]');
   if (!target) return;
@@ -3206,6 +4337,7 @@ document.addEventListener('click', (event) => {
 
 // Close menus when tapping outside them (ignore chatbot interactions)
 document.addEventListener('click', (event) => {
+  if (!document.body.contains(event.target)) return;
   const target = event.target;
   // If the click is within mobile menu or account menu controls, or within the chatbot widget, ignore
   if (
@@ -3223,9 +4355,14 @@ document.addEventListener('click', (event) => {
   }
   closeMobileMenu();
   closeAccountMenu();
+  // Close catalog suggestions when clicking outside
+  if (!event.target.closest('.catalog-search-box')) {
+    const suggestionsDiv = document.getElementById('catalog-suggestions');
+    if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+  }
 });
 
-app.addEventListener('submit', async (event) => {
+document.addEventListener('submit', async (event) => {
   const form = event.target.closest('form[data-form]');
   if (!form) {
     return;
@@ -3235,6 +4372,46 @@ app.addEventListener('submit', async (event) => {
 });
 
 app.addEventListener('input', (event) => {
+  // Catalog page search — show suggestions dropdown, don't auto-search
+  const catalogInput = event.target.closest('[data-action="catalog-search-input"]');
+  if (catalogInput) {
+    const query = catalogInput.value.trim();
+    const suggestionsDiv = document.getElementById('catalog-suggestions');
+
+    window.clearTimeout(state._catalogSuggestTimer);
+
+    if (!query || query.length < 2) {
+      if (suggestionsDiv) suggestionsDiv.innerHTML = '';
+      return;
+    }
+
+    state._catalogSuggestTimer = window.setTimeout(async () => {
+      try {
+        const res = await api(`/api/books?search=${encodeURIComponent(query)}&limit=5&page=1`);
+        const books = res.books || [];
+        if (!suggestionsDiv) return;
+
+        if (books.length === 0) {
+          suggestionsDiv.innerHTML = `<div class="catalog-suggest-empty">No results for "${escapeHtml(query)}"</div>`;
+          return;
+        }
+
+        suggestionsDiv.innerHTML = books.map(book => `
+          <a class="catalog-suggest-item" href="#/book/${book.id}" data-action="close-suggestions" data-id="${book.id}">
+            <img class="catalog-suggest-cover" src="${book.cover_url || ''}" alt="" onerror="this.style.display='none'" />
+            <div class="catalog-suggest-info">
+              <span class="catalog-suggest-title">${escapeHtml(book.title)}</span>
+              <span class="catalog-suggest-author">${escapeHtml(book.author || '')}</span>
+            </div>
+          </a>
+        `).join('') + `<a class="catalog-suggest-viewall" href="#" data-action="catalog-search-submit">See all results for "${escapeHtml(query)}" →</a>`;
+      } catch (e) {
+        // silently fail suggestions
+      }
+    }, 300);
+    return;
+  }
+
   const input = event.target.closest('[data-action="search-books"]');
   if (!input) {
     return;
@@ -3252,12 +4429,12 @@ headerSearchInput?.addEventListener('input', async (event) => {
   const query = event.target.value.trim();
   const suggestionsDiv = document.getElementById('search-suggestions');
   const searchCloseBtn = document.getElementById('search-close-btn');
-  
+
   // Show/hide close button based on search input
   if (searchCloseBtn) {
     searchCloseBtn.style.display = query ? 'block' : 'none';
   }
-  
+
   if (!query || query.length < 2) {
     suggestionsDiv.style.display = 'none';
     return;
@@ -3270,7 +4447,7 @@ headerSearchInput?.addEventListener('input', async (event) => {
       return null;
     });
     const books = (res?.books) || [];
-    
+
     if (books.length === 0) {
       suggestionsDiv.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--muted); font-size: 0.9rem; text-align: center;">Press <kbd>Enter</kbd> to search</div>';
       suggestionsDiv.style.display = 'block';
@@ -3292,7 +4469,7 @@ headerSearchInput?.addEventListener('input', async (event) => {
       const highlight = query.toLowerCase();
       const titleMatch = s.title.toLowerCase().includes(highlight);
       const authorMatch = s.author.toLowerCase().includes(highlight);
-      
+
       html += `
         <div class="search-suggestion-item" data-index="${idx}" data-id="${s.id}" style="padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 0.75rem; align-items: center; transition: background 0.15s;">
           ${s.cover ? `<img src="${escapeHtml(s.cover)}" alt="" style="width: 32px; height: 48px; object-fit: cover; border-radius: 4px;">` : `<div style="width: 32px; height: 48px; background: var(--bg-soft); border-radius: 4px; display: flex; align-items: center; justify-content: center;">📚</div>`}
@@ -3371,6 +4548,16 @@ document.getElementById('header-search-form')?.addEventListener('submit', (event
   loadRoute();
 });
 
+// Handle footer newsletter form submission to comply with CSP (no inline scripts/events)
+document.addEventListener('submit', (event) => {
+  const footerNewsletterForm = event.target.closest('.site-footer .newsletter-form');
+  if (footerNewsletterForm) {
+    event.preventDefault();
+    showToast("Thanks — you'll receive book recommendations and restock updates via email.", 'success');
+    footerNewsletterForm.reset();
+  }
+});
+
 // Mobile search open/close helpers
 function openMobileSearch() {
   const isOpen = document.body.classList.contains('mobile-search-open');
@@ -3400,21 +4587,11 @@ function initFloatingHamburger() {
   el.style.right = '';
   el.style.bottom = '';
   localStorage.removeItem('mobileHamburgerPos');
-
-  // wire the data-action handler too (delegated handler uses data-action)
-  // Ensure a simple click toggles the menu reliably
-  el.addEventListener('click', (e) => {
-    const panel = document.getElementById('mobile-menu');
-    if (!panel) return;
-    const isOpen = !panel.classList.contains('is-open');
-    panel.classList.toggle('is-open', isOpen);
-    panel.setAttribute('aria-hidden', String(!isOpen));
-    el.setAttribute('aria-expanded', String(isOpen));
-  });
 }
 
-// wire mobile search toggle action via delegated handler
+// wire mobile menu and search actions via delegated handler
 document.addEventListener('click', (event) => {
+  if (!document.body.contains(event.target)) return;
   const t = event.target.closest('[data-action="open-mobile-search"]');
   if (t) {
     openMobileSearch();
@@ -3422,6 +4599,10 @@ document.addEventListener('click', (event) => {
   const c = event.target.closest('[data-action="close-mobile-search"]');
   if (c) {
     closeMobileSearch();
+  }
+  const closeMenu = event.target.closest('[data-action="close-mobile-menu"]');
+  if (closeMenu) {
+    closeMobileMenu();
   }
 });
 
@@ -3477,6 +4658,22 @@ mobileThemeToggle?.addEventListener('click', () => {
 
 document.getElementById('cart-button').addEventListener('click', () => setDrawerOpen(!state.drawerOpen));
 mobileCartButton?.addEventListener('click', () => setDrawerOpen(!state.drawerOpen));
+
+// Notification button click handler
+document.getElementById('notification-button')?.addEventListener('click', () => {
+  window.location.hash = '#/notifications';
+});
+
+// Intercept all hash-based links to prevent page reload due to <base href="/">
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a');
+  if (!link) return;
+  const href = link.getAttribute('href');
+  if (href && href.startsWith('#')) {
+    event.preventDefault();
+    window.location.hash = href;
+  }
+});
 
 window.addEventListener('hashchange', () => {
   setDrawerOpen(false);
@@ -3538,19 +4735,46 @@ async function init() {
   window.__bookstaStage = 'init:setTheme';
   renderChrome();
   window.__bookstaStage = 'init:renderChrome';
-  await refreshSession();
-  window.__bookstaStage = 'init:refreshSession';
-  await Promise.all([
-    refreshCart(),
-    loadSiteSettings(),
-    loadPromotionsData()
-  ]);
+
+  const currentRoute = getRoute();
+  const isPublicRoute = ['home', 'search', 'books', 'book', 'login', 'register', 'forgot-password', 'reset-password'].includes(currentRoute.name);
+
+  // We can load session and cart in sequence since cart needs user session
+  const sessionAndCartPromise = refreshSession().then(() => refreshCart());
+  const settingsPromise = loadSiteSettings();
+  const promotionsPromise = loadPromotionsData();
+
+  // Load featured authors from DB (public endpoint, no auth needed)
+  fetch('/api/public/featured-authors')
+    .then(r => r.json())
+    .then(d => { if (d.authors) state.featuredAuthors = d.authors; })
+    .catch(() => { /* silently fall back to hardcoded authors */ });
+
+  // Set up scroll-to-top/bottom FAB
+  setupScrollFab();
+
+  if (isPublicRoute) {
+    // Parallelize everything to boot as fast as possible
+    await Promise.all([
+      sessionAndCartPromise,
+      settingsPromise,
+      promotionsPromise,
+      loadRoute()
+    ]);
+  } else {
+    // For protected routes, wait for user session first to avoid flashing/redirection
+    await sessionAndCartPromise;
+    await Promise.all([
+      settingsPromise,
+      promotionsPromise,
+      loadRoute()
+    ]);
+  }
+
   window.__bookstaStage = 'init:bootDataLoaded';
   syncResponsivePageLimit();
   startHeroCycle();
   window.__bookstaStage = 'init:startHeroCycle';
-  await loadRoute();
-  window.__bookstaStage = 'init:loadRoute';
   positionChatbotFromStorage();
 }
 
@@ -3580,17 +4804,124 @@ async function performLogout() {
   try { await loadRoute(); } catch (e) { /* ignore */ }
 }
 
-async function orderNow(bookId) {
-  if (!state.user) {
-    showToast('Sign in to place an order.', 'error');
-    window.location.hash = '#/login';
-    return;
+
+function setupScrollFab() {
+  // Create FAB if not exists
+  let fab = document.getElementById('scroll-fab');
+  if (!fab) {
+    fab = document.createElement('button');
+    fab.id = 'scroll-fab';
+    fab.setAttribute('aria-label', 'Scroll');
+    fab.innerHTML = '↑';
+    document.body.appendChild(fab);
   }
 
-  const added = await addToCart(bookId, 1);
-  if (!added) return;
-  setDrawerOpen(false);
-  window.location.hash = '#/cart';
-  await loadRoute();
-  showToast('Added to cart. Complete your order below.');
+  let ticking = false;
+  const updateFab = () => {
+    const scrolled = window.scrollY;
+    const maxScroll = document.body.scrollHeight - window.innerHeight;
+    const atTop = scrolled < 200;
+    const atBottom = scrolled >= maxScroll - 200;
+
+    if (atTop) {
+      // Hide when at very top
+      fab.classList.remove('visible');
+    } else {
+      fab.classList.add('visible');
+      // Near bottom → show up arrow; in middle → show up; approaching top → show down
+      const nearBottom = scrolled > maxScroll * 0.8;
+      fab.innerHTML = nearBottom ? '↑' : '↑';
+      fab.setAttribute('aria-label', nearBottom ? 'Scroll to top' : 'Scroll to top');
+    }
+    ticking = false;
+  };
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(updateFab);
+      ticking = true;
+    }
+  }, { passive: true });
+
+  fab.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+
+async function orderNow(bookId, quantity = 1) {
+  // Find book info from state for WhatsApp message
+  const allBooks = [...(state.books || []), ...(state.featured || []), ...(state.kidsBooks || [])];
+  const book = allBooks.find(b => String(b.id) === String(bookId));
+
+  try {
+    // Show loading toast
+    showToast('Processing your order…', 'info');
+
+    // Create anonymous order (no login required)
+    const res = await fetch('/api/public/orders/anonymous', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bookId,
+        quantity,
+        contactInfo: state.user
+          ? { name: state.user.name, email: state.user.email }
+          : {}
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      showToast(data.error || 'Could not create order. Please try again.', 'error');
+      return;
+    }
+
+    const order = data.order;
+    const trackingUrl = `${window.location.origin}${window.location.pathname}#/track?id=${encodeURIComponent(order.trackingId)}`;
+
+    // Build WhatsApp message
+    const settings = state.settings || {};
+    const waNumber = String(settings.whatsappNumber || '250782781575').replace(/[^\d+]/g, '');
+    const bookTitle = order.bookTitle || (book && book.title) || 'Book';
+    const bookAuthor = order.bookAuthor || (book && book.author) || '';
+    const price = order.total ? formatMoney(order.total) : '';
+    const msg = [
+      `📚 *New Order — Booksta*`,
+      ``,
+      `*Book:* ${bookTitle}${bookAuthor ? ` by ${bookAuthor}` : ''}`,
+      `*Quantity:* ${order.quantity || quantity}`,
+      `*Total:* ${price}`,
+      `*Order ID:* ${order.trackingId}`,
+      ``,
+      `*Track Order:* ${trackingUrl}`,
+      ``,
+      `I'd like to confirm this order and arrange delivery.`
+    ].join('\n');
+
+    const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`;
+
+    // Open WhatsApp
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+    // Show success toast with tracking link
+    showToast(`Order #${order.trackingId} created! Check WhatsApp to confirm.`, 'success');
+
+    // Add track link to app route if user is not signed in
+    setTimeout(() => {
+      const trackHtml = `<div style="position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.4rem;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;gap:0.75rem;align-items:center;font-size:0.9rem;" id="order-track-bar">
+        <span>📦 Order: <strong>${escapeHtml(order.trackingId)}</strong></span>
+        <a href="#/track?id=${encodeURIComponent(order.trackingId)}" style="color:var(--accent);font-weight:600;text-decoration:none;">Track</a>
+        <button onclick="document.getElementById('order-track-bar').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:0;line-height:1;">✕</button>
+      </div>`;
+      const el = document.createElement('div');
+      el.innerHTML = trackHtml;
+      document.body.appendChild(el.firstElementChild);
+    }, 1500);
+
+  } catch (err) {
+    console.error('orderNow error:', err);
+    showToast('Could not connect. Please try again.', 'error');
+  }
 }

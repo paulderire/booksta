@@ -416,7 +416,7 @@ router.get('/analytics/genres', async (_req, res, next) => {
     const { rows } = await query(`
       SELECT g.genre, COUNT(oi.id)::int as totalSales, COALESCE(SUM(o.total), 0)::numeric as revenue
       FROM books b
-      JOIN LATERAL unnest(CASE WHEN b.genres IS NULL OR cardinality(b.genres) = 0 THEN ARRAY_REMOVE(ARRAY[b.genre], NULL) ELSE b.genres END) AS g(genre) ON true
+      JOIN LATERAL unnest(b.genres) AS g(genre) ON true
       LEFT JOIN order_items oi ON oi.book_id = b.id
       LEFT JOIN orders o ON o.id = oi.order_id AND o.status = 'completed'
       GROUP BY g.genre
@@ -591,6 +591,80 @@ router.post('/sitemap/ping', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// ---- FEATURED AUTHORS CRUD ----
+
+// List all featured authors (admin)
+router.get('/featured-authors', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'SELECT * FROM featured_authors ORDER BY display_order ASC, created_at ASC'
+    );
+    res.json({ authors: rows });
+  } catch (err) { next(err); }
+});
+
+// Create featured author
+router.post('/featured-authors', async (req, res, next) => {
+  try {
+    const { name, specialty, description, image_url, published_books, readers, display_order, is_active } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name is required.' });
+    const { rows } = await query(
+      `INSERT INTO featured_authors (name, specialty, description, image_url, published_books, readers, display_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [name, specialty || '', description || '', image_url || '', parseInt(published_books, 10) || 0, readers || '0', parseInt(display_order, 10) || 0, is_active !== false]
+    );
+    res.status(201).json({ author: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// Update featured author
+router.patch('/featured-authors/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, specialty, description, image_url, published_books, readers, display_order, is_active } = req.body || {};
+    const { rows } = await query(
+      `UPDATE featured_authors SET
+        name = COALESCE($1, name),
+        specialty = COALESCE($2, specialty),
+        description = COALESCE($3, description),
+        image_url = COALESCE($4, image_url),
+        published_books = COALESCE($5, published_books),
+        readers = COALESCE($6, readers),
+        display_order = COALESCE($7, display_order),
+        is_active = COALESCE($8, is_active),
+        updated_at = NOW()
+       WHERE id = $9
+       RETURNING *`,
+      [name, specialty, description, image_url, published_books != null ? parseInt(published_books, 10) : null, readers, display_order != null ? parseInt(display_order, 10) : null, is_active, id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Author not found.' });
+    res.json({ author: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// Delete featured author
+router.delete('/featured-authors/:id', async (req, res, next) => {
+  try {
+    const { rows } = await query('DELETE FROM featured_authors WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Author not found.' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Confirm WhatsApp anonymous order (marks confirmed, enables revenue tracking)
+router.patch('/orders/:id/confirm', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `UPDATE orders SET status = 'confirmed', updated_at = NOW() WHERE id = $1 RETURNING id, status`,
+      [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ ok: true, order: rows[0] });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

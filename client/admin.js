@@ -60,6 +60,7 @@
     if (nextView === 'reviews') loadReviews();
     if (nextView === 'analytics') loadAnalytics();
     if (nextView === 'settings') loadSettings();
+    if (nextView === 'featured-authors') loadFeaturedAuthors();
   }
 
   function toast(msg, type='info') {
@@ -78,17 +79,11 @@
   // Theme toggle
   const themeToggleAdmin = $id('theme-toggle-admin');
   const htmlEl = document.documentElement;
-  const savedTheme = localStorage.getItem('bookstaTheme') || 'dark';
-  htmlEl.setAttribute('data-theme', savedTheme);
-  
-  themeToggleAdmin.addEventListener('click', () => {
-    const newTheme = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    htmlEl.setAttribute('data-theme', newTheme);
-    localStorage.setItem('bookstaTheme', newTheme);
-    themeToggleAdmin.textContent = newTheme === 'dark' ? '◐' : '◑';
-  });
-
-  themeToggleAdmin.textContent = savedTheme === 'dark' ? '◐' : '◑';
+  htmlEl.setAttribute('data-theme', 'light');
+  localStorage.setItem('bookstaTheme', 'light');
+  if (themeToggleAdmin) {
+    themeToggleAdmin.style.display = 'none';
+  }
 
   // Check admin role and load user info
   async function checkAdmin(){
@@ -131,6 +126,8 @@
     if (action === 'toggle-promo') return window.togglePromo(id, button.dataset.active === 'true');
     if (action === 'delete-promo') return window.deletePromo(id);
     if (action === 'delete-user') return window.deleteUser(id);
+    if (action === 'edit-author') return openAuthorForm(id);
+    if (action === 'delete-author') return window.delAuthor(id);
   });
 
   document.addEventListener('change', (event) => {
@@ -1565,6 +1562,192 @@
       }
     }
   });
+
+  // ---- FEATURED AUTHORS MANAGEMENT ----
+
+  async function loadFeaturedAuthors() {
+    try {
+      const res = await api('/admin/featured-authors');
+      const authors = res.authors || [];
+      renderFeaturedAuthors(authors);
+    } catch (e) {
+      toast('Failed to load featured authors: ' + e.message, 'error');
+    }
+  }
+
+  function renderFeaturedAuthors(authors) {
+    const container = $id('featured-authors-table');
+    if (!container) return;
+
+    if (!authors.length) {
+      container.innerHTML = '<div class="empty-state"><p>No featured authors found.</p></div>';
+      return;
+    }
+
+    let html = `
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Name</th>
+            <th>Specialty</th>
+            <th>Books</th>
+            <th>Readers</th>
+            <th>Order</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    authors.forEach((a) => {
+      const photoMarkup = a.image_url
+        ? `<img src="${escapeHtml(a.image_url)}" alt="${escapeHtml(a.name)}" style="width:40px;height:40px;object-fit:cover;border-radius:50%;" />`
+        : `<div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.06);display:grid;place-items:center;">✍️</div>`;
+      const statusLabel = a.is_active ? 'Active' : 'Inactive';
+      const statusClass = a.is_active ? 'status-healthy' : 'status-low';
+
+      html += `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:0.75rem;vertical-align:middle;">${photoMarkup}</td>
+          <td style="padding:0.75rem;font-weight:600;">${escapeHtml(a.name)}</td>
+          <td style="padding:0.75rem;">${escapeHtml(a.specialty || 'General')}</td>
+          <td style="padding:0.75rem;">${formatNumber(a.published_books)}</td>
+          <td style="padding:0.75rem;">${escapeHtml(a.readers || '0')}</td>
+          <td style="padding:0.75rem;">${formatNumber(a.display_order)}</td>
+          <td style="padding:0.75rem;"><span class="badge ${statusClass}">${statusLabel}</span></td>
+          <td style="padding:0.75rem;">
+            <div class="table-actions" style="display:flex;gap:0.5rem;">
+              <button class="btn-secondary small" data-admin-action="edit-author" data-id="${a.id}">Edit</button>
+              <button class="btn-danger small" data-admin-action="delete-author" data-id="${a.id}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  async function openAuthorForm(authorId) {
+    let author = { name: '', specialty: '', description: '', image_url: '', published_books: 0, readers: '0', display_order: 0, is_active: true };
+    if (authorId) {
+      try {
+        const res = await api('/admin/featured-authors');
+        const found = (res.authors || []).find(a => String(a.id) === String(authorId));
+        if (found) author = found;
+      } catch (e) {
+        toast('Failed to load author details', 'error');
+        return;
+      }
+    }
+
+    const modal = $id('modal');
+    modal.style.display = 'flex';
+    modal.classList.add('side');
+    modal.innerHTML = `
+      <div class="modal-panel solid">
+        <button id="close-modal-btn" class="modal-close" aria-label="Close">&times;</button>
+        <h3 style="margin-top:0">${authorId ? 'Edit' : 'New'} Featured Author</h3>
+        <div class="form-group"><label>Name *</label><input id="a_name" placeholder="Author name" value="${escapeHtml(author.name)}"></div>
+        <div class="form-group"><label>Specialty</label><input id="a_specialty" placeholder="e.g. Science Fiction, Romance" value="${escapeHtml(author.specialty)}"></div>
+        <div class="form-group"><label>Picture</label>
+          <div style="display:flex;gap:0.75rem;align-items:center">
+            <input id="a_photo" type="file" accept="image/*" />
+            <img id="a_photo_preview" src="${author.image_url || ''}" alt="" style="height:54px;display:${author.image_url ? 'block' : 'none'};border-radius:50%;border:1px solid var(--border);object-fit:cover;width:54px;" />
+          </div>
+        </div>
+        <div class="form-group"><label>Published Books</label><input id="a_books" type="number" placeholder="e.g. 8" value="${author.published_books}"></div>
+        <div class="form-group"><label>Global Readers</label><input id="a_readers" placeholder="e.g. 2M+" value="${escapeHtml(author.readers)}"></div>
+        <div class="form-group"><label>Display Order</label><input id="a_order" type="number" placeholder="0" value="${author.display_order}"></div>
+        <div class="form-group"><label><input id="a_active" type="checkbox" ${author.is_active ? 'checked' : ''} style="margin-right:0.5rem">Active (Visible)</label></div>
+        <div class="form-group"><label>Biography</label><textarea id="a_bio" placeholder="About the author..." rows="6">${escapeHtml(author.description)}</textarea></div>
+        <div class="form-actions">
+          <button id="cancel-author" class="btn-secondary">Cancel</button>
+          <button id="save-author" class="btn-primary">Save Author</button>
+        </div>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modal.style.display = 'none';
+      modal.innerHTML = '';
+      modal.classList.remove('side');
+      document.removeEventListener('keydown', escHandler);
+    };
+
+    $id('close-modal-btn')?.addEventListener('click', closeModal);
+    $id('cancel-author')?.addEventListener('click', closeModal);
+    const escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
+    document.addEventListener('keydown', escHandler);
+
+    // Picture preview
+    const photoInput = $id('a_photo');
+    if (photoInput) {
+      photoInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        const preview = $id('a_photo_preview');
+        if (!file) { if (preview) preview.style.display = 'none'; return; }
+        const reader = new FileReader();
+        reader.onload = () => { if (preview) { preview.src = reader.result; preview.style.display = 'block'; } };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    $id('save-author').addEventListener('click', async () => {
+      const name = $id('a_name').value.trim();
+      if (!name) { toast('Name is required'); return; }
+
+      const payload = {
+        name,
+        specialty: $id('a_specialty').value.trim(),
+        published_books: parseInt($id('a_books').value, 10) || 0,
+        readers: $id('a_readers').value.trim(),
+        display_order: parseInt($id('a_order').value, 10) || 0,
+        is_active: $id('a_active').checked,
+        description: $id('a_bio').value.trim(),
+        image_url: author.image_url || null
+      };
+
+      try {
+        const file = $id('a_photo')?.files?.[0];
+        if (file) {
+          if (file.size > 900 * 1024) {
+            toast('Picture too large. Please use an image under 900KB.');
+            return;
+          }
+          payload.image_url = await new Promise((res, rej) => {
+            const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file);
+          });
+        }
+
+        const url = authorId ? `/admin/featured-authors/${authorId}` : '/admin/featured-authors';
+        const method = authorId ? 'PATCH' : 'POST';
+
+        await api(url, { method, body: JSON.stringify(payload) });
+        toast(authorId ? 'Author updated successfully' : 'Author created successfully', 'success');
+        closeModal();
+        loadFeaturedAuthors();
+      } catch (err) {
+        toast('Save error: ' + err.message, 'error');
+      }
+    });
+  }
+
+  window.delAuthor = async (authorId) => {
+    if (!confirm('Are you sure you want to delete this featured author?')) return;
+    try {
+      await api(`/admin/featured-authors/${authorId}`, { method: 'DELETE' });
+      toast('Author deleted');
+      loadFeaturedAuthors();
+    } catch (e) {
+      toast('Delete failed: ' + e.message, 'error');
+    }
+  };
+
+  $id('add-featured-author-btn')?.addEventListener('click', () => openAuthorForm(null));
 
   // Init
   (async () => {

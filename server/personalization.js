@@ -157,7 +157,7 @@ async function getRecommendationsForUser(userId, limit = 8) {
   );
 
   const seenSet = new Set(profile.seenBookIds);
-  const candidates = rows
+  let candidates = rows
     .filter((row) => !seenSet.has(String(row.id)))
     .map((row) => {
       const book = serializeBook(row);
@@ -169,12 +169,32 @@ async function getRecommendationsForUser(userId, limit = 8) {
         recommendation_reason: scoring.reasons.join(' · ')
       };
     })
-    .sort((left, right) => right.recommendation_score - left.recommendation_score || right.review_count - left.review_count)
-    .slice(0, limit);
+    .sort((left, right) => right.recommendation_score - left.recommendation_score || right.review_count - left.review_count);
+
+  if (candidates.length < 4) {
+    const remainingCount = 4 - candidates.length;
+    const seenCandidates = rows
+      .filter((row) => seenSet.has(String(row.id)))
+      .map((row) => {
+        const book = serializeBook(row);
+        const scoring = scoreBookForProfile(book, profile);
+        return {
+          ...book,
+          sold_count: Number(row.sold_count || 0),
+          recommendation_score: Number(scoring.score.toFixed(2)),
+          recommendation_reason: scoring.reasons.join(' · ')
+        };
+      })
+      .sort((left, right) => right.recommendation_score - left.recommendation_score || right.review_count - left.review_count);
+
+    candidates = [...candidates, ...seenCandidates.slice(0, remainingCount)];
+  }
+
+  const finalRecommendations = candidates.slice(0, limit);
 
   return {
     profile,
-    books: candidates
+    books: finalRecommendations
   };
 }
 
@@ -198,38 +218,117 @@ async function createBackInStockNotifications(book, previousStock, nextStock) {
     return { created: 0 };
   }
 
-  const { rows: users } = await query(
-    `SELECT id
-     FROM users
-     WHERE role = 'customer'
-     ORDER BY created_at ASC`,
-    []
+  const { rows: matches } = await query(
+    `WITH
+     direct_interest AS (
+       SELECT DISTINCT user_id, TRUE AS exact_interest
+       FROM (
+         SELECT user_id FROM wishlist_items WHERE book_id = $1
+         UNION ALL
+         SELECT user_id FROM reviews WHERE book_id = $1
+         UNION ALL
+         SELECT user_id FROM reading_events WHERE book_id = $1
+         UNION ALL
+         SELECT o.user_id FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE oi.book_id = $1 AND o.status = 'completed'
+       ) x
+     ),
+     user_genre_scores AS (
+       SELECT user_id, genre, SUM(weight) as score
+       FROM (
+         SELECT o.user_id, b.genre, 4 AS weight
+         FROM orders o
+         JOIN order_items oi ON oi.order_id = o.id
+         JOIN books b ON b.id = oi.book_id
+         WHERE o.status = 'completed'
+         UNION ALL
+         SELECT w.user_id, b.genre, 3 AS weight
+         FROM wishlist_items w
+         JOIN books b ON b.id = w.book_id
+         UNION ALL
+         SELECT r.user_id, b.genre, 2 AS weight
+         FROM reviews r
+         JOIN books b ON b.id = r.book_id
+         UNION ALL
+         SELECT e.user_id, b.genre, 1 AS weight
+         FROM reading_events e
+         JOIN books b ON b.id = e.book_id
+       ) g
+       WHERE genre IS NOT NULL AND genre <> ''
+       GROUP BY user_id, genre
+     ),
+     user_genre_ranks AS (
+       SELECT user_id, genre,
+              ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY score DESC, genre ASC) as rank
+       FROM user_genre_scores
+     ),
+     genre_matches AS (
+       SELECT user_id, TRUE AS genre_match
+       FROM user_genre_ranks
+       WHERE LOWER(genre) = LOWER($2) AND rank <= 6
+     ),
+     user_author_scores AS (
+       SELECT user_id, author, SUM(weight) as score
+       FROM (
+         SELECT o.user_id, b.author, 4 AS weight
+         FROM orders o
+         JOIN order_items oi ON oi.order_id = o.id
+         JOIN books b ON b.id = oi.book_id
+         WHERE o.status = 'completed'
+         UNION ALL
+         SELECT w.user_id, b.author, 3 AS weight
+         FROM wishlist_items w
+         JOIN books b ON b.id = w.book_id
+         UNION ALL
+         SELECT r.user_id, b.author, 2 AS weight
+         FROM reviews r
+         JOIN books b ON b.id = r.book_id
+         UNION ALL
+         SELECT e.user_id, b.author, 1 AS weight
+         FROM reading_events e
+         JOIN books b ON b.id = e.book_id
+       ) a
+       WHERE author IS NOT NULL AND author <> ''
+       GROUP BY user_id, author
+     ),
+     user_author_ranks AS (
+       SELECT user_id, author,
+              ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY score DESC, author ASC) as rank
+       FROM user_author_scores
+     ),
+     author_matches AS (
+       SELECT user_id, TRUE AS author_match
+       FROM user_author_ranks
+       WHERE LOWER(author) = LOWER($3) AND rank <= 6
+     ),
+     matched_users AS (
+       SELECT u.id AS user_id,
+              COALESCE(di.exact_interest, FALSE) AS exact_interest,
+              COALESCE(gm.genre_match, FALSE) AS genre_match,
+              COALESCE(am.author_match, FALSE) AS author_match
+       FROM users u
+       LEFT JOIN direct_interest di ON di.user_id = u.id
+       LEFT JOIN genre_matches gm ON gm.user_id = u.id
+       LEFT JOIN author_matches am ON am.user_id = u.id
+       WHERE u.role = 'customer' AND (di.exact_interest IS TRUE OR gm.genre_match IS TRUE OR am.author_match IS TRUE)
+     )
+     SELECT * FROM matched_users`,
+    [book.id, book.genre || '', book.author || '']
   );
 
-  let created = 0;
-  for (const user of users) {
-    const profile = await getTasteProfile(user.id);
-    const exactWishlistInterest = profile.seenBookIds.includes(String(book.id));
-    const genreMatch = profile.favoriteGenres.some((item) => String(item.name || '').toLowerCase() === String(book.genre || '').toLowerCase());
-    const authorMatch = profile.favoriteAuthors.some((item) => String(item.name || '').toLowerCase() === String(book.author || '').toLowerCase());
-
-    if (!exactWishlistInterest && !genreMatch && !authorMatch) {
-      continue;
-    }
-
-    const reason = exactWishlistInterest
+  const insertPromises = matches.map(async (match) => {
+    const reason = match.exact_interest
       ? 'a book you saved is back'
-      : genreMatch
+      : match.genre_match
         ? `new stock arrived for ${book.genre || 'a genre you like'}`
         : `another title by ${book.author || 'an author you follow'} is available`;
 
-    const dedupeKey = `restock:${book.id}:${user.id}`;
+    const dedupeKey = `restock:${book.id}:${match.user_id}`;
     const { rowCount } = await query(
       `INSERT INTO notifications (user_id, type, title, body, book_id, data, dedupe_key)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (dedupe_key) DO NOTHING`,
       [
-        user.id,
+        match.user_id,
         'back_in_stock',
         `${book.title} is back in stock`,
         `${reason}. ${book.title} is available again.`,
@@ -238,11 +337,11 @@ async function createBackInStockNotifications(book, previousStock, nextStock) {
         dedupeKey
       ]
     );
+    return rowCount;
+  });
 
-    if (rowCount > 0) {
-      created += 1;
-    }
-  }
+  const results = await Promise.all(insertPromises);
+  const created = results.reduce((sum, val) => sum + val, 0);
 
   return { created };
 }
