@@ -1,0 +1,59 @@
+/* ================================================================
+   PREMIUM OVERRIDES — Midnight Library
+   Minimal layer — all base styles live in business-theme.css.
+   Only micro-tweaks and additions here.
+   ================================================================ */
+
+/* Calm initial page-load animations */
+.hero:not(.scroll-fade-in),
+.section:not(.scroll-fade-in),
+.book-card:not(.scroll-fade-in),
+.mini-book:not(.scroll-fade-in),
+.wishlist-card:not(.scroll-fade-in),
+.order-card:not(.scroll-fade-in),
+.review-card:not(.scroll-fade-in),
+.drawer-item:not(.scroll-fade-in),
+.contact-card:not(.scroll-fade-in),
+.panel:not(.scroll-fade-in),
+.glass-card:not(.scroll-fade-in) {
+  animation: none !important;
+}
+
+.hero-title,
+.section-title,
+.section-copy {
+  animation: none !important;
+}
+
+.auth-modal-backdrop,
+.auth-modal-panel,
+.auth-modal-panel * {
+  animation: none !important;
+}
+
+/* Add to Cart ripple */
+.add-to-cart-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.add-to-cart-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 0;
+  padding-bottom: 120%;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s;
+}
+
+.add-to-cart-btn:active::after {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  transition: 0s;
+}

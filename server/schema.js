@@ -109,6 +109,23 @@ const schemaStatements = [
     value TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
   );`,
+  `CREATE TABLE IF NOT EXISTS featured_authors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(200) NOT NULL,
+    specialty VARCHAR(200),
+    description TEXT,
+    image_url TEXT,
+    published_books INTEGER DEFAULT 0,
+    readers VARCHAR(50) DEFAULT '0',
+    is_active BOOLEAN DEFAULT TRUE,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );`,
+  // Alter orders to support anonymous WhatsApp orders
+  "ALTER TABLE orders ADD COLUMN IF NOT EXISTS anonymous_id TEXT;",
+  "ALTER TABLE orders ADD COLUMN IF NOT EXISTS contact_info JSONB;",
+  "ALTER TABLE orders ADD COLUMN IF NOT EXISTS channel VARCHAR(30) DEFAULT 'web';",
   // Indexes for faster queries
   "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);",
   "CREATE INDEX IF NOT EXISTS idx_books_genre ON books(genre);",
@@ -125,6 +142,7 @@ const schemaStatements = [
   "CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);",
   "CREATE INDEX IF NOT EXISTS idx_promotions_code ON promotions(code);",
   "CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions(is_active) WHERE is_active = TRUE;",
+  "CREATE INDEX IF NOT EXISTS idx_featured_authors_active ON featured_authors(is_active) WHERE is_active = TRUE;",
   "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS target_user_id UUID REFERENCES users(id) ON DELETE SET NULL;"
 ];
 

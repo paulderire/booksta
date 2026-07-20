@@ -150,7 +150,7 @@ const books = [
     isbn: '978-1-4028-9462-9',
     emoji: '☄️',
     cover_color: '#0f172a',
-    featured: false,
+    featured: true,
     description: 'After an asteroid refinery breaks apart during a controlled burn, the station\'s damage report claims the disaster was accidental even though the debris pattern says otherwise. A salvage pilot, a linguist, and a burnt-out engineer must coordinate through sealed decks and unreliable telemetry while deciding whether their employer is hiding a mistake or a crime. The novel pairs hard-science tension with a bleak corporate atmosphere and a surprisingly tender human core.'
   },
   {
@@ -255,7 +255,7 @@ const books = [
     isbn: '978-1-4028-9462-16',
     emoji: '🌊',
     cover_color: '#0ea5e9',
-    featured: false,
+    featured: true,
     description: 'On an island where every tide leaves behind a thin layer of glass that remembers the voices of those who walked there, a tide-reader is asked to decode messages left by a drowned monarch. As the island\'s clans prepare for a ritual storm, the protagonist uncovers a history of bargains, lost names, and magic that depends on being witnessed. The book combines mythic scale with intimate local politics.'
   },
   {
@@ -317,6 +317,52 @@ const books = [
     cover_color: '#854d0e',
     featured: false,
     description: 'This book traces the hidden institutions behind a long-lived legal order, focusing on clerks, inspectors, and civic record-keepers rather than the usual headline leaders. It explains how standards spread through daily administration, how paperwork can outlast dynasties, and why systems feel invisible until they fail. The result is a thoughtful history of bureaucracy, governance, and the ordinary work that holds a society together.'
+  },
+  {
+    title: 'The Dragon Who Lost His Roar',
+    author: 'Lily Chen',
+    genre: 'Kids',
+    price: 9.99,
+    original_price: 12.99,
+    stock: 75,
+    pages: 48,
+    year: 2023,
+    isbn: '978-1-4028-9462-21',
+    emoji: '🐉',
+    cover_color: '#f97316',
+    featured: true,
+    description: 'A loveable little dragon named Ember wakes up one morning to find his mighty roar has gone completely quiet. With the help of a clever rabbit, a singing fish, and a moonflower that only blooms at midnight, Ember journeys through an enchanted forest to discover that the biggest adventures begin with the smallest voices. A warm, funny, and beautifully illustrated story about bravery, friendship, and finding your own special sound.'
+  },
+  {
+    title: 'Stars in My Backpack',
+    author: 'Marcus Webb',
+    genre: 'Kids',
+    price: 8.49,
+    original_price: 10.99,
+    stock: 90,
+    pages: 64,
+    year: 2024,
+    isbn: '978-1-4028-9462-22',
+    emoji: '⭐',
+    cover_color: '#7c3aed',
+    featured: true,
+    description: 'Every night, young Zara collects fallen stars in her backpack and returns them to the sky — but tonight she discovers a star that does not want to go back. Together they explore the neighborhood, meet a boy who is afraid of the dark, and learn that light is something you can share. A beautifully lyrical picture book about courage, curiosity, and the magic hiding in ordinary places.'
+  },
+  {
+    title: 'Atomic Habits',
+    author: 'James Clear',
+    genre: 'Self-Help',
+    price: 11.89,
+    original_price: 16.99,
+    stock: 120,
+    pages: 320,
+    year: 2018,
+    isbn: '978-0-7352-1129-2',
+    emoji: '📈',
+    cover_color: '#f59e0b',
+    cover_url: 'assets/atomic_habits.png',
+    featured: true,
+    description: 'An easy & proven way to build good habits & break bad ones. Tiny Changes, Remarkable Results.'
   }
 ];
 
@@ -475,7 +521,7 @@ async function seed(options = {}) {
         is_active: true
       },
       {
-        code: 'BOOKWORM20',
+        code: 'READ20',
         description: '20% off orders over $50',
         discount_type: 'percentage',
         discount_value: 20,

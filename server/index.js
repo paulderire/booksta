@@ -19,6 +19,7 @@ const promotionsRoutes = require('./routes/promotions');
 const adminRoutes = require('./routes/admin');
 const settingsRoutes = require('./routes/settings');
 const personalizationRoutes = require('./routes/personalization');
+const publicRoutes = require('./routes/public');
 const { pool, query } = require('./db');
 const { ensureSchema, seed } = require('./seed');
 
@@ -105,15 +106,23 @@ app.use(morgan(isProduction ? 'combined' : 'dev'));
 
 // Serve static client files with aggressive caching
 // Dynamic sitemap endpoint: builds sitemap from DB (books) and key pages.
+let sitemapCache = null;
+let sitemapCacheTime = 0;
+
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
+    const now = Date.now();
+    if (sitemapCache && (now - sitemapCacheTime < 3600000)) {
+      res.header('Content-Type', 'application/xml');
+      return res.send(sitemapCache);
+    }
+
     // Build absolute base URL
     const base = process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
 
     // Fetch recent books to include in sitemap (limit to 50000)
-    // Some deployments may not have an `updated_at` column; use COALESCE to fall back to `created_at` when available.
     const { rows } = await query(
-      `SELECT id, created_at, COALESCE(updated_at, created_at) AS lastmod FROM books ORDER BY created_at DESC LIMIT 50000`,
+      `SELECT id, created_at, created_at AS lastmod FROM books ORDER BY created_at DESC LIMIT 50000`,
       []
     );
 
@@ -121,7 +130,7 @@ app.get('/sitemap.xml', async (req, res, next) => {
     const genresRes = await query(
       `SELECT genre, COUNT(*)::int AS book_count
        FROM (
-         SELECT unnest(CASE WHEN genres IS NULL OR cardinality(genres) = 0 THEN ARRAY_REMOVE(ARRAY[genre], NULL) ELSE genres END) AS genre
+         SELECT unnest(genres) AS genre
          FROM books
        ) gv
        WHERE genre IS NOT NULL AND genre <> ''
@@ -189,7 +198,9 @@ app.get('/sitemap.xml', async (req, res, next) => {
       xml.push('  </url>');
     });
     xml.push('</urlset>');
-    res.send(xml.join('\n'));
+    sitemapCache = xml.join('\n');
+    sitemapCacheTime = Date.now();
+    res.send(sitemapCache);
   } catch (err) {
     next(err);
   }
@@ -253,6 +264,8 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+// Public (no auth) routes — anonymous ordering, order tracking, featured authors
+app.use('/api/public', publicRoutes);
 app.use('/api', personalizationRoutes);
 
 app.get('/api/health', (_req, res) => {
@@ -340,6 +353,39 @@ async function initializeDatabase() {
     if (bookCount === 0) {
       console.log('booksta: empty database detected, seeding sample data');
       await seed({ closePool: false });
+    } else {
+      // Ensure the READ20 promotion exists in the database
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+      const formattedDate = futureDate.toISOString().split('T')[0];
+      await client.query(`
+        INSERT INTO promotions (code, description, discount_type, discount_value, min_order_amount, max_uses, expires_at, is_active)
+        VALUES ('READ20', '20% off orders over $50', 'percentage', 20, 50, NULL, $1, TRUE)
+        ON CONFLICT (code) DO NOTHING
+      `, [formattedDate]);
+
+      // Ensure Atomic Habits exists in the database
+      await client.query(`
+        INSERT INTO books (title, author, genres, genre, price, original_price, stock, pages, year, isbn, emoji, cover_color, cover_url, featured, description)
+        VALUES (
+          'Atomic Habits', 
+          'James Clear', 
+          ARRAY['Self-Help'], 
+          'Self-Help', 
+          11.89, 
+          16.99, 
+          120, 
+          320, 
+          2018, 
+          '978-0-7352-1129-2', 
+          '📈', 
+          '#f59e0b', 
+          'assets/atomic_habits.png', 
+          TRUE, 
+          'An easy & proven way to build good habits & break bad ones. Tiny Changes, Remarkable Results.'
+        )
+        ON CONFLICT (isbn) DO NOTHING
+      `);
     }
   } finally {
     client.release();

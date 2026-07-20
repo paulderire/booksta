@@ -4,3 +4,10 @@ node_modules
 npm-debug.log*
 *.log
 coverage
+
+# Dev artifacts — safe to delete
+test_restock.js
+deploy.js
+SESSION_SUMMARY.md
+SMOOTH_SCROLL_GUIDE.md
+PERFORMANCE_OPTIMIZATION.md

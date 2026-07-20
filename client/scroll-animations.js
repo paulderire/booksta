@@ -38,6 +38,15 @@ class ScrollAnimations {
       if (this.progressBar) {
         this.progressBar.style.width = Math.min(scrolled, 100) + '%';
       }
+      
+      const header = document.querySelector('.topbar');
+      if (header) {
+        if (window.scrollY > 20) {
+          header.classList.add('is-scrolled');
+        } else {
+          header.classList.remove('is-scrolled');
+        }
+      }
     };
     
     window.addEventListener('scroll', updateProgress, { passive: true });
