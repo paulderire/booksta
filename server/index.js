@@ -111,11 +111,6 @@ const SITEMAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const sitemapCache = { xml: null, generatedAt: null };
 
 // Serve static client files with aggressive caching
-// In-memory cache for the generated sitemap XML.
-// Regenerated at most once every 24 hours to prevent the endpoint from
-// becoming a memory-leak vector when hit frequently by crawlers.
-const SITEMAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const sitemapCache = { xml: null, generatedAt: null };
 
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
