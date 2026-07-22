@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#4c1d95"/>
+    </linearGradient>
+    <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0e7ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="url(#bgGrad)"/>
+  <path d="M24 28C24 25.2 26.2 23 29 23H48V74H29C26.2 74 24 71.8 24 69V28Z" fill="url(#bookGrad)" opacity="0.9"/>
+  <path d="M76 28C76 25.2 73.8 23 71 23H52V74H71C73.8 74 76 71.8 76 69V28Z" fill="url(#bookGrad)"/>
+  <line x1="50" y1="23" x2="50" y2="74" stroke="#6d28d9" stroke-width="2.5"/>
+  <line x1="31" y1="35" x2="43" y2="35" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="31" y1="45" x2="43" y2="45" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="31" y1="55" x2="40" y2="55" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="57" y1="35" x2="69" y2="35" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="57" y1="45" x2="69" y2="45" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="57" y1="55" x2="66" y2="55" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

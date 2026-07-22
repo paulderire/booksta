@@ -29,11 +29,25 @@ function buildFilters({ genre, search }) {
   const normalizedSearch = typeof search === 'string' ? search.trim() : '';
 
   if (genre) {
-    values.push(genre.toLowerCase());
-    clauses.push(`EXISTS (
-      SELECT 1 FROM unnest(b.genres) AS g(name)
-      WHERE LOWER(g.name) = $${values.length}
-    )`);
+    const gLower = genre.toLowerCase().trim();
+    if (['kids', 'children', "children's", 'juvenile'].includes(gLower)) {
+      clauses.push(`(
+        EXISTS (
+          SELECT 1 FROM unnest(b.genres) AS g(name)
+          WHERE LOWER(g.name) IN ('kids', 'children', 'children''s', 'juvenile', 'picture books', 'early readers', 'middle grade', 'bedtime stories', 'fairy tales & folklore', 'fairytales', 'nursery rhymes', 'storybooks', 'toddler', 'preschool')
+        )
+        OR LOWER(COALESCE(b.genre, '')) IN ('kids', 'children', 'children''s', 'juvenile', 'picture books', 'early readers', 'middle grade', 'bedtime stories', 'fairy tales & folklore', 'fairytales', 'nursery rhymes', 'storybooks', 'toddler', 'preschool')
+      )`);
+    } else {
+      values.push(gLower);
+      clauses.push(`(
+        EXISTS (
+          SELECT 1 FROM unnest(b.genres) AS g(name)
+          WHERE LOWER(g.name) = $${values.length}
+        )
+        OR LOWER(COALESCE(b.genre, '')) = $${values.length}
+      )`);
+    }
   }
 
   if (normalizedSearch) {
