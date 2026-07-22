@@ -91,11 +91,11 @@ const state = {
   genre: '',
   sort: 'featured',
   page: 1,
-  limit: 12,
+  limit: 8,
   drawerOpen: false,
   loadingMore: false,
   typewriterIndex: 0,
-  theme: 'light',
+  theme: localStorage.getItem('bookstaTheme') || 'dark',
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,
@@ -495,11 +495,13 @@ function getRouteFromHash(hashString) {
 }
 
 function setTheme(theme) {
-  state.theme = 'light';
-  document.documentElement.dataset.theme = 'light';
-  localStorage.setItem('bookstaTheme', 'light');
+  const targetTheme = (theme === 'light' || theme === 'dark') ? theme : (localStorage.getItem('bookstaTheme') || 'dark');
+  state.theme = targetTheme;
+  document.documentElement.setAttribute('data-theme', targetTheme);
+  document.documentElement.dataset.theme = targetTheme;
+  localStorage.setItem('bookstaTheme', targetTheme);
   if (themeToggle) {
-    themeToggle.textContent = '◑';
+    themeToggle.textContent = targetTheme === 'dark' ? '☀️' : '🌙';
   }
 }
 
@@ -793,10 +795,12 @@ function renderBookCard(book, options = {}) {
         <h3 class="book-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
         <div class="book-author">${escapeHtml(book.author)}</div>
         <div class="book-price-row">
-          <span class="price">${formatMoney(book.price)}</span>
-          ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+          <div class="price-values">
+            <span class="price">${formatMoney(book.price)}</span>
+            ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+          </div>
+          <button class="quick-add-btn" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy Now</button>
         </div>
-        <button class="quick-add-btn" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
       </div>
     </article>
   `;
@@ -867,10 +871,12 @@ function renderCompactBookCard(book) {
         <h3 class="compact-book-title"><a href="#/book/${book.id}">${escapeHtml(book.title)}</a></h3>
         <div class="book-row-author">${escapeHtml(book.author)}</div>
         <div class="compact-book-price">
-          <strong>${formatMoney(book.price)}</strong>
-          ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+          <div class="price-values">
+            <strong>${formatMoney(book.price)}</strong>
+            ${sale ? `<span class="price-old">${formatMoney(book.original_price)}</span>` : ''}
+          </div>
+          <button class="quick-add-btn" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy Now</button>
         </div>
-        <button class="quick-add-btn" type="button" data-action="buy-now" data-book-id="${escapeHtml(book.id)}">Buy</button>
       </div>
     </article>
   `;
@@ -1604,72 +1610,36 @@ function renderHomeView() {
       ` : ''}
 
       ${(() => {
-      // Dynamic bestseller discount: find highest-discount book from DB
+      // Dynamic deals & discounts section featuring all discounted books from DB
       const allBooks = [...(state.books || []), ...(state.featured || [])];
-      // Deduplicate by id
       const seen = new Set();
       const uniqueBooks = allBooks.filter(b => { if (seen.has(b.id)) return false; seen.add(b.id); return true; });
 
-      // Pick book with largest % discount (original_price > price)
-      let promoBook = uniqueBooks
-        .filter(b => b.original_price && b.price && Number(b.original_price) > Number(b.price))
-        .sort((a, b) => {
-          const discA = (Number(a.original_price) - Number(a.price)) / Number(a.original_price);
-          const discB = (Number(b.original_price) - Number(b.price)) / Number(b.original_price);
-          return discB - discA;
-        })[0];
+      let discountedBooks = uniqueBooks.filter(b => b.original_price && b.price && Number(b.original_price) > Number(b.price));
 
-      // Fallback: highest rated/featured book
-      if (!promoBook) {
-        promoBook = uniqueBooks.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))[0];
+      if (discountedBooks.length === 0) {
+        discountedBooks = uniqueBooks.slice(0, 4);
       }
 
-      if (!promoBook) {
-        // Ultimate fallback if no books loaded yet
-        return `<section class="section promotions-section full-width full-bleed">
-          <div class="promo-editorial-container">
-            <div class="promo-left-image">
-              <img src="assets/atomic_habits.png" alt="Featured Bestseller" class="yellow-book-img" style="border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3) !important;" />
-            </div>
-            <div class="promo-details-content">
-              <span class="promo-category-tag">Bestseller Discount</span>
-              <h2 class="promo-editorial-title">Special Offers<br><span class="highlight-title">Today's Deals</span></h2>
-              <p class="promo-editorial-text">Discover great deals on our bestselling books. Limited time offers on top titles.</p>
-              <a class="promo-shop-now-btn" href="#/books">Shop Now</a>
-            </div>
-          </div>
-        </section>`;
+      if (discountedBooks.length === 0) {
+        return '';
       }
-
-      const discountPct = promoBook.original_price && promoBook.price
-        ? Math.round((1 - Number(promoBook.price) / Number(promoBook.original_price)) * 100)
-        : 0;
-
-      const coverImg = promoBook.cover_url || promoBook.cover_image_url || promoBook.thumbnail || '';
-      const coverMarkup = coverImg
-        ? `<img src="${escapeHtml(coverImg)}" alt="${escapeHtml(promoBook.title || '')}" class="yellow-book-img" style="border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3) !important; object-fit: cover; width: 220px; height: 300px;" />`
-        : `<div class="yellow-book-img" style="width:220px;height:300px;border-radius:12px;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:4rem;">📖</div>`;
-
-      const displayTitle = promoBook.title ? promoBook.title.length > 30 ? promoBook.title.substring(0, 30) + '…' : promoBook.title : 'Featured Pick';
-      const authorName = promoBook.author || '';
-      const tagline = discountPct > 0
-        ? `${discountPct}% Off — ${authorName ? `by ${authorName}` : 'Limited Time Offer'}`
-        : `Featured Bestseller${authorName ? ` by ${authorName}` : ''}`;
-      const description = promoBook.description
-        ? promoBook.description.substring(0, 150) + (promoBook.description.length > 150 ? '…' : '')
-        : 'A must-read book available now at Booksta. Grab your copy before the deal ends!';
-      const label = discountPct > 0 ? `${discountPct}% Discount` : 'Featured Deal';
 
       return `<section class="section promotions-section full-width full-bleed">
-          <div class="promo-editorial-container">
-            <div class="promo-left-image">
-              ${coverMarkup}
+          <div class="deals-promo-layout">
+            <!-- Left: Featured Deals book cards side by side -->
+            <div class="deals-books-row">
+              ${discountedBooks.slice(0, 2).map(book => renderBookCard(book)).join('')}
             </div>
-            <div class="promo-details-content">
-              <span class="promo-category-tag">${escapeHtml(label)}</span>
-              <h2 class="promo-editorial-title">${escapeHtml(tagline)}<br><span class="highlight-title">${escapeHtml(displayTitle)}</span></h2>
-              <p class="promo-editorial-text">${escapeHtml(description)}</p>
-              <a class="promo-shop-now-btn" href="#/book/${promoBook.id}">Shop Now</a>
+
+            <!-- Right: Text content -->
+            <div class="deals-promo-content">
+              <span class="deals-category-tag">Special Deals</span>
+              <h2 class="deals-promo-title">On Sale &amp; Discounted</h2>
+              <p class="deals-promo-text">
+                Explore all current promotional deals, limited-time offers, and discounted publications from our catalog database. Grab your favorite reads before the sale ends!
+              </p>
+              <a class="deals-promo-btn" href="#/books">Explore Deals</a>
             </div>
           </div>
         </section>`;
@@ -2848,7 +2818,7 @@ async function loadHomeData() {
       api(`/api/books?${params.toString()}`),
       api('/api/books/featured'),
       api('/api/books/genres'),
-      api('/api/books?limit=100').catch(() => ({ books: [] }))
+      api('/api/books?genre=Kids&limit=3').catch(() => ({ books: [] }))
     ]);
 
     state.books = books.books || [];
@@ -2858,17 +2828,7 @@ async function loadHomeData() {
     state.featured = featured.books || [];
     state.genreCounts = genres.counts || {};
 
-    // Filter books matching kids/children/juvenile/school stories/etc.
-    const childrenKeywords = ['kids', 'children', 'juvenile', 'school story', 'school stories', 'bedtime', 'fairy tale', 'fairy tales', 'fable', 'fables', 'storybook', 'storybooks'];
-    state.kidsBooks = (kidsBooksRes?.books || [])
-      .filter(b => {
-        const genres = Array.isArray(b.genres) && b.genres.length ? b.genres : [b.genre];
-        return genres.some(g => {
-          const name = String(g || '').toLowerCase();
-          return childrenKeywords.some(keyword => name.includes(keyword));
-        });
-      })
-      .slice(0, 3);
+    state.kidsBooks = kidsBooksRes?.books || [];
     // Load configured featured authors from DB (public endpoint)
     try {
       const authorsRes = await api('/api/public/featured-authors');
@@ -2931,9 +2891,10 @@ async function loadMoreAllBooks() {
 
   try {
     const nextPage = state.page + 1;
+    const booksPageLimit = 16;
     const params = new URLSearchParams();
     params.set('page', String(nextPage));
-    params.set('limit', String(state.limit));
+    params.set('limit', String(booksPageLimit));
     if (state.sort) params.set('sort', state.sort);
     if (state.genre) params.set('genre', state.genre);
 
@@ -2962,9 +2923,10 @@ async function loadBooksData() {
 
   try {
     syncResponsivePageLimit();
+    const booksPageLimit = 16;
     const params = new URLSearchParams();
     params.set('page', String(state.page));
-    params.set('limit', String(state.limit));
+    params.set('limit', String(booksPageLimit));
     if (state.sort) params.set('sort', state.sort);
     if (state.genre) {
       let queryGenre = state.genre;

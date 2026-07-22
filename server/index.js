@@ -224,18 +224,15 @@ app.get('/sitemap.xml', async (req, res, next) => {
 });
 
 app.use(express.static(clientDir, {
-  maxAge: isProduction ? '1y' : 0,
-  etag: false,
-  lastModified: false,
+  maxAge: '7d',
+  etag: true,
+  lastModified: true,
   setHeaders(res, filePath) {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, must-revalidate');
       return;
     }
-
-    if (isProduction) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    }
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
   }
 }));
 
@@ -381,27 +378,14 @@ async function initializeDatabase() {
         ON CONFLICT (code) DO NOTHING
       `, [formattedDate]);
 
-      // Ensure Atomic Habits exists in the database
+      // Remove any leftover Atomic Habits mock book from DB
+      await client.query(`DELETE FROM books WHERE title = 'Atomic Habits' OR cover_url LIKE '%atomic_habits%';`);
+
+      // Enrich existing Kids books in DB with expanded Kids genres array
       await client.query(`
-        INSERT INTO books (title, author, genres, genre, price, original_price, stock, pages, year, isbn, emoji, cover_color, cover_url, featured, description)
-        VALUES (
-          'Atomic Habits', 
-          'James Clear', 
-          ARRAY['Self-Help'], 
-          'Self-Help', 
-          11.89, 
-          16.99, 
-          120, 
-          320, 
-          2018, 
-          '978-0-7352-1129-2', 
-          '📈', 
-          '#f59e0b', 
-          'assets/atomic_habits.png', 
-          TRUE, 
-          'An easy & proven way to build good habits & break bad ones. Tiny Changes, Remarkable Results.'
-        )
-        ON CONFLICT (isbn) DO NOTHING
+        UPDATE books 
+        SET genres = ARRAY['Kids', 'Children''s Fiction', 'Picture Books', 'Early Readers', 'Middle Grade', 'Bedtime Stories', 'Fairy Tales & Folklore']
+        WHERE LOWER(genre) = 'kids' OR 'Kids' = ANY(genres);
       `);
     }
   } finally {

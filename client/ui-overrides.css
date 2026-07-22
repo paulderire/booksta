@@ -3,34 +3,34 @@
   box-sizing: border-box !important;
 }
 
-/* Disable all italic fonts globally */
-* {
-  font-style: normal !important;
-}
-
-/* Prevent any horizontal overflow on the page */
+/* Prevent white flash during page load/refresh & route changes */
 html, body {
   overflow-x: hidden !important;
   max-width: 100vw !important;
+  background-color: #06080f !important;
+  color: #f0eeff !important;
 }
 
-/* Smooth page transitions — prevents visual flash on route changes */
-@keyframes pageFadeIn {
-  from {
-    opacity: 0;
-  }
+html[data-theme='light'],
+html[data-theme='light'] body {
+  background-color: #faf9ff !important;
+  color: #1e1130 !important;
+}
 
-  to {
-    opacity: 1;
-  }
+html[data-theme='dark'],
+html[data-theme='dark'] body {
+  background-color: #06080f !important;
+  color: #f0eeff !important;
 }
 
 main#app {
-  animation: pageFadeIn 0.2s ease-out;
+  background-color: transparent !important;
+  min-height: 80vh !important;
 }
 
-main#app>* {
-  animation: pageFadeIn 0.15s ease-out;
+/* Disable all italic fonts globally */
+* {
+  font-style: normal !important;
 }
 
 /* ================================================================
@@ -1028,6 +1028,15 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
   }
 
+  .admin-main {
+    margin: 0 !important;
+    margin-left: 0 !important;
+    padding: 1rem 0.85rem 3rem 0.85rem !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
   /* ---- PAGE SPACING ---- */
   .page.home-page {
     margin-top: -76px !important;
@@ -1081,6 +1090,87 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
 
   .header-search .search-submit-btn {
     display: none !important;
+  }
+
+  /* ---- MOBILE HEADER ACTIONS (Search, Cart, Login, Hamburger) ---- */
+  .topbar-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    margin-left: auto !important;
+  }
+
+  .mobile-search-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.95rem !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text) !important;
+  }
+
+  #cart-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    font-size: 1.05rem !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: var(--radius-sm, 8px) !important;
+    color: var(--text) !important;
+  }
+
+  #cart-button .badge {
+    position: absolute !important;
+    top: -4px !important;
+    right: -4px !important;
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    padding: 2px 5px !important;
+    border-radius: 99px !important;
+    line-height: 1 !important;
+  }
+
+  .auth-slot {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .auth-slot .primary-button {
+    display: none !important;
+  }
+
+  .auth-slot .ghost-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.35rem 0.65rem !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-sm, 8px) !important;
+    background: var(--accent) !important;
+    border: none !important;
+    color: #ffffff !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
+  }
+
+  .account-menu {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .account-trigger {
+    padding: 0.2rem 0.3rem !important;
   }
 
   /* ---- SEARCH OVERLAY: when 🔍 is tapped ---- */
@@ -2386,164 +2476,195 @@ html[data-theme='light'] .author-profile-card:hover .author-profile-count {
 .compact-book-card {
   display: flex !important;
   flex-direction: column !important;
-  padding: 1.15rem !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: none !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 8px 24px rgba(0, 0, 0, 0.2) !important;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  padding: 0 !important;
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
   height: 100% !important;
   box-sizing: border-box !important;
+  overflow: hidden !important;
+  will-change: transform !important;
+  transform: translateZ(0) !important;
 }
 
 html[data-theme='light'] .book-card,
 html[data-theme='light'] .compact-book-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0.01) 100%) !important;
-  border: none !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 8px 24px rgba(15, 23, 42, 0.03) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
 }
 
 .book-card:hover,
 .compact-book-card:hover {
-  border: none !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 15px 35px rgba(0, 0, 0, 0.35),
-    0 0 20px rgba(16, 185, 129, 0.15) !important;
-  transform: translateY(-8px) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(139, 92, 246, 0.2) !important;
+  transform: translateY(-4px) !important;
 }
 
 html[data-theme='light'] .book-card:hover,
 html[data-theme='light'] .compact-book-card:hover {
-  background: rgba(15, 23, 42, 0.03) !important;
-  border: none !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 15px 35px rgba(15, 23, 42, 0.06) !important;
+  background: #ffffff !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1) !important;
 }
 
-/* Book Cover & Compact Book Cover Styling */
+/* Book Cover & Compact Book Cover Styling - FULL & VERY FULL */
+.book-cover-container {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 3 / 4 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
+
 .book-cover,
 .compact-book-cover {
   width: 100% !important;
-  aspect-ratio: 2 / 3 !important;
+  height: 100% !important;
+  aspect-ratio: 3 / 4 !important;
   overflow: hidden !important;
   position: relative !important;
   display: block !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  background: var(--bg-elevated) !important;
   border: none !important;
-  /* Remove border */
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: none !important;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  margin: 0 !important;
 }
 
 .book-card:hover .book-cover,
 .compact-book-card:hover .compact-book-cover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+  transform: none !important;
+  box-shadow: none !important;
   border: none !important;
 }
 
 .book-card .cover-swatch,
-.compact-book-card .cover-swatch {
+.compact-book-card .cover-swatch,
+.cover-swatch,
+.book-card .book-cover img,
+.compact-book-card .compact-book-cover img,
+.book-card img,
+.compact-book-card img,
+.book-cover img {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  display: block !important;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .book-card:hover .cover-swatch,
-.compact-book-card:hover .cover-swatch {
-  transform: scale(1.08) !important;
+.compact-book-card:hover .cover-swatch,
+.book-card:hover .book-cover img {
+  transform: scale(1.03) !important;
 }
 
-/* Book Cover Container */
-.book-cover-container {
-  position: relative !important;
-  width: 100% !important;
-  aspect-ratio: 2 / 3 !important;
-  overflow: hidden !important;
-}
-
-/* Hover Wishlist Button Overlay */
+/* Wishlist Like Icon — hidden by default, appears on card hover */
 .cover-wishlist-btn {
   position: absolute !important;
-  top: 0.5rem !important;
-  right: 0.5rem !important;
+  top: 8px !important;
+  right: 8px !important;
   width: 32px !important;
   height: 32px !important;
-  background: rgba(15, 23, 42, 0.75) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  z-index: 5 !important;
-  font-size: 1rem !important;
-  transition: all 0.2s ease !important;
+  z-index: 30 !important;
+  font-size: 1.05rem !important;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease !important;
   padding: 0 !important;
+  border-radius: 50% !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  transform: scale(0.8) !important;
+}
+
+/* Show on card hover — fast reveal */
+.book-card:hover .cover-wishlist-btn,
+.compact-book-card:hover .cover-wishlist-btn,
+.book-cover-container:hover .cover-wishlist-btn {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: scale(1) !important;
 }
 
 .cover-wishlist-btn:hover {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
   color: #ffffff !important;
-  transform: scale(1.05) !important;
+  transform: scale(1.15) !important;
 }
 
+/* Always show if wishlisted (active) */
 .cover-wishlist-btn.is-active {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: scale(1) !important;
   background: #ef4444 !important;
   border-color: #ef4444 !important;
   color: #ffffff !important;
 }
 
-/* Book Card Details & Compact Content */
+/* Book Card Details & Compact Content - TIGHT & DIRECTLY ATTACHED TO IMAGE */
 .book-card-details,
 .compact-book-content {
   display: flex !important;
   flex-direction: column !important;
   flex-grow: 1 !important;
-  padding-top: 0.85rem !important;
+  padding: 0.65rem 0.85rem 0.85rem 0.85rem !important;
   position: relative !important;
-  /* Enable absolute positioning context inside details block */
+  gap: 0.2rem !important;
 }
 
-/* Ensure smooth fade & transition for title, author, and price elements */
+/* Keep title, author, price visible at all times */
 .book-title,
 .compact-book-title,
 .book-author,
 .book-row-author,
 .book-price-row,
 .compact-book-price {
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  transition: color 0.2s ease !important;
 }
 
-/* Fade out details when card is hovered */
 .book-card:hover .book-title,
 .book-card:hover .book-author,
 .book-card:hover .book-price-row,
 .compact-book-card:hover .compact-book-title,
 .compact-book-card:hover .book-author,
 .compact-book-card:hover .compact-book-price {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  transform: translateY(-4px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
 }
 
 /* Book Title */
 .book-title,
 .compact-book-title {
-  margin: 0 0 0.35rem 0 !important;
-  font-size: 1.08rem !important;
+  margin: 0 0 0.15rem 0 !important;
+  font-size: 0.98rem !important;
   font-weight: 700 !important;
   line-height: 1.25 !important;
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
-  height: 2.7rem !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 2.5em !important;
   font-family: var(--font-heading) !important;
 }
 
@@ -2561,9 +2682,10 @@ html[data-theme='light'] .compact-book-title {
 /* Author */
 .book-author,
 .book-row-author {
-  font-size: 0.85rem !important;
-  color: rgba(255, 255, 255, 0.55) !important;
-  margin-bottom: 0.75rem !important;
+  font-size: 0.82rem !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.25rem !important;
 }
 
 html[data-theme='light'] .book-author,
@@ -2571,81 +2693,111 @@ html[data-theme='light'] .book-row-author {
   color: var(--muted) !important;
 }
 
-/* Price Row */
+/* Price Row & Quick Add Swap Area — strictly constrained 36px height */
 .book-price-row,
 .compact-book-price {
+  position: relative !important;
   display: flex !important;
-  align-items: baseline !important;
-  margin-top: auto !important;
-  margin-bottom: 0.85rem !important;
+  align-items: center !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  max-height: 36px !important;
+  margin-top: 0.4rem !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+}
+
+.price-values {
+  display: flex !important;
+  align-items: center !important;
   gap: 0.5rem !important;
+  height: 100% !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* On card hover: hide price values and reveal Buy button in its place */
+.book-card:hover .price-values,
+.compact-book-card:hover .price-values {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateY(-4px) !important;
 }
 
 .book-price-row .price,
 .compact-book-price strong {
-  font-size: 1.25rem !important;
-  color: var(--text) !important;
+  font-size: 1.1rem !important;
+  color: var(--accent) !important;
   font-weight: 800 !important;
   font-family: var(--font-mono) !important;
 }
 
+html[data-theme='light'] .book-price-row .price,
+html[data-theme='light'] .compact-book-price strong {
+  color: var(--accent) !important;
+}
+
 .book-price-row .price-old,
 .compact-book-price .price-old {
-  font-size: 0.9rem !important;
+  font-size: 0.85rem !important;
   color: var(--muted) !important;
   text-decoration: line-through !important;
   font-weight: 400 !important;
 }
 
-/* Quick Add Button taking the space of the details on hover */
+/* Quick Add / Buy Button - strictly trapped inside price row height */
 .quick-add-btn {
   position: absolute !important;
-  left: 0.5rem !important;
-  right: 0.5rem !important;
-  top: 50% !important;
-  transform: translateY(-50%) scale(0.92) !important;
-  margin: 0 !important;
-  width: auto !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 36px !important;
+  max-height: 36px !important;
   background: var(--accent) !important;
   color: #ffffff !important;
   border: none !important;
   font-weight: 700 !important;
-  padding: 0.75rem 1.5rem !important;
-  font-size: 0.95rem !important;
+  padding: 0 0.75rem !important;
+  font-size: 0.86rem !important;
+  line-height: 36px !important;
   text-align: center !important;
-  display: inline-flex !important;
+  display: flex !important;
   justify-content: center !important;
   align-items: center !important;
   cursor: pointer !important;
-  border-radius: 999px !important;
-  /* Rounded pill shape */
-  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.25) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3) !important;
+  z-index: 10 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
 
-  /* Hover to reveal animation setup */
+  /* Hidden by default, reveals in place of price on hover */
   opacity: 0 !important;
   visibility: hidden !important;
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    background 0.2s ease,
-    box-shadow 0.2s ease,
-    visibility 0.3s !important;
+  transform: translateY(4px) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease !important;
 }
 
-/* Reveal on card hover */
 .book-card:hover .quick-add-btn,
 .compact-book-card:hover .quick-add-btn {
   opacity: 1 !important;
   visibility: visible !important;
-  transform: translateY(-50%) scale(1) !important;
+  transform: translateY(0) !important;
 }
 
 .quick-add-btn:hover {
   background: var(--accent-2) !important;
-  box-shadow: 0 12px 25px rgba(124, 58, 237, 0.35) !important;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4) !important;
 }
 
 .quick-add-btn:active {
-  transform: translateY(-50%) scale(0.97) !important;
+  transform: scale(0.97) !important;
 }
 
 /* ================================================================
@@ -3956,17 +4108,16 @@ body {
 
 /* Premium Kids Books Section */
 .kids-promo-section {
-  background: #fffdf5 !important;
-  /* Soft premium warm cream */
-  border-top: 1px solid #fef3c7 !important;
-  border-bottom: 1px solid #fef3c7 !important;
+  background: #ffffff !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   width: 100% !important;
   left: auto !important;
   right: auto !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
   position: relative !important;
-  padding: 6rem 0 !important;
+  padding: 5rem 0 !important;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
@@ -3976,18 +4127,15 @@ body {
   overflow: hidden !important;
 }
 
-/* Playful repeating background details like subtle stars */
+html[data-theme='light'] .kids-promo-section {
+  background: #ffffff !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Remove decorative background patterns for clean white background */
 .kids-promo-section::before {
-  content: '' !important;
-  position: absolute !important;
-  inset: 0 !important;
-  background-image:
-    radial-gradient(#fcd34d 1px, transparent 1px),
-    radial-gradient(#fcd34d 1.5px, transparent 1.5px) !important;
-  background-size: 48px 48px !important;
-  background-position: 0 0, 24px 24px !important;
-  opacity: 0.25 !important;
-  pointer-events: none !important;
+  display: none !important;
 }
 
 .kids-promo-container,
@@ -4003,18 +4151,12 @@ body {
   z-index: 2 !important;
 }
 
-/* Kids books side-by-side row — identical sizing to explore books grid */
+/* Kids books side-by-side row — identical standard card grid formatting */
 .kids-books-row {
   display: grid !important;
   grid-template-columns: repeat(3, 1fr) !important;
   gap: 1.25rem !important;
-  align-items: start !important;
-}
-
-/* Make book covers inside kids row slightly taller than default */
-.kids-books-row .book-cover-container,
-.kids-books-row .book-cover {
-  aspect-ratio: 3 / 4 !important;
+  align-items: stretch !important;
 }
 
 /* 3-column layout when kids book cards are injected in the center */
@@ -6509,91 +6651,33 @@ select.select:focus {
    KIDS COLLECTION PAGE RESTYLING & THEMING
    ================================================================ */
 
-/* 1. Playful warm pastel/cream theme in light mode */
+/* 1. Pure White Theme in light mode for Kids Collection */
 html[data-theme='light'] .kids-collection-page {
-  background: #fffcf6 !important;
-  background-image:
-    radial-gradient(#fcd34d 1px, transparent 1px),
-    radial-gradient(#fcd34d 1.5px, transparent 1.5px) !important;
-  background-size: 64px 64px !important;
-  background-position: 0 0, 32px 32px !important;
-  transition: background 0.3s ease !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 
-/* 2. Deep warm dark theme for Kids Collection in dark mode */
+/* 2. Standard Dark Theme for Kids Collection in dark mode */
 html[data-theme='dark'] .kids-collection-page {
   background: #08161c !important;
-  background-image:
-    radial-gradient(rgba(251, 191, 36, 0.05) 1px, transparent 1px),
-    radial-gradient(rgba(251, 191, 36, 0.05) 1.5px, transparent 1.5px) !important;
-  background-size: 64px 64px !important;
-  background-position: 0 0, 32px 32px !important;
-  transition: background 0.3s ease !important;
+  background-image: none !important;
 }
 
 /* 3. Header Title and Typography */
 .kids-collection-page .section-title {
-  font-family: 'Outfit', var(--font-heading) !important;
+  font-family: var(--font-heading) !important;
   font-weight: 800 !important;
-  color: #0f2b35 !important;
+  color: var(--text) !important;
   font-size: 3rem !important;
   letter-spacing: -0.02em !important;
   margin-top: 1rem !important;
-  text-shadow: 0 4px 12px rgba(15, 43, 53, 0.04) !important;
-}
-
-html[data-theme='dark'] .kids-collection-page .section-title {
-  color: #fffcf0 !important;
-  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
 .kids-collection-page .section-copy {
   font-size: 1.15rem !important;
-  color: #475569 !important;
+  color: var(--muted) !important;
   max-width: 650px !important;
   line-height: 1.65 !important;
-}
-
-html[data-theme='dark'] .kids-collection-page .section-copy {
-  color: #94a3b8 !important;
-}
-
-/* 4. Playful Premium Card Design on Kids Page */
-.kids-collection-page .book-card,
-.kids-collection-page .compact-book-card {
-  border-radius: 24px !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  border: 1px solid rgba(251, 191, 36, 0.3) !important;
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04) !important;
-  padding: 1.25rem !important;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-}
-
-html[data-theme='dark'] .kids-collection-page .book-card,
-html[data-theme='dark'] .kids-collection-page .compact-book-card {
-  background: rgba(15, 35, 45, 0.85) !important;
-  border: 1px solid rgba(251, 191, 36, 0.15) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
-}
-
-.kids-collection-page .book-card:hover,
-.kids-collection-page .compact-book-card:hover {
-  transform: translateY(-8px) scale(1.02) !important;
-  border-color: #f59e0b !important;
-  box-shadow: 0 20px 40px rgba(245, 158, 11, 0.12) !important;
-}
-
-html[data-theme='dark'] .kids-collection-page .book-card:hover,
-html[data-theme='dark'] .kids-collection-page .compact-book-card:hover {
-  border-color: #fcd34d !important;
-  box-shadow: 0 20px 40px rgba(251, 191, 36, 0.1) !important;
-}
-
-.kids-collection-page .book-cover,
-.kids-collection-page .compact-book-cover {
-  border-radius: 16px !important;
-  overflow: hidden !important;
-  border: 1.5px solid rgba(251, 191, 36, 0.2) !important;
 }
 
 /* 5. Custom Kids Theme Filter Bar button styles */
@@ -7759,6 +7843,79 @@ html[data-theme='light'] .drawer-foot .cart-row {
   justify-content: center !important;
 }
 
+/* Responsive Cart Drawer / Popup on Mobile */
+@media (max-width: 600px) {
+  .drawer {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 1.15rem 0.85rem !important;
+    gap: 0.85rem !important;
+  }
+
+  .drawer-head {
+    padding-bottom: 0.75rem !important;
+  }
+
+  .drawer-head .order-head h2 {
+    font-size: 1.15rem !important;
+  }
+
+  .drawer-body {
+    gap: 0.65rem !important;
+    padding-right: 0.2rem !important;
+  }
+
+  .drawer-item {
+    display: grid !important;
+    grid-template-columns: 50px 1fr auto !important;
+    gap: 0.6rem !important;
+    align-items: center !important;
+    padding: 0.6rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .drawer-item .mini-cover {
+    width: 50px !important;
+    height: 65px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .drawer-item .mini-title {
+    font-size: 0.85rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .drawer-item .mini-meta {
+    font-size: 0.75rem !important;
+  }
+
+  .drawer-item .mini-price {
+    font-size: 0.85rem !important;
+  }
+
+  .drawer-foot {
+    padding-top: 0.75rem !important;
+    gap: 0.75rem !important;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .drawer-foot .cart-controls {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .drawer-foot .cart-controls .secondary-button,
+  .drawer-foot .cart-controls .primary-button {
+    height: 42px !important;
+    font-size: 0.8rem !important;
+    padding: 0 0.4rem !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+  }
+}
+
 /* ================================================================
    PREMIUM CART PAGE & CHECKOUT OVERRIDES
    ================================================================ */
@@ -8320,5 +8477,98 @@ main#app:has(.home-page) {
     padding-right: 1.25rem !important;
     margin-left: auto !important;
     margin-right: auto !important;
+  }
+}
+
+/* Special Deals Layout overrides - matching Kids promo layout but with book cards on the left */
+.deals-promo-layout {
+  max-width: 1400px !important;
+  width: 100% !important;
+  padding: 0 clamp(1rem, 3vw, 2.5rem) !important;
+  display: grid !important;
+  grid-template-columns: 1.33fr 0.85fr !important; /* Left side cards, Right side text content */
+  gap: 4rem !important;
+  align-items: center !important;
+  position: relative !important;
+  z-index: 2 !important;
+  margin: 0 auto !important;
+}
+
+.deals-books-row {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important; /* 2 cards side by side */
+  gap: 1.25rem !important;
+  align-items: stretch !important;
+}
+
+.deals-promo-content {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+.deals-category-tag {
+  display: inline-block !important;
+  padding: 0.35rem 0.9rem !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  border-radius: 99px !important;
+  font-weight: 700 !important;
+  font-size: 0.8rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.deals-promo-title {
+  font-size: 2.5rem !important;
+  margin: 0.25rem 0 0.5rem 0 !important;
+  font-family: var(--font-heading) !important;
+  color: var(--text) !important;
+  line-height: 1.2 !important;
+}
+
+.deals-promo-text {
+  color: var(--muted) !important;
+  font-size: 1rem !important;
+  line-height: 1.6 !important;
+  margin: 0 0 2rem 0 !important;
+}
+
+.deals-promo-btn {
+  display: inline-block !important;
+  padding: 0.8rem 2.2rem !important;
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border-radius: 99px !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  font-size: 0.95rem !important;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35) !important;
+  transition: all 0.2s ease !important;
+}
+
+.deals-promo-btn:hover {
+  background: var(--accent-2) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.45) !important;
+}
+
+/* Responsive breakpoint for mobile */
+@media (max-width: 900px) {
+  .deals-promo-layout {
+    grid-template-columns: 1fr !important;
+    gap: 2.5rem !important;
+    text-align: center !important;
+  }
+  .deals-promo-content {
+    align-items: center !important;
+    text-align: center !important;
+    order: 1 !important; /* Stack text content on top of cards on mobile */
+  }
+  .deals-books-row {
+    order: 2 !important;
   }
 }

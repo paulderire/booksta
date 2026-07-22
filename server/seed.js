@@ -322,6 +322,7 @@ const books = [
     title: 'The Dragon Who Lost His Roar',
     author: 'Lily Chen',
     genre: 'Kids',
+    genres: ['Kids', "Children's Fiction", 'Picture Books', 'Early Readers', 'Fairy Tales & Folklore'],
     price: 9.99,
     original_price: 12.99,
     stock: 75,
@@ -337,6 +338,7 @@ const books = [
     title: 'Stars in My Backpack',
     author: 'Marcus Webb',
     genre: 'Kids',
+    genres: ['Kids', "Children's Fiction", 'Bedtime Stories', 'Picture Books', 'Middle Grade'],
     price: 8.49,
     original_price: 10.99,
     stock: 90,
@@ -347,22 +349,6 @@ const books = [
     cover_color: '#7c3aed',
     featured: true,
     description: 'Every night, young Zara collects fallen stars in her backpack and returns them to the sky — but tonight she discovers a star that does not want to go back. Together they explore the neighborhood, meet a boy who is afraid of the dark, and learn that light is something you can share. A beautifully lyrical picture book about courage, curiosity, and the magic hiding in ordinary places.'
-  },
-  {
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    genre: 'Self-Help',
-    price: 11.89,
-    original_price: 16.99,
-    stock: 120,
-    pages: 320,
-    year: 2018,
-    isbn: '978-0-7352-1129-2',
-    emoji: '📈',
-    cover_color: '#f59e0b',
-    cover_url: 'assets/atomic_habits.png',
-    featured: true,
-    description: 'An easy & proven way to build good habits & break bad ones. Tiny Changes, Remarkable Results.'
   }
 ];
 

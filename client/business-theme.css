@@ -2766,8 +2766,8 @@ html[data-theme='light'] .notification-card { background: #fff; border-color: rg
   .topbar-right { flex: 0 0 auto !important; margin-left: auto !important; display: flex !important; gap: 0.35rem !important; align-items: center !important; padding-right: 0 !important; }
   .nav-toggle { display: inline-flex !important; }
   .mobile-search-toggle { display: inline-flex !important; align-items: center; justify-content: center; }
-  #cart-button { display: none !important; }
-  .auth-slot { display: none !important; }
+  #cart-button { display: inline-flex !important; }
+  .auth-slot { display: inline-flex !important; }
   .site-logo { height: 34px !important; width: 34px !important; }
   .site-name { font-size: 0.86rem !important; }
   .site-name small { display: none !important; }

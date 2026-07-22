@@ -1,6 +1,28 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
   <head>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('bookstaTheme') || 'dark';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch(e) {}
+      })();
+    </script>
+    <style>
+      html, body {
+        background-color: #06080f !important;
+        color: #f0eeff;
+      }
+      html[data-theme='light'], html[data-theme='light'] body {
+        background-color: #faf9ff !important;
+        color: #1e1130;
+      }
+      html[data-theme='dark'], html[data-theme='dark'] body {
+        background-color: #06080f !important;
+        color: #f0eeff;
+      }
+    </style>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="api-base-url" content="" />
@@ -10,14 +32,14 @@
     <link rel="canonical" href="/" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
     <title>Booksta Online BookStore</title>
-    <link rel="icon" type="image/png" href="assets/logo.png?v=1" />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="business-theme.css?v=49" />
-    <link rel="stylesheet" href="ui-overrides.css?v=64" />
-    <link rel="stylesheet" href="premium-ecommerce.css?v=49" />
-    <link rel="stylesheet" href="footer-styles.css?v=49" />
+    <link rel="stylesheet" href="business-theme.css?v=66" />
+    <link rel="stylesheet" href="ui-overrides.css?v=82" />
+    <link rel="stylesheet" href="premium-ecommerce.css?v=66" />
+    <link rel="stylesheet" href="footer-styles.css?v=66" />
   </head>
   <body>
     <div class="bg-orb bg-orb-a"></div>
@@ -60,9 +82,9 @@
           <button class="icon-button" id="cart-button" type="button" aria-label="Open cart">
             🛒 <span class="badge" id="cart-count">0</span>
           </button>
+          <div class="auth-slot" id="auth-slot"></div>
           <!-- Mobile hamburger menu button - integrated into header -->
           <button id="mobile-hamburger" class="nav-toggle" aria-label="Toggle navigation" data-action="toggle-mobile-menu">☰</button>
-          <div class="auth-slot" id="auth-slot"></div>
         </div>
       </div>
     </header>
@@ -181,6 +203,6 @@
       </div>
     </footer>
     <script src="scroll-animations.js?v=1"></script>
-    <script type="module" src="app.js?v=66"></script>
+    <script type="module" src="app.js?v=72"></script>
   </body>
 </html>
