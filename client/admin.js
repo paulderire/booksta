@@ -1,6 +1,41 @@
 (function(){
+  // Safe storage fallback for private browsing / incognito modes (complying with CSP script-src 'self')
+  const safeStorage = (function() {
+    const mem = {};
+    let available = false;
+    try {
+      const testKey = '__storage_test__';
+      window.localStorage.setItem(testKey, testKey);
+      window.localStorage.removeItem(testKey);
+      available = true;
+    } catch (e) {
+      available = false;
+    }
+
+    return {
+      getItem(key) {
+        if (available) {
+          try { return window.localStorage.getItem(key); } catch (e) {}
+        }
+        return mem.hasOwnProperty(key) ? mem[key] : null;
+      },
+      setItem(key, value) {
+        if (available) {
+          try { window.localStorage.setItem(key, value); return; } catch (e) {}
+        }
+        mem[key] = String(value);
+      },
+      removeItem(key) {
+        if (available) {
+          try { window.localStorage.removeItem(key); return; } catch (e) {}
+        }
+        delete mem[key];
+      }
+    };
+  })();
+
   const api = (path, opts={}) => {
-    const token = localStorage.getItem('bookstaToken');
+    const token = safeStorage.getItem('bookstaToken');
     const headers = opts.headers || {};
     if (token) headers['Authorization'] = 'Bearer ' + token;
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
@@ -49,7 +84,7 @@
     document.querySelectorAll('.view').forEach((section) => {
       section.style.display = section.id === `view-${nextView}` ? '' : 'none';
     });
-    localStorage.setItem(adminViewStorageKey, nextView);
+    safeStorage.setItem(adminViewStorageKey, nextView);
 
     if (nextView === 'dashboard') loadDashboard();
     if (nextView === 'books') loadBooks();
@@ -80,7 +115,7 @@
   const themeToggleAdmin = $id('theme-toggle-admin');
   const htmlEl = document.documentElement;
   htmlEl.setAttribute('data-theme', 'light');
-  localStorage.setItem('bookstaTheme', 'light');
+  safeStorage.setItem('bookstaTheme', 'light');
   if (themeToggleAdmin) {
     themeToggleAdmin.style.display = 'none';
   }
@@ -143,7 +178,7 @@
 
   // Logout
   $id('logout-admin').addEventListener('click', () => {
-    localStorage.removeItem('bookstaToken');
+    safeStorage.removeItem('bookstaToken');
     window.location.href = '/';
   });
 
@@ -1063,13 +1098,13 @@
     '365d': { label: 'Last 365 days' },
     'all': { label: 'All time' }
   };
-  let analyticsRange = localStorage.getItem('bookstaAnalyticsRange') || '30d';
+  let analyticsRange = safeStorage.getItem('bookstaAnalyticsRange') || '30d';
 
   async function loadAnalytics(selectedRange = analyticsRange){
     try {
       const view = $id('view-analytics');
       analyticsRange = analyticsRangeOptions[selectedRange] ? selectedRange : '30d';
-      localStorage.setItem('bookstaAnalyticsRange', analyticsRange);
+      safeStorage.setItem('bookstaAnalyticsRange', analyticsRange);
       const rangeLabel = analyticsRangeOptions[analyticsRange].label;
       const [revRes, genreRes, statsRes] = await Promise.all([
         api('/admin/analytics/revenue?range=' + encodeURIComponent(analyticsRange)).catch(e => { console.warn('Analytics revenue error:', e); return { dailyRevenue: [] }; }),
@@ -1752,7 +1787,7 @@
   // Init
   (async () => {
     if (await checkAdmin()) {
-      showAdminView(localStorage.getItem(adminViewStorageKey) || 'dashboard');
+      showAdminView(safeStorage.getItem(adminViewStorageKey) || 'dashboard');
     }
   })();
 

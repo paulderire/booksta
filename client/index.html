@@ -1,26 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
   <head>
-    <script>
-      (function() {
-        try {
-          var t = localStorage.getItem('bookstaTheme') || 'dark';
-          document.documentElement.setAttribute('data-theme', t);
-        } catch(e) {}
-      })();
-    </script>
+    <script src="theme-init.js"></script>
     <style>
-      html, body {
-        background-color: #06080f !important;
-        color: #f0eeff;
-      }
-      html[data-theme='light'], html[data-theme='light'] body {
+      /* Prevent screen flashes by matching theme backgrounds instantly */
+      html[data-theme='light'],
+      html[data-theme='light'] body {
         background-color: #faf9ff !important;
-        color: #1e1130;
+        color: #1e1130 !important;
       }
-      html[data-theme='dark'], html[data-theme='dark'] body {
+      html[data-theme='dark'],
+      html[data-theme='dark'] body {
         background-color: #06080f !important;
-        color: #f0eeff;
+        color: #f0eeff !important;
+      }
+      /* Default fallback */
+      html, body {
+        background-color: #faf9ff;
+        color: #1e1130;
       }
     </style>
     <meta charset="utf-8" />

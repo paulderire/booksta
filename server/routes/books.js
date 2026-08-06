@@ -34,9 +34,9 @@ function buildFilters({ genre, search }) {
       clauses.push(`(
         EXISTS (
           SELECT 1 FROM unnest(b.genres) AS g(name)
-          WHERE LOWER(g.name) IN ('kids', 'children', 'children''s', 'juvenile', 'picture books', 'early readers', 'middle grade', 'bedtime stories', 'fairy tales & folklore', 'fairytales', 'nursery rhymes', 'storybooks', 'toddler', 'preschool')
+          WHERE g.name ~* 'kids|child|juvenile|early reader|middle grade|picture book|bedtime|storybook|fairy.*tale|nursery|toddler|preschool'
         )
-        OR LOWER(COALESCE(b.genre, '')) IN ('kids', 'children', 'children''s', 'juvenile', 'picture books', 'early readers', 'middle grade', 'bedtime stories', 'fairy tales & folklore', 'fairytales', 'nursery rhymes', 'storybooks', 'toddler', 'preschool')
+        OR COALESCE(b.genre, '') ~* 'kids|child|juvenile|early reader|middle grade|picture book|bedtime|storybook|fairy.*tale|nursery|toddler|preschool'
       )`);
     } else {
       values.push(gLower);

@@ -400,9 +400,7 @@ async function seed(options = {}) {
   const { closePool = true } = options;
   const client = await pool.connect();
   try {
-    for (const statement of schemaStatements) {
-      await client.query(statement);
-    }
+    await ensureSchema(client);
 
     await client.query(`
       TRUNCATE TABLE
@@ -458,7 +456,7 @@ async function seed(options = {}) {
           year,
           isbn,
           featured
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id`,
         [
           book.title,

@@ -1,8 +1,22 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
 <head>
+  <script src="theme-init.js"></script>
   <style>
-    html, body { background-color: #06080f !important; color: #f0eeff; }
+    html[data-theme='light'],
+    html[data-theme='light'] body {
+      background-color: #faf9ff !important;
+      color: #1e1130 !important;
+    }
+    html[data-theme='dark'],
+    html[data-theme='dark'] body {
+      background-color: #06080f !important;
+      color: #f0eeff !important;
+    }
+    html, body {
+      background-color: #06080f;
+      color: #f0eeff;
+    }
   </style>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -27,10 +41,10 @@
         <strong style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; color: #ffffff;">Booksta</strong>
         <span style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.15em; color: #a78bfa; font-weight: 700;">Admin Center</span>
       </div>
+    </div>
     <div style="display: flex; align-items: center; gap: 0.65rem; margin-left: auto;">
       <div id="admin-user" class="admin-user-info"></div>
       <button id="theme-toggle-admin" class="icon-button" aria-label="Toggle theme">◐</button>
-      <button id="logout-admin" class="btn-logout-header" type="button" aria-label="Logout">🚪 Logout</button>
     </div>
   </header>
 

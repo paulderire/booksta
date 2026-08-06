@@ -2,7 +2,50 @@
 window.__bookstaInitStart = Date.now();
 window.__bookstaErrors = window.__bookstaErrors || [];
 
-const API_BASE_URL = localStorage.getItem('API_BASE_URL') || document.querySelector('meta[name="api-base-url"]')?.content || window.API_BASE_URL || '';
+// Safe storage fallback for private browsing / incognito modes (complying with CSP script-src 'self')
+const safeStorage = (function() {
+  const mem = {};
+  let available = false;
+  try {
+    const testKey = '__storage_test__';
+    window.localStorage.setItem(testKey, testKey);
+    window.localStorage.removeItem(testKey);
+    available = true;
+  } catch (e) {
+    available = false;
+  }
+
+  return {
+    getItem(key) {
+      if (available) {
+        try { return window.localStorage.getItem(key); } catch (e) {}
+      }
+      return mem.hasOwnProperty(key) ? mem[key] : null;
+    },
+    setItem(key, value) {
+      if (available) {
+        try { window.localStorage.setItem(key, value); return; } catch (e) {}
+      }
+      mem[key] = String(value);
+    },
+    removeItem(key) {
+      if (available) {
+        try { window.localStorage.removeItem(key); return; } catch (e) {}
+      }
+      delete mem[key];
+    }
+  };
+})();
+
+// Initialize theme immediately to prevent screen flash
+(function() {
+  try {
+    const t = safeStorage.getItem('bookstaTheme') || 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+
+const API_BASE_URL = safeStorage.getItem('API_BASE_URL') || document.querySelector('meta[name="api-base-url"]')?.content || window.API_BASE_URL || '';
 const app = document.getElementById('app');
 const authSlot = document.getElementById('auth-slot');
 const cartCount = document.getElementById('cart-count');
@@ -62,7 +105,7 @@ const chatbotFaq = {
 };
 
 const state = {
-  token: localStorage.getItem('bookstaToken'),
+  token: safeStorage.getItem('bookstaToken'),
   user: null,
   books: [],
   featured: [],
@@ -95,7 +138,7 @@ const state = {
   drawerOpen: false,
   loadingMore: false,
   typewriterIndex: 0,
-  theme: localStorage.getItem('bookstaTheme') || 'dark',
+  theme: safeStorage.getItem('bookstaTheme') || 'light',
   heroTimer: null,
   searchTimer: null,
   chatbotOpen: false,
@@ -495,11 +538,11 @@ function getRouteFromHash(hashString) {
 }
 
 function setTheme(theme) {
-  const targetTheme = (theme === 'light' || theme === 'dark') ? theme : (localStorage.getItem('bookstaTheme') || 'dark');
+  const targetTheme = (theme === 'light' || theme === 'dark') ? theme : (safeStorage.getItem('bookstaTheme') || 'light');
   state.theme = targetTheme;
   document.documentElement.setAttribute('data-theme', targetTheme);
   document.documentElement.dataset.theme = targetTheme;
-  localStorage.setItem('bookstaTheme', targetTheme);
+  safeStorage.setItem('bookstaTheme', targetTheme);
   if (themeToggle) {
     themeToggle.textContent = targetTheme === 'dark' ? '☀️' : '🌙';
   }
@@ -566,7 +609,7 @@ async function api(path, options = {}) {
 function clearSession(showNotice = true) {
   state.token = null;
   state.user = null;
-  localStorage.removeItem('bookstaToken');
+  safeStorage.removeItem('bookstaToken');
   renderChrome();
   if (showNotice) {
     showToast('Session expired. Please sign in again.', 'error');
@@ -576,7 +619,7 @@ function clearSession(showNotice = true) {
 function saveSession(token, user) {
   state.token = token;
   state.user = user;
-  localStorage.setItem('bookstaToken', token);
+  safeStorage.setItem('bookstaToken', token);
   renderChrome();
 }
 
@@ -1242,7 +1285,7 @@ function positionChatbotFromStorage() {
   if (!root) return;
 
   try {
-    const stored = JSON.parse(localStorage.getItem('bookstaChatbotPos') || 'null');
+    const stored = JSON.parse(safeStorage.getItem('bookstaChatbotPos') || 'null');
     if (!stored || typeof stored.left !== 'number' || typeof stored.top !== 'number') {
       return;
     }
@@ -1322,7 +1365,7 @@ function endChatbotDrag(event) {
   if (root) {
     root.style.transition = '';
     const rect = root.getBoundingClientRect();
-    localStorage.setItem('bookstaChatbotPos', JSON.stringify({ left: rect.left, top: rect.top }));
+    safeStorage.setItem('bookstaChatbotPos', JSON.stringify({ left: rect.left, top: rect.top }));
     root.releasePointerCapture?.(event.pointerId);
   }
 }
@@ -2740,9 +2783,9 @@ async function refreshPersonalization() {
 async function recordReadingEvent(bookId, source = 'book-detail') {
   if (!state.user || !bookId) return;
   const viewKey = `booksta:viewed:${bookId}`;
-  const lastSeen = Number(localStorage.getItem(viewKey) || '0');
+  const lastSeen = Number(safeStorage.getItem(viewKey) || '0');
   if (Date.now() - lastSeen < 60 * 1000) return;
-  localStorage.setItem(viewKey, String(Date.now()));
+  safeStorage.setItem(viewKey, String(Date.now()));
   try {
     await api('/api/reading-events', {
       method: 'POST',
@@ -4087,10 +4130,15 @@ async function handleSubmit(form) {
       });
       saveSession(response.token, response.user);
       showFormAlert(form, 'Signed in successfully. Redirecting...', 'success');
-      await refreshCart();
-      await refreshWishlist();
-      await refreshOrders();
-      await refreshPersonalization();
+      
+      // Load user data in parallel
+      await Promise.all([
+        refreshCart().catch(() => {}),
+        refreshWishlist().catch(() => {}),
+        refreshOrders().catch(() => {}),
+        refreshPersonalization().catch(() => {})
+      ]);
+
       // Auto-redirect admin users to admin dashboard
       if (response.user && response.user.role === 'admin') {
         window.location.href = '/admin.html';
@@ -4098,7 +4146,7 @@ async function handleSubmit(form) {
         setTimeout(async () => {
           window.location.hash = state.lastActiveHash || '#/';
           await loadRoute();
-        }, 800);
+        }, 100);
       }
     } catch (error) {
       showFormAlert(form, error.message, 'error');
@@ -4116,14 +4164,19 @@ async function handleSubmit(form) {
       });
       saveSession(response.token, response.user);
       showFormAlert(form, 'Account created successfully. Redirecting...', 'success');
-      await refreshCart();
-      await refreshWishlist();
-      await refreshOrders();
-      await refreshPersonalization();
+      
+      // Load user data in parallel
+      await Promise.all([
+        refreshCart().catch(() => {}),
+        refreshWishlist().catch(() => {}),
+        refreshOrders().catch(() => {}),
+        refreshPersonalization().catch(() => {})
+      ]);
+
       setTimeout(async () => {
         window.location.hash = state.lastActiveHash || '#/';
         await loadRoute();
-      }, 800);
+      }, 100);
     } catch (error) {
       showFormAlert(form, error.message, 'error');
     }
@@ -4548,7 +4601,7 @@ function initFloatingHamburger() {
   el.style.top = '';
   el.style.right = '';
   el.style.bottom = '';
-  localStorage.removeItem('mobileHamburgerPos');
+  safeStorage.removeItem('mobileHamburgerPos');
 }
 
 // wire mobile menu and search actions via delegated handler
