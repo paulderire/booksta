@@ -1465,24 +1465,26 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
   font-family: var(--font-body) !important;
 }
 
-/* Centered Inner Wrapper matching Topbar fitting */
-.page.home-page>.hero .hero-inner {
-  max-width: 1520px !important;
-  /* Expanded container width to align content with far left/right edges */
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  width: 100% !important;
-  padding: 0 clamp(1.5rem, 4vw, 4rem) !important;
-  /* Symmetric side padding for equal left/right spacing */
-  display: grid !important;
-  grid-template-columns: minmax(0, 720px) 330px !important;
-  justify-content: space-between !important;
-  /* Push columns to edges for wide spacing */
-  gap: 4rem !important;
-  align-items: center !important;
-  position: relative !important;
+/* Centered Inner Wrapper matching Topbar fitting (Desktop Only) */
+@media (min-width: 992px) {
+  .page.home-page>.hero .hero-inner {
+    max-width: 1520px !important;
+    /* Expanded container width to align content with far left/right edges */
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+    padding: 0 clamp(1.5rem, 4vw, 4rem) !important;
+    /* Symmetric side padding for equal left/right spacing */
+    display: grid !important;
+    grid-template-columns: minmax(0, 720px) 330px !important;
+    justify-content: space-between !important;
+    /* Push columns to edges for wide spacing */
+    gap: 4rem !important;
+    align-items: center !important;
+    position: relative !important;
+  }
 }
 
 /* Sliding Showcase Navigation Controls below the book picture */
@@ -8630,6 +8632,13 @@ main#app:has(.home-page) {
   .books-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
     gap: 0.75rem !important;
+  }
+
+  /* Force 1 column (one book per row) on catalog and search pages on mobile */
+  .books-page .books-grid,
+  .search-page .books-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
   }
 
   .skeleton-grid {
