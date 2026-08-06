@@ -1,20 +1,70 @@
 /**
- * Smooth Scroll Animations - Simplified Version
+ * Smooth Scroll Animations — v2
  * - Scroll progress bar
- * - Scroll-triggered section reveals
+ * - Scroll-triggered section/card reveals using IntersectionObserver
+ * - Uses .scroll-hidden (initial) → .scroll-visible (on intersect) pattern
+ * - Covers ALL dynamic element types across the app
  */
 
 class ScrollAnimations {
   constructor() {
     this.progressBar = null;
     this.observer = null;
+    this.observed = new WeakSet();
     this.init();
+  }
+
+  /**
+   * All selectors that should receive scroll-triggered animations.
+   * Covers every dynamic element type rendered across all routes.
+   */
+  static get ANIMATE_SELECTORS() {
+    return [
+      '.section',
+      '.book-card',
+      '.wishlist-card',
+      '.order-card',
+      '.review-card',
+      '.glass-card',
+      '.panel',
+      '.contact-card',
+      '.mini-book',
+      '.compact-book-card',
+      '.detail-grid',
+      '.empty-state',
+      '.order-head',
+      '.profile-shell',
+      '.profile-summary',
+      '.profile-forms',
+      '.profile-form',
+      '.deals-promo-layout',
+      '.kids-promo-layout',
+      '.newsletter-container',
+      '.promo-banner-content',
+      '.featured-author-grid',
+      '.featured-authors-row',
+      '.author-card',
+      '.genre-card',
+      '.drawer-item',
+      '.hero-panel',
+      '.homepage-stats-row',
+      '.books-grid',
+      '.wishlist-grid',
+      '.orders-grid',
+      '.admin-orders-grid',
+      '.notification-page',
+      '.cart-items',
+      '.cart-summary',
+      '.track-timeline',
+      '.scroll-fade-in-trigger'
+    ];
   }
 
   init() {
     this.createProgressBar();
     this.setupScrollProgress();
     this.setupIntersectionObserver();
+    this.observeAll();
   }
 
   /**
@@ -58,60 +108,106 @@ class ScrollAnimations {
    */
   setupIntersectionObserver() {
     const observerOptions = {
-      threshold: [0, 0.1, 0.25, 0.5],
-      rootMargin: '100px 0px -100px 0px'
+      threshold: [0, 0.1, 0.15],
+      rootMargin: '50px 0px -30px 0px'
     };
 
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          // Add animate class to trigger animation
-          entry.target.classList.add('animate');
-          // Don't unobserve - keep observing for consistency
+        if (entry.isIntersecting && entry.target.classList.contains('scroll-hidden')) {
+          entry.target.classList.remove('scroll-hidden');
+          entry.target.classList.add('scroll-visible');
+
+          // Stagger children inside grid/list containers
+          this._staggerChildren(entry.target);
+
+          // Stop observing once revealed
+          this.observer.unobserve(entry.target);
         }
       });
     }, observerOptions);
+  }
 
-    // Observe all section elements for scroll animation
-    document.querySelectorAll('.section').forEach((section) => {
-      section.classList.add('scroll-fade-in');
-      this.observer.observe(section);
+  /**
+   * Stagger animation delays for direct children of grid containers
+   */
+  _staggerChildren(container) {
+    const gridSelectors = [
+      '.books-grid', '.wishlist-grid', '.orders-grid',
+      '.admin-orders-grid', '.featured-authors-row',
+      '.recommendation-rail', '.deals-books-row', '.kids-books-row',
+      '.hero-feature-grid', '.skeleton-grid', '.promotions-grid'
+    ];
+
+    // If this element IS a grid container, stagger its children
+    const isGrid = gridSelectors.some(sel => container.matches(sel));
+    if (isGrid) {
+      const children = container.children;
+      for (let i = 0; i < children.length; i++) {
+        children[i].style.animationDelay = `${i * 60}ms`;
+      }
+      return;
+    }
+
+    // If it contains a grid, stagger that grid's children
+    for (const sel of gridSelectors) {
+      const grid = container.querySelector(sel);
+      if (grid) {
+        const children = grid.children;
+        for (let i = 0; i < children.length; i++) {
+          children[i].style.animationDelay = `${i * 60}ms`;
+        }
+      }
+    }
+  }
+
+  /**
+   * Observe all matching elements currently in the DOM.
+   * Safe to call multiple times — already-observed elements are skipped.
+   */
+  observeAll() {
+    if (!this.observer) return;
+
+    const selector = ScrollAnimations.ANIMATE_SELECTORS.join(', ');
+    document.querySelectorAll(selector).forEach((el) => {
+      // Skip if already processed
+      if (this.observed.has(el)) return;
+      // Skip if already visible (e.g. hero which has opacity:1 !important)
+      if (el.classList.contains('scroll-visible')) return;
+      // Skip the hero itself — it should always be visible
+      if (el.classList.contains('hero')) return;
+
+      // Mark as hidden (initial state)
+      if (!el.classList.contains('scroll-hidden') && !el.classList.contains('scroll-visible')) {
+        el.classList.add('scroll-hidden');
+      }
+
+      this.observed.add(el);
+      this.observer.observe(el);
     });
 
-    // Also observe other scroll-trigger elements
-    document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
-      el.classList.add('scroll-fade-in');
-      this.observer.observe(el);
+    // Handle elements already in the viewport on first paint
+    // (e.g. above-the-fold content). Use a tiny delay so the
+    // browser can compute layout first.
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.scroll-hidden').forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight + 50 && rect.bottom > 0) {
+          el.classList.remove('scroll-hidden');
+          el.classList.add('scroll-visible');
+          this._staggerChildren(el);
+          this.observer.unobserve(el);
+        }
+      });
     });
   }
 
   /**
-   * Re-observe sections (call this after page renders)
+   * Re-observe after a route change / dynamic render.
+   * Called from app.js renderApp().
    */
   reObserveSections() {
-    // Observe all section elements for scroll animation
-    document.querySelectorAll('.section').forEach((section) => {
-      try {
-        if (!section.classList.contains('scroll-fade-in')) {
-          section.classList.add('scroll-fade-in');
-        }
-        this.observer.observe(section);
-      } catch (e) {
-        // Already observing
-      }
-    });
-
-    // Also observe other scroll-trigger elements
-    document.querySelectorAll('.scroll-fade-in-trigger, .book-card').forEach((el) => {
-      try {
-        if (!el.classList.contains('scroll-fade-in')) {
-          el.classList.add('scroll-fade-in');
-        }
-        this.observer.observe(el);
-      } catch (e) {
-        // Already observing
-      }
-    });
+    this.observeAll();
   }
 
   /**
@@ -141,8 +237,8 @@ window.addEventListener('hashchange', () => {
   if (window.scrollAnimations) {
     // Re-observe elements for new page
     setTimeout(() => {
-      window.scrollAnimations.observer.disconnect();
-      window.scrollAnimations.setupIntersectionObserver();
+      window.scrollAnimations.observed = new WeakSet();
+      window.scrollAnimations.observeAll();
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);

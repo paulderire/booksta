@@ -4,18 +4,20 @@
    Only micro-tweaks and additions here.
    ================================================================ */
 
-/* Calm initial page-load animations */
-.hero:not(.scroll-fade-in),
-.section:not(.scroll-fade-in),
-.book-card:not(.scroll-fade-in),
-.mini-book:not(.scroll-fade-in),
-.wishlist-card:not(.scroll-fade-in),
-.order-card:not(.scroll-fade-in),
-.review-card:not(.scroll-fade-in),
-.drawer-item:not(.scroll-fade-in),
-.contact-card:not(.scroll-fade-in),
-.panel:not(.scroll-fade-in),
-.glass-card:not(.scroll-fade-in) {
+/* Calm initial page-load — suppress animations until scroll observer processes elements.
+   Elements in .scroll-hidden state are invisible; elements without scroll classes
+   should also not animate (they haven't been observed yet). */
+.hero:not(.scroll-visible),
+.section:not(.scroll-visible),
+.book-card:not(.scroll-visible),
+.mini-book:not(.scroll-visible),
+.wishlist-card:not(.scroll-visible),
+.order-card:not(.scroll-visible),
+.review-card:not(.scroll-visible),
+.drawer-item:not(.scroll-visible),
+.contact-card:not(.scroll-visible),
+.panel:not(.scroll-visible),
+.glass-card:not(.scroll-visible) {
   animation: none !important;
 }
 

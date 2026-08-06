@@ -1,26 +1,29 @@
 /* Global box-sizing reset — prevents any element from exceeding its container */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box !important;
 }
 
-/* Prevent white flash during page load/refresh & route changes */
-html, body {
+/* Prevent flash during page load/refresh & route changes */
+html,
+body {
   overflow-x: hidden !important;
   max-width: 100vw !important;
-  background-color: #06080f !important;
-  color: #f0eeff !important;
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
 }
 
 html[data-theme='light'],
 html[data-theme='light'] body {
-  background-color: #faf9ff !important;
-  color: #1e1130 !important;
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
 }
 
 html[data-theme='dark'],
 html[data-theme='dark'] body {
-  background-color: #06080f !important;
-  color: #f0eeff !important;
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
 }
 
 main#app {
@@ -469,13 +472,13 @@ body:not(.is-logged-in) .mobile-menu-overlay .mobile-menu-section:first-child+.m
 @media (min-width: 700px) {
   .topbar-center {
     flex: 1 1 auto !important;
-    min-width: 360px !important;
-    /* Prevent search input from squishing */
+    min-width: 180px !important;
+    /* Prevent search input from squishing while allowing it to scale on zoom */
     max-width: 440px !important;
     display: flex !important;
     justify-content: center !important;
-    margin-inline: 2.5rem !important;
-    /* Push it away from logo and actions! */
+    margin-inline: 1.5rem !important;
+    /* Clean spacing that adjusts nicely */
   }
 }
 
@@ -1462,29 +1465,22 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
   font-family: var(--font-body) !important;
 }
 
-html[data-theme='light'] .page.home-page>.hero {
-  background: linear-gradient(135deg, #0f2b35 0%, #081d24 100%) !important;
-  /* Keep deep dark teal background container even in light theme */
-}
-
 /* Centered Inner Wrapper matching Topbar fitting */
-.hero-inner {
-  max-width: 1650px !important;
-  /* Increased width to expand hero layout */
+.page.home-page>.hero .hero-inner {
+  max-width: 1520px !important;
+  /* Expanded container width to align content with far left/right edges */
   margin-top: 0 !important;
-  /* Removed explicit top margin to reduce gap */
   margin-bottom: 0 !important;
   margin-left: auto !important;
   margin-right: auto !important;
   width: 100% !important;
-  padding: 0 clamp(1rem, 3vw, 2.5rem) !important;
+  padding: 0 clamp(1.5rem, 4vw, 4rem) !important;
   /* Symmetric side padding for equal left/right spacing */
   display: grid !important;
-  grid-template-columns: minmax(0, 800px) 330px !important;
+  grid-template-columns: minmax(0, 720px) 330px !important;
   justify-content: space-between !important;
-  /* Push columns to edges for equal side margins */
-  gap: 3rem !important;
-  /* Minimum gap between text and slider — space-between handles the rest */
+  /* Push columns to edges for wide spacing */
+  gap: 4rem !important;
   align-items: center !important;
   position: relative !important;
 }
@@ -1535,11 +1531,21 @@ html[data-theme='light'] .page.home-page>.hero {
 }
 
 .hero-arrow.prev {
-  left: -65px !important;
+  left: -40px !important;
 }
 
 .hero-arrow.next {
-  right: -65px !important;
+  right: -40px !important;
+}
+
+@media (max-width: 1200px) {
+  .hero-arrow.prev {
+    left: 8px !important;
+  }
+
+  .hero-arrow.next {
+    right: 8px !important;
+  }
 }
 
 .hero-arrow.prev:hover {
@@ -1596,8 +1602,10 @@ html[data-theme='light'] .page.home-page>.hero {
   gap: 1.25rem !important;
   z-index: 2 !important;
   text-align: left !important;
-  max-width: 680px !important;
-  /* Limit text column width for optimal readability matching topbar content start */
+  max-width: 720px !important;
+  /* Expanded width to stretch to the far left side */
+  padding-right: 0 !important;
+  /* Removed right-side padding constraint since column is pushed far left */
 }
 
 /* Green rounded seasonal badge */
@@ -1624,7 +1632,7 @@ html[data-theme='light'] .page.home-page>.hero {
   font-weight: 800 !important;
   line-height: 1.15 !important;
   letter-spacing: -0.02em !important;
-  max-width: 20ch !important;
+  max-width: 100% !important;
   margin: 0 !important;
   font-family: var(--font-body) !important;
 }
@@ -1779,7 +1787,7 @@ html[data-theme='light'] .page.home-page>.hero {
 .hero-showcase-slide.prev-slide {
   opacity: 0.4 !important;
   visibility: visible !important;
-  transform: translate3d(-150px, 0, -100px) scale(0.78) rotateY(20deg) !important;
+  transform: translate3d(-46%, 0, -100px) scale(0.78) rotateY(20deg) !important;
   z-index: 5 !important;
   pointer-events: none !important;
   filter: grayscale(20%) brightness(80%) !important;
@@ -1788,7 +1796,7 @@ html[data-theme='light'] .page.home-page>.hero {
 .hero-showcase-slide.next-slide {
   opacity: 0.4 !important;
   visibility: visible !important;
-  transform: translate3d(150px, 0, -100px) scale(0.78) rotateY(-20deg) !important;
+  transform: translate3d(46%, 0, -100px) scale(0.78) rotateY(-20deg) !important;
   z-index: 5 !important;
   pointer-events: none !important;
   filter: grayscale(20%) brightness(80%) !important;
@@ -2050,6 +2058,8 @@ html[data-theme='light'] .stat-col:hover {
   .hero-left {
     align-items: center !important;
     text-align: center !important;
+    padding-right: 0 !important;
+    max-width: 100% !important;
   }
 
   .hero-left .hero-title {
@@ -2081,12 +2091,12 @@ html[data-theme='light'] .stat-col:hover {
   }
 
   .hero-showcase-slide.prev-slide {
-    transform: translate3d(-80px, 0, -60px) scale(0.75) rotateY(15deg) !important;
+    transform: translate3d(-36%, 0, -60px) scale(0.75) rotateY(15deg) !important;
     opacity: 0.3 !important;
   }
 
   .hero-showcase-slide.next-slide {
-    transform: translate3d(80px, 0, -60px) scale(0.75) rotateY(-15deg) !important;
+    transform: translate3d(36%, 0, -60px) scale(0.75) rotateY(-15deg) !important;
     opacity: 0.3 !important;
   }
 
@@ -2107,12 +2117,12 @@ html[data-theme='light'] .stat-col:hover {
 
 @media (max-width: 576px) {
   .hero-showcase-slide.prev-slide {
-    transform: translate3d(-60px, 0, -50px) scale(0.72) rotateY(12deg) !important;
+    transform: translate3d(-26%, 0, -50px) scale(0.72) rotateY(12deg) !important;
     opacity: 0.25 !important;
   }
 
   .hero-showcase-slide.next-slide {
-    transform: translate3d(60px, 0, -50px) scale(0.72) rotateY(-12deg) !important;
+    transform: translate3d(26%, 0, -50px) scale(0.72) rotateY(-12deg) !important;
     opacity: 0.25 !important;
   }
 
@@ -3626,11 +3636,11 @@ body {
 
 /* Editorial Promo Banner Section (Matching Screenshot Layout) */
 .promotions-section {
-  background-color: #fcfcfc !important;
-  /* Soft white background */
+  background-color: #0b1528 !important;
+  /* Rich dark blue grid background for dark mode */
   background-image:
-    radial-gradient(#e2e8f0 1.5px, transparent 1.5px),
-    radial-gradient(#e2e8f0 1.5px, transparent 1.5px) !important;
+    radial-gradient(rgba(255, 255, 255, 0.05) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(255, 255, 255, 0.05) 1.5px, transparent 1.5px) !important;
   background-size: 32px 32px !important;
   background-position: 0 0, 16px 16px !important;
   /* Repeating tile pattern overlay */
@@ -3649,6 +3659,14 @@ body {
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   overflow: hidden !important;
+}
+
+html[data-theme='light'] .promotions-section {
+  background-color: #fcfcfc !important;
+  /* Soft white background */
+  background-image:
+    radial-gradient(#e2e8f0 1.5px, transparent 1.5px),
+    radial-gradient(#e2e8f0 1.5px, transparent 1.5px) !important;
 }
 
 .promo-editorial-container {
@@ -3776,8 +3794,8 @@ body {
 
 /* Premium Newsletter Section */
 .newsletter-section {
-  background-color: #ffffff !important;
-  border-top: 1px solid #f1f5f9 !important;
+  background-color: #06080f !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
   padding: 5rem 0 3rem !important;
   width: 100% !important;
   left: auto !important;
@@ -3791,6 +3809,11 @@ body {
   align-items: center !important;
   text-align: center !important;
   box-sizing: border-box !important;
+}
+
+html[data-theme='light'] .newsletter-section {
+  background-color: #ffffff !important;
+  border-top: 1px solid #f1f5f9 !important;
 }
 
 .newsletter-container {
@@ -4108,7 +4131,7 @@ body {
 
 /* Premium Kids Books Section */
 .kids-promo-section {
-  background: #ffffff !important;
+  background: #0b1329 !important;
   border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   width: 100% !important;
@@ -8306,6 +8329,7 @@ html[data-theme='light'] .genre-chip--active {
   padding: 0.8rem 1rem !important;
   border-radius: 12px !important;
   font-size: 0.875rem !important;
+  font-weight: 500 !important;
   line-height: 1.4 !important;
   margin-bottom: 1.25rem !important;
   display: none !important;
@@ -8328,14 +8352,14 @@ html[data-theme='light'] .genre-chip--active {
   color: #a7f3d0 !important;
 }
 
-/* Contrast adjustments for profile page forms in light mode */
-html[data-theme='light'] .profile-forms .form-alert.is-error {
+/* Contrast adjustments for all form alerts in light mode */
+html[data-theme='light'] .form-alert.is-error {
   background-color: rgba(220, 38, 38, 0.08) !important;
   border: 1px solid rgba(220, 38, 38, 0.25) !important;
   color: #b91c1c !important;
 }
 
-html[data-theme='light'] .profile-forms .form-alert.is-success {
+html[data-theme='light'] .form-alert.is-success {
   background-color: rgba(5, 150, 105, 0.08) !important;
   border: 1px solid rgba(5, 150, 105, 0.25) !important;
   color: #047857 !important;
@@ -8449,6 +8473,7 @@ main#app:has(.home-page) {
 }
 
 @media (max-width: 768px) {
+
   .hero-inner,
   .promo-editorial-container,
   .kids-promo-layout,
@@ -8486,7 +8511,8 @@ main#app:has(.home-page) {
   width: 100% !important;
   padding: 0 clamp(1rem, 3vw, 2.5rem) !important;
   display: grid !important;
-  grid-template-columns: 1.33fr 0.85fr !important; /* Left side cards, Right side text content */
+  grid-template-columns: 1.33fr 0.85fr !important;
+  /* Left side cards, Right side text content */
   gap: 4rem !important;
   align-items: center !important;
   position: relative !important;
@@ -8496,7 +8522,8 @@ main#app:has(.home-page) {
 
 .deals-books-row {
   display: grid !important;
-  grid-template-columns: repeat(2, 1fr) !important; /* 2 cards side by side */
+  grid-template-columns: repeat(2, 1fr) !important;
+  /* 2 cards side by side */
   gap: 1.25rem !important;
   align-items: stretch !important;
 }
@@ -8563,12 +8590,1048 @@ main#app:has(.home-page) {
     gap: 2.5rem !important;
     text-align: center !important;
   }
+
   .deals-promo-content {
     align-items: center !important;
     text-align: center !important;
-    order: 1 !important; /* Stack text content on top of cards on mobile */
+    order: 1 !important;
+    /* Stack text content on top of cards on mobile */
   }
+
   .deals-books-row {
     order: 2 !important;
+  }
+}
+
+
+/* ================================================================
+   COMPREHENSIVE RESPONSIVE FIXES (v2)
+   Added to address responsiveness gaps across all viewports.
+   Breakpoints: 600px, 480px, 375px
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   ≤ 600px — General mobile
+   ---------------------------------------------------------------- */
+@media (max-width: 600px) {
+
+  /* Global page containers */
+  .page:not(.home-page) {
+    padding-top: 1.25rem !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+  }
+
+  main#app {
+    padding-inline: 0.5rem !important;
+  }
+
+  /* Grids — prevent overflow from large minmax minimums */
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Book card refinements */
+  .book-card {
+    border-radius: var(--radius-md, 12px) !important;
+  }
+
+  .book-cover {
+    border-radius: var(--radius-md, 12px) var(--radius-md, 12px) 0 0 !important;
+  }
+
+  /* Section spacing */
+  .section {
+    gap: 0.85rem !important;
+    padding: 0.85rem 0 !important;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 1.5rem !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 1.5rem 1rem !important;
+    gap: 1rem !important;
+    border-radius: var(--radius-lg, 16px) !important;
+  }
+
+  .hero-title {
+    font-size: clamp(1.4rem, 5.5vw, 2rem) !important;
+    line-height: 1.2 !important;
+  }
+
+  .hero-copy {
+    font-size: 0.88rem !important;
+    line-height: 1.55 !important;
+  }
+
+  .hero-cta {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .hero-cta>.primary-button,
+  .hero-cta>.secondary-button {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
+  .hero-trust-badges {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .trust-badge {
+    font-size: 0.72rem !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+
+  .hero-stats {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .stat-value {
+    font-size: 1.1rem !important;
+  }
+
+  .stat-label {
+    font-size: 0.68rem !important;
+  }
+
+  /* Hero feature grid (books in hero) */
+  .hero-feature-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .hero-feature-grid .book-card:nth-child(n+3) {
+    display: none !important;
+  }
+
+  /* Featured authors */
+  .featured-authors-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.6rem !important;
+  }
+
+  .author-card {
+    padding: 0.75rem !important;
+  }
+
+  /* Featured author section */
+  .featured-author-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+    text-align: center !important;
+  }
+
+  .author-image-column {
+    order: -1 !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  .featured-author-img {
+    max-width: 200px !important;
+    width: 60% !important;
+    height: auto !important;
+  }
+
+  .featured-author-name {
+    font-size: 1.35rem !important;
+  }
+
+  .author-stats {
+    justify-content: center !important;
+  }
+
+  /* Book detail */
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .detail-cover {
+    min-height: 16rem !important;
+    max-height: 22rem !important;
+  }
+
+  .detail-title {
+    font-size: 1.4rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .detail-actions {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.45rem !important;
+  }
+
+  .detail-actions .primary-button,
+  .detail-actions .secondary-button,
+  .detail-actions .ghost-button {
+    font-size: 0.78rem !important;
+    padding: 0.55rem 0.5rem !important;
+    min-height: 44px !important;
+  }
+
+  /* Book detail review section */
+  .review-card {
+    padding: 0.85rem !important;
+  }
+
+  /* Cart page */
+  .cart-summary {
+    padding: 1rem !important;
+  }
+
+  .cart-items .mini-book {
+    gap: 0.6rem !important;
+    padding: 0.65rem !important;
+  }
+
+  /* Wishlist */
+  .wishlist-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .wishlist-card {
+    padding: 0.85rem !important;
+  }
+
+  /* Orders */
+  .orders-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .order-card {
+    padding: 0.85rem !important;
+  }
+
+  /* Profile */
+  .profile-shell {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .profile-summary {
+    padding: 1.25rem !important;
+  }
+
+  .profile-form {
+    padding: 1rem !important;
+  }
+
+  .profile-avatar {
+    width: 60px !important;
+    height: 60px !important;
+    font-size: 1.2rem !important;
+  }
+
+  /* Checkout */
+  .checkout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .checkout-form {
+    padding: 1rem !important;
+  }
+
+  /* Notifications */
+  .notification-page .books-grid,
+  .notification-page .recommended-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+  }
+
+  /* Promo banner */
+  .promo-banner-content {
+    padding: 3rem 1.25rem !important;
+  }
+
+  .promo-title {
+    font-size: 1.8rem !important;
+  }
+
+  .promo-subtitle {
+    font-size: 0.95rem !important;
+  }
+
+  /* Deals promo */
+  .deals-promo-title {
+    font-size: 1.8rem !important;
+  }
+
+  .deals-promo-text {
+    font-size: 0.88rem !important;
+  }
+
+  .deals-books-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Kids promo */
+  .kids-promo-title {
+    font-size: 1.8rem !important;
+  }
+
+  .kids-promo-text {
+    font-size: 0.88rem !important;
+  }
+
+  /* Newsletter */
+  .newsletter-title {
+    font-size: 1.5rem !important;
+  }
+
+  .newsletter-subtitle {
+    font-size: 0.88rem !important;
+  }
+
+  .newsletter-form-group {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .newsletter-input {
+    width: 100% !important;
+  }
+
+  .newsletter-submit-btn {
+    width: 100% !important;
+  }
+
+  /* Ready to read CTA */
+  .ready-title {
+    font-size: 1.6rem !important;
+  }
+
+  .ready-copy {
+    font-size: 0.88rem !important;
+    max-width: 100% !important;
+  }
+
+  .ready-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .ready-actions .primary-button,
+  .ready-actions .secondary-button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Auth modal — near full-screen on mobile */
+  .auth-modal-panel {
+    width: calc(100% - 1rem) !important;
+    max-height: 92vh !important;
+    border-radius: var(--radius-lg, 16px) !important;
+  }
+
+  /* Paginator */
+  .paginator {
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    justify-content: center !important;
+  }
+
+  .paginator button,
+  .paginator a {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    font-size: 0.82rem !important;
+    padding: 0.35rem 0.55rem !important;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.65rem !important;
+  }
+
+  .toolbar .section-title {
+    text-align: center !important;
+    font-size: 1.4rem !important;
+  }
+
+  .view-all-link {
+    position: static !important;
+    transform: none !important;
+    text-align: center !important;
+    display: block !important;
+  }
+
+  /* Order head */
+  .order-head {
+    padding: 0 !important;
+  }
+
+  .order-head .section-title {
+    font-size: 1.3rem !important;
+  }
+
+  /* Search page */
+  .search-page .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Footer */
+  .site-footer {
+    padding: 1.5rem 1rem !important;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  .footer-brand .section-copy {
+    max-width: 100% !important;
+  }
+
+  /* Track order */
+  .track-timeline {
+    padding: 0.75rem !important;
+  }
+
+  /* Recommendation rail */
+  .recommendation-rail {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Compact book cards */
+  .books-grid--compact {
+    grid-template-columns: 1fr !important;
+  }
+
+  .compact-book-card {
+    padding: 0.65rem !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Genre cards in filter pills */
+  .genre-card {
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Pill chips */
+  .pill {
+    font-size: 0.72rem !important;
+    padding: 0.25rem 0.55rem !important;
+  }
+
+  /* Buttons — minimum touch target */
+  .primary-button,
+  .secondary-button,
+  .ghost-button {
+    min-height: 44px !important;
+  }
+}
+
+/* ----------------------------------------------------------------
+   ≤ 480px — Small phones
+   ---------------------------------------------------------------- */
+@media (max-width: 480px) {
+
+  /* Even tighter page padding */
+  .page:not(.home-page) {
+    padding-left: 0.65rem !important;
+    padding-right: 0.65rem !important;
+    padding-top: 1rem !important;
+  }
+
+  main#app {
+    padding-inline: 0.35rem !important;
+  }
+
+  /* Smaller grids */
+  .books-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.55rem !important;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.55rem !important;
+  }
+
+  /* Book cards — tighter */
+  .book-card {
+    border-radius: var(--radius-sm, 8px) !important;
+  }
+
+  .book-cover {
+    border-radius: var(--radius-sm, 8px) var(--radius-sm, 8px) 0 0 !important;
+  }
+
+  /* Book card text */
+  .book-card .book-title {
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .book-card .book-author {
+    font-size: 0.68rem !important;
+  }
+
+  .book-card .book-price {
+    font-size: 0.82rem !important;
+  }
+
+  /* Section titles even smaller */
+  .section-title {
+    font-size: 1.25rem !important;
+  }
+
+  /* Hero — more compact */
+  .hero {
+    padding: 1.25rem 0.85rem !important;
+    border-radius: var(--radius-md, 12px) !important;
+  }
+
+  .hero-title {
+    font-size: clamp(1.2rem, 5vw, 1.6rem) !important;
+  }
+
+  .hero-copy {
+    font-size: 0.82rem !important;
+  }
+
+  .hero-badge {
+    font-size: 0.65rem !important;
+    padding: 0.25rem 0.55rem !important;
+  }
+
+  .hero-search-hint {
+    font-size: 0.72rem !important;
+  }
+
+  /* Hero feature grid — show only 2 books */
+  .hero-feature-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Featured authors — single column */
+  .featured-authors-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Book detail */
+  .detail-cover {
+    min-height: 14rem !important;
+  }
+
+  .detail-title {
+    font-size: 1.2rem !important;
+  }
+
+  .detail-actions {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Cart refinements */
+  .cart-items .mini-book {
+    grid-template-columns: 48px 1fr !important;
+    gap: 0.5rem !important;
+    padding: 0.55rem !important;
+  }
+
+  /* Checkout */
+  .checkout-form {
+    padding: 0.85rem !important;
+  }
+
+  /* Profile */
+  .profile-summary {
+    padding: 1rem !important;
+    gap: 0.65rem !important;
+  }
+
+  .profile-avatar {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 1rem !important;
+  }
+
+  .profile-form {
+    padding: 0.85rem !important;
+  }
+
+  /* Promo banner */
+  .promo-banner-content {
+    padding: 2.5rem 1rem !important;
+  }
+
+  .promo-title {
+    font-size: 1.5rem !important;
+  }
+
+  .promo-subtitle {
+    font-size: 0.85rem !important;
+  }
+
+  /* Deals / Kids promo */
+  .deals-promo-title,
+  .kids-promo-title {
+    font-size: 1.4rem !important;
+  }
+
+  .deals-promo-text,
+  .kids-promo-text {
+    font-size: 0.82rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  /* Newsletter */
+  .newsletter-title {
+    font-size: 1.25rem !important;
+  }
+
+  .newsletter-container {
+    padding: 2rem 1rem !important;
+  }
+
+  /* Ready to read */
+  .ready-title {
+    font-size: 1.35rem !important;
+  }
+
+  .ready-copy {
+    font-size: 0.82rem !important;
+  }
+
+  /* Auth — compact */
+  .auth-modal-panel {
+    width: calc(100% - 0.5rem) !important;
+    border-radius: var(--radius-md, 12px) !important;
+  }
+
+  .auth-form-panel {
+    padding: 0.85rem !important;
+  }
+
+  .auth-branding {
+    padding: 0.85rem !important;
+  }
+
+  /* Paginator smaller */
+  .paginator button,
+  .paginator a {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    font-size: 0.78rem !important;
+    padding: 0.25rem 0.4rem !important;
+  }
+
+  /* Order head */
+  .order-head .section-title {
+    font-size: 1.15rem !important;
+  }
+
+  /* Footer */
+  .footer-grid {
+    gap: 1.25rem !important;
+  }
+
+  .footer-links h4 {
+    font-size: 0.88rem !important;
+  }
+
+  .footer-bottom small {
+    font-size: 0.7rem !important;
+  }
+
+  /* Notification items */
+  .notification-summary {
+    gap: 0.5rem !important;
+  }
+
+  /* Review cards */
+  .review-card {
+    padding: 0.7rem !important;
+  }
+
+  /* Recommendation tiles */
+  .recommendation-rail {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
+  }
+
+  .recommendation-tile {
+    padding: 0.5rem !important;
+  }
+
+  /* Empty states */
+  .empty-state {
+    padding: 2rem 1rem !important;
+  }
+
+  .empty-state p {
+    font-size: 0.88rem !important;
+  }
+
+  /* Drawer (cart panel) */
+  .drawer {
+    width: auto !important;
+    right: 0.35rem !important;
+    left: 0.35rem !important;
+    bottom: 0.35rem !important;
+  }
+}
+
+/* ----------------------------------------------------------------
+   ≤ 375px — Very small phones (iPhone SE, etc.)
+   ---------------------------------------------------------------- */
+@media (max-width: 375px) {
+
+  /* Ultra-compact padding */
+  .page:not(.home-page) {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  main#app {
+    padding-inline: 0.25rem !important;
+  }
+
+  /* Book grid — can still do 2 columns but with minimal gap */
+  .books-grid {
+    gap: 0.4rem !important;
+  }
+
+  /* Book cards — minimal inner spacing */
+  .book-card {
+    border-radius: 6px !important;
+  }
+
+  .book-card .book-title {
+    font-size: 0.72rem !important;
+  }
+
+  .book-card .book-author {
+    font-size: 0.64rem !important;
+  }
+
+  /* Hero — ultra compact */
+  .hero {
+    padding: 1rem 0.65rem !important;
+    border-radius: 10px !important;
+  }
+
+  .hero-title {
+    font-size: 1.15rem !important;
+  }
+
+  .hero-copy {
+    font-size: 0.78rem !important;
+  }
+
+  /* Hide non-essential hero elements */
+  .hero-search-hint {
+    display: none !important;
+  }
+
+  .hero-stats {
+    gap: 0.3rem !important;
+  }
+
+  .stat-value {
+    font-size: 0.95rem !important;
+  }
+
+  .stat-label {
+    font-size: 0.6rem !important;
+  }
+
+  /* Trust badges — hide on very small */
+  .hero-trust-badges {
+    display: none !important;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 1.1rem !important;
+  }
+
+  /* Toolbar titles */
+  .toolbar .section-title {
+    font-size: 1.15rem !important;
+  }
+
+  /* Detail page */
+  .detail-title {
+    font-size: 1.1rem !important;
+  }
+
+  .detail-cover {
+    min-height: 12rem !important;
+  }
+
+  /* Buttons — compact but still tappable */
+  .primary-button,
+  .secondary-button,
+  .ghost-button {
+    font-size: 0.78rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  /* Promo sections */
+  .promo-title {
+    font-size: 1.3rem !important;
+  }
+
+  .deals-promo-title,
+  .kids-promo-title {
+    font-size: 1.2rem !important;
+  }
+
+  /* Newsletter */
+  .newsletter-title {
+    font-size: 1.1rem !important;
+  }
+
+  /* Ready section */
+  .ready-title {
+    font-size: 1.15rem !important;
+  }
+
+  /* Profile */
+  .profile-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 0.88rem !important;
+  }
+
+  /* Footer */
+  .site-footer {
+    padding: 1.25rem 0.75rem !important;
+  }
+
+  .social-icons {
+    gap: 0.4rem !important;
+  }
+
+  .social-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* Auth */
+  .auth-modal-panel {
+    width: 100% !important;
+    border-radius: 0 !important;
+    max-height: 100vh !important;
+  }
+
+  /* Paginator */
+  .paginator {
+    gap: 0.2rem !important;
+  }
+
+  .paginator button,
+  .paginator a {
+    min-width: 28px !important;
+    min-height: 28px !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* Topbar ultra-compact */
+  .topbar {
+    padding: 0 0.4rem !important;
+    min-height: 48px !important;
+  }
+
+  .site-logo {
+    height: 28px !important;
+    width: 28px !important;
+  }
+
+  .site-name {
+    font-size: 0.78rem !important;
+  }
+}
+
+/* ----------------------------------------------------------------
+   ≤ 320px — Extremely small screens
+   ---------------------------------------------------------------- */
+@media (max-width: 320px) {
+
+  /* Single column books */
+  .books-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-feature-grid .book-card:nth-child(n+2) {
+    display: none !important;
+  }
+
+  /* Featured author image smaller */
+  .featured-author-img {
+    max-width: 150px !important;
+    width: 80% !important;
+  }
+
+  /* Detail actions — single column */
+  .detail-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero {
+    padding: 0.85rem 0.5rem !important;
+  }
+
+  .hero-title {
+    font-size: 1rem !important;
+  }
+}
+
+/* ----------------------------------------------------------------
+   HORIZONTAL OVERFLOW SAFEGUARDS
+   ---------------------------------------------------------------- */
+
+/* Prevent any child from causing horizontal scroll */
+html,
+body,
+main#app,
+.page,
+.section,
+.hero {
+  max-width: 100vw !important;
+}
+
+/* Images and media — never overflow their container */
+img,
+video,
+iframe,
+canvas,
+svg {
+  max-width: 100% !important;
+  height: auto;
+}
+
+/* Prevent long text from overflowing */
+.book-title,
+.detail-title,
+.hero-title,
+.section-title,
+.notification-summary p,
+.order-card p {
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+}
+
+/* Fix inline styles that use fixed widths */
+.toolbar[style*="min-height"] {
+  min-height: auto !important;
+}
+
+/* Ensure all inputs are mobile-friendly */
+@media (max-width: 600px) {
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="number"],
+  input[type="tel"],
+  select,
+  textarea {
+    font-size: 16px !important;
+    /* Prevents iOS zoom on focus */
+    min-height: 44px !important;
+  }
+}
+
+/* Search suggestions — don't overflow on mobile */
+@media (max-width: 600px) {
+  .search-suggestions {
+    left: 0 !important;
+    right: 0 !important;
+    max-width: 100vw !important;
+  }
+}
+
+/* ================================================================
+   ZOOM & OVERFLOW BULLETPROOF SAFEGUARDS
+   Ensures text, boxes, headers, and media scale down gracefully 
+   when zoomed up to 400% (where viewport drops below 320px).
+   ================================================================ */
+@media screen {
+
+  /* General fluid resizing for all elements */
+  *,
+  *::before,
+  *::after {
+    max-width: 100% !important;
+  }
+
+  html,
+  body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  /* Resizable app wrapper */
+  main#app {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Make sure hero contents stay nicely proportioned under high zoom */
+  .hero-inner {
+    box-sizing: border-box !important;
+  }
+
+  /* Fluid typography for heading elements to prevent word clipping under high zoom */
+  h1,
+  .hero-title,
+  .promo-title,
+  .deals-promo-title,
+  .kids-promo-title {
+    font-size: clamp(1.2rem, 6vw, 3rem) !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  h2,
+  .section-title {
+    font-size: clamp(1.1rem, 5.2vw, 2.4rem) !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Prevent elements with min-width from causing overflow */
+  .topbar-center,
+  .header-search,
+  .auth-modal-panel,
+  .panel,
+  .glass-card {
+    min-width: 0 !important;
   }
 }

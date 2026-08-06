@@ -1080,64 +1080,9 @@ html:not([data-theme='light']) .drawer-item:hover {
   }
 }
 
-/* ========== SMOOTH SCROLL ANIMATIONS ========== */
-
-/* Scroll progress bar */
-.scroll-progress-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  width: 0%;
-  z-index: 100;
-  box-shadow: 0 0 12px var(--shadow-glow);
-  transition: width 0.1s ease-out;
-  will-change: width;
-}
-
-/* Fade-in animation for scroll-triggered elements */
-.scroll-fade-in-trigger,
-.scroll-fade-in {
-  animation: scroll-fade-in 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes scroll-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(32px);
-    filter: blur(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-/* Enhanced text reveal animation for headings and paragraphs */
-.scroll-fade-in h1,
-.scroll-fade-in h2,
-.scroll-fade-in h3,
-.scroll-fade-in p {
-  animation: text-reveal 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.scroll-fade-in h1 { animation-delay: 0ms; }
-.scroll-fade-in h2 { animation-delay: 100ms; }
-.scroll-fade-in h3 { animation-delay: 200ms; }
-.scroll-fade-in p { animation-delay: 300ms; }
-
-@keyframes text-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(32px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* ========== SMOOTH SCROLL ANIMATIONS (v2) ========== */
+/* Core scroll-reveal system now lives in business-theme.css.
+   This file only keeps auxiliary helpers that don't conflict. */
 
 /* Highlight accent words in titles */
 .hero-title span.accent,
@@ -1154,63 +1099,14 @@ p span.accent:hover {
   color: var(--accent-2);
 }
 
-/* Stagger animation for grid items */
-.scroll-stagger-grid > * {
-  animation: scroll-stagger 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes scroll-stagger {
-  from {
-    opacity: 0;
-    transform: translateY(28px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Enhanced line-by-line text animation */
+/* Line-by-line text animation helper */
 .text-lines {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.text-lines > * {
-  animation: line-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes line-reveal {
-  from {
-    opacity: 0;
-    transform: translateX(-12px) translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) translateY(0);
-  }
-}
-
-/* Hide sections initially - only show when scrolled */
-.section {
-  opacity: 0;
-}
-
-.section.scroll-fade-in {
-  opacity: 1;
-}
-
-/* Hero section shows immediately on load */
-.hero {
-  opacity: 1 !important;
-}
-.parallax {
-  will-change: transform;
-  transition: transform 0.3s ease-out;
-}
-
-/* Section label styling with "//" prefix */
+/* Section label styling */
 .section-label {
   display: block;
   font-size: 0.85rem;
@@ -1220,119 +1116,22 @@ p span.accent:hover {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
-  animation: section-label-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-@keyframes section-label-reveal {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Enhanced hero title with smooth reveal */
+/* Hero title — position context */
 .hero-title {
   position: relative;
   overflow: hidden;
-  animation: hero-title-reveal 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-@keyframes hero-title-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Section titles with enhanced animation */
+/* Section title — position context */
 .section-title {
   position: relative;
-  animation: title-reveal 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-@keyframes title-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(32px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Smooth paragraph animations */
-.section-copy {
-  animation: paragraph-reveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes paragraph-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Apply fade-in to book cards in search results */
+/* Book card transition */
 .book-card {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.book-card:not(.hero-feature-grid .book-card).scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* Enhanced hover effect with smooth transition */
-.book-card.scroll-fade-in:hover {
-  transform: translateY(-12px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.25);
-}
-
-/* Glass cards fade-in */
-.glass-card.scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.glass-card.scroll-fade-in:hover {
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.15);
-}
-
-/* Contact cards */
-.contact-card.scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* Review cards */
-.review-card.scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* Order items */
-.order-item.scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* Hero sections with parallax */
-.hero.parallax {
-  animation: scroll-fade-in 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* Smooth sections */
-.section.scroll-fade-in {
-  animation: scroll-fade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 /* Header hide on scroll down */
@@ -1347,10 +1146,6 @@ p span.accent:hover {
     scroll-behavior: smooth;
     scroll-padding-top: 4.5rem;
   }
-
-  * {
-    scroll-behavior: smooth;
-  }
 }
 
 /* Respect user's reduced motion preference */
@@ -1359,10 +1154,14 @@ p span.accent:hover {
     scroll-behavior: auto;
   }
 
-  .scroll-fade-in,
-  .scroll-fade-in-trigger,
-  .scroll-stagger,
-  .parallax {
+  .scroll-hidden {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .scroll-visible,
+  .scroll-visible > * {
     animation: none !important;
     transform: none !important;
   }
