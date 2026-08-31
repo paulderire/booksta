@@ -984,9 +984,9 @@ function renderAllBooksView() {
 
       <section class="section" style="padding-top: 0 !important; width: 100%;">
         ${booksMarkup}
-        ${!state.booksLoading && state.page < state.totalPages
-      ? `<div class="load-more-container" style="text-align: center; margin-top: 3rem; margin-bottom: 2rem;">
-               <button class="primary-button" type="button" data-action="load-more-books" style="padding: 0.8rem 2.5rem; border-radius: 999px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+        ${!state.booksLoading && !state.noMoreBooks && state.books.length > 0
+      ? `<div class="load-more-container" style="text-align: center; margin-top: 3rem; margin-bottom: 2rem; width: 100%; display: flex; justify-content: center;">
+               <button class="primary-button" type="button" data-action="load-more-books" style="padding: 0.85rem 2.5rem; border-radius: 999px; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
                  ${state.loadingMore ? 'Loading...' : 'See More'}
                </button>
              </div>`
@@ -1601,14 +1601,25 @@ function renderHomeView() {
       </section>
 
 
+      <section class="section ready-to-read-section">
+        <h2 class="ready-title">Ready to Start Reading?</h2>
+        <p class="ready-copy">
+          Join thousands of readers discovering their next favorite book. Sign up today to unlock wishlist, reviews, and personalized recommendations.
+        </p>
+        <div class="ready-actions">
+          <a class="primary-button ready-btn-primary" href="#/register">Create Account</a>
+          <a class="secondary-button ready-btn-secondary" href="#/books">Browse Now</a>
+        </div>
+      </section>
+
       <section class="section featured-author-section">
-        <h2 class="section-title text-center" style="text-align: center !important;">Featured Author</h2>
+        <h2 class="section-title mobile-only-heading" style="text-align: center !important; margin-bottom: 2rem;">Featured Author</h2>
         <div class="featured-author-grid">
           <div class="author-image-column">
             <img src="${escapeHtml(weeklyAuthor.image)}" alt="${escapeHtml(weeklyAuthor.name)}" class="featured-author-img" />
           </div>
           <div class="author-details-column">
-            <span class="author-badge">${escapeHtml(weeklyAuthor.badge)}</span>
+            <h2 class="section-title featured-author-heading desktop-only-heading" style="text-align: left !important; margin-top: 0; margin-bottom: 1rem; font-size: 2rem;">Featured Author</h2>
             <h3 class="featured-author-name">${escapeHtml(weeklyAuthor.name)}</h3>
             <p class="author-genre-specialty">Specializes in ${escapeHtml(weeklyAuthor.specialty)}</p>
             <p class="featured-author-description">
@@ -1626,17 +1637,6 @@ function renderHomeView() {
             </div>
             <a class="secondary-button" href="#/search?search=${encodeURIComponent(weeklyAuthor.query)}" style="margin-top: 1.5rem !important; display: inline-block !important;">Explore books</a>
           </div>
-        </div>
-      </section>
-
-      <section class="section ready-to-read-section">
-        <h2 class="ready-title">Ready to Start Reading?</h2>
-        <p class="ready-copy">
-          Join thousands of readers discovering their next favorite book. Sign up today to unlock wishlist, reviews, and personalized recommendations.
-        </p>
-        <div class="ready-actions">
-          <a class="primary-button ready-btn-primary" href="#/register">Create Account</a>
-          <a class="secondary-button ready-btn-secondary" href="#/books">Browse Now</a>
         </div>
       </section>
 
@@ -2887,7 +2887,7 @@ async function loadHomeData() {
     state.genres = discoveredGenres.length ? discoveredGenres : genreSeed;
     state.homeLoading = false;
     state._homeLoadInProgress = false;
-    if (!['home', 'search'].includes(routeNameAtStart) || !['home', 'search'].includes(state.route?.name || getRoute().name)) {
+    if (!['home', 'search'].includes(state.route?.name || getRoute().name)) {
       return;
     }
     renderApp();
@@ -2928,32 +2928,71 @@ async function loadMoreSearchBooks() {
 }
 
 async function loadMoreAllBooks() {
-  if (state.loadingMore) return;
+  if (state.loadingMore || state.noMoreBooks) return;
   state.loadingMore = true;
-  renderApp();
+
+  const loadMoreBtn = document.querySelector('[data-action="load-more-books"]');
+  if (loadMoreBtn) {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.innerText = 'Loading...';
+  }
 
   try {
     const nextPage = state.page + 1;
-    const booksPageLimit = 16;
+    const booksPageLimit = 8;
     const params = new URLSearchParams();
     params.set('page', String(nextPage));
     params.set('limit', String(booksPageLimit));
     if (state.sort) params.set('sort', state.sort);
-    if (state.genre) params.set('genre', state.genre);
+    if (state.genre) {
+      let queryGenre = state.genre;
+      const lowerG = state.genre.toLowerCase();
+      if (lowerG === 'mystery') queryGenre = 'Crime Fiction';
+      else if (lowerG === 'non-fiction') queryGenre = 'Juvenile Nonfiction';
+      else if (lowerG === 'science fiction') queryGenre = 'Fiction';
+      else if (lowerG === 'fantasy') queryGenre = 'Classics';
+      else if (lowerG === 'romance') queryGenre = 'Fiction';
+      params.set('genre', queryGenre);
+    }
+    if (state.catalogSearch) params.set('search', state.catalogSearch);
 
     const data = await api(`/api/books?${params.toString()}`);
     const newBooks = data.books || [];
 
-    // Append the new books to state.books
+    if (newBooks.length < booksPageLimit) {
+      state.noMoreBooks = true;
+    }
+
     state.books = [...state.books, ...newBooks];
     state.page = nextPage;
     state.totalPages = Math.max(data.totalPages || 1, 1);
     state.loadingMore = false;
-    renderApp();
+
+    // Smooth inline DOM append to prevent full-page re-renders/flashes
+    const booksGrid = document.querySelector('.books-page .books-grid') || document.querySelector('.books-grid');
+    if (booksGrid && newBooks.length > 0) {
+      const newCardsHtml = newBooks.map(renderCompactBookCard).join('');
+      booksGrid.insertAdjacentHTML('beforeend', newCardsHtml);
+
+      const loadMoreContainer = document.querySelector('.load-more-container');
+      if (loadMoreContainer) {
+        if (state.noMoreBooks) {
+          loadMoreContainer.style.display = 'none';
+        } else if (loadMoreBtn) {
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerText = 'See More';
+        }
+      }
+    } else {
+      renderApp();
+    }
   } catch (error) {
     state.loadingMore = false;
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.innerText = 'See More';
+    }
     showToast(error.message, 'error');
-    renderApp();
   }
 }
 
@@ -2961,12 +3000,12 @@ async function loadBooksData() {
   if (state._booksLoadInProgress) return;
   state._booksLoadInProgress = true;
   state.booksLoading = true;
-  const routeNameAtStart = state.route?.name || getRoute().name;
+  state.noMoreBooks = false;
   renderApp();
 
   try {
     syncResponsivePageLimit();
-    const booksPageLimit = 16;
+    const booksPageLimit = 8;
     const params = new URLSearchParams();
     params.set('page', String(state.page));
     params.set('limit', String(booksPageLimit));
@@ -3002,12 +3041,14 @@ async function loadBooksData() {
       state.genres = discoveredGenres.length ? discoveredGenres : genreSeed;
     }
 
-    state.books = books.books || [];
-    state.total = books.total || state.books.length;
+    const fetchedBooks = books.books || [];
+    state.books = fetchedBooks;
+    state.total = books.total || fetchedBooks.length;
     state.totalPages = Math.max(books.totalPages || 1, 1);
+    state.noMoreBooks = fetchedBooks.length < booksPageLimit;
     state.booksLoading = false;
     state._booksLoadInProgress = false;
-    if (routeNameAtStart !== 'books' || (state.route?.name || getRoute().name) !== 'books') {
+    if ((state.route?.name || getRoute().name) !== 'books') {
       return;
     }
     renderApp();
@@ -3329,10 +3370,14 @@ function renderApp() {
     syncChatbotMode();
     state.route = getRoute();
     updateSeo(state.route);
-    // Retrigger smooth page-transition animation
-    app.style.animation = 'none';
-    void app.offsetHeight; // force reflow
-    app.style.animation = '';
+    // Only retrigger transition if a new route is loading
+    if (document.body.classList.contains('route-loading')) {
+      app.style.animation = 'none';
+      void app.offsetHeight; // force reflow
+      app.style.animation = '';
+    } else {
+      app.style.animation = 'none';
+    }
     const { name } = state.route;
 
     if (name === 'home') {
@@ -3494,6 +3539,25 @@ function renderApp() {
 }
 
 async function loadRoute() {
+  const hash = window.location.hash || '#/';
+  const isAuthModal = hash.startsWith('#/login') || hash.startsWith('#/register') || hash.startsWith('#/reset-password') || hash.startsWith('#/forgot-password');
+
+  if (!isAuthModal) {
+    document.body.classList.add('route-loading');
+  }
+
+  try {
+    await _loadRouteInternal();
+  } finally {
+    if (!isAuthModal) {
+      setTimeout(() => {
+        document.body.classList.remove('route-loading');
+      }, 150);
+    }
+  }
+}
+
+async function _loadRouteInternal() {
   const prevRouteName = state.route?.name || '';
   // Save previous route's scroll position before changing route
   if (!state.scrollPositions) state.scrollPositions = {};
@@ -3503,20 +3567,24 @@ async function loadRoute() {
   }
 
   state.route = getRoute();
-  if (state.route.name !== 'login' && state.route.name !== 'register' && state.route.name !== 'reset-password') {
-    state.lastActiveHash = window.location.hash || '#/';
-  }
-  renderChrome();
+  const isAuthRoute = state.route.name === 'login' || state.route.name === 'register' || state.route.name === 'reset-password' || state.route.name === 'forgot-password';
 
-  const currentKey = getCanonicalPath(state.route) || '#/';
-  const savedScroll = state.scrollPositions[currentKey];
-  if (savedScroll !== undefined) {
-    setTimeout(() => {
-      window.scrollTo(0, savedScroll);
-    }, 0);
+  if (!isAuthRoute) {
+    state.lastActiveHash = window.location.hash || '#/';
+    renderChrome();
+
+    const currentKey = getCanonicalPath(state.route) || '#/';
+    const savedScroll = state.scrollPositions[currentKey];
+    if (savedScroll !== undefined) {
+      setTimeout(() => {
+        window.scrollTo(0, savedScroll);
+      }, 0);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'auto' });
+    }
   } else {
-    window.scrollTo({ top: 0, behavior: 'auto' });
-    document.querySelector('main#app')?.scrollTo({ top: 0, behavior: 'auto' });
+    renderChrome();
   }
 
   if (state.route.name === 'home') {
@@ -4751,13 +4819,16 @@ async function init() {
   renderChrome();
   window.__bookstaStage = 'init:renderChrome';
 
-  const currentRoute = getRoute();
-  const isPublicRoute = ['home', 'search', 'books', 'book', 'login', 'register', 'forgot-password', 'reset-password'].includes(currentRoute.name);
+  // Set up scroll-to-top/bottom FAB
+  setupScrollFab();
 
-  // We can load session and cart in sequence since cart needs user session
-  const sessionAndCartPromise = refreshSession().then(() => refreshCart());
-  const settingsPromise = loadSiteSettings();
-  const promotionsPromise = loadPromotionsData();
+  // Boot route immediately so the user sees the page instantly with 0ms delay!
+  const routePromise = loadRoute();
+
+  // Background non-blocking data fetching
+  const sessionAndCartPromise = refreshSession().then(() => refreshCart()).catch(() => {});
+  const settingsPromise = loadSiteSettings().catch(() => {});
+  const promotionsPromise = loadPromotionsData().catch(() => {});
 
   // Load featured authors from DB (public endpoint, no auth needed)
   fetch('/api/public/featured-authors')
@@ -4765,32 +4836,18 @@ async function init() {
     .then(d => { if (d.authors) state.featuredAuthors = d.authors; })
     .catch(() => { /* silently fall back to hardcoded authors */ });
 
-  // Set up scroll-to-top/bottom FAB
-  setupScrollFab();
-
-  if (isPublicRoute) {
-    // Parallelize everything to boot as fast as possible
-    await Promise.all([
-      sessionAndCartPromise,
-      settingsPromise,
-      promotionsPromise,
-      loadRoute()
-    ]);
-  } else {
-    // For protected routes, wait for user session first to avoid flashing/redirection
-    await sessionAndCartPromise;
-    await Promise.all([
-      settingsPromise,
-      promotionsPromise,
-      loadRoute()
-    ]);
-  }
+  await routePromise;
 
   window.__bookstaStage = 'init:bootDataLoaded';
   syncResponsivePageLimit();
   startHeroCycle();
   window.__bookstaStage = 'init:startHeroCycle';
   positionChatbotFromStorage();
+
+  // Update header cart & user chrome seamlessly when session/cart background data completes
+  sessionAndCartPromise.then(() => {
+    renderChrome();
+  });
 }
 
 try {
@@ -4826,27 +4883,24 @@ function setupScrollFab() {
   if (!fab) {
     fab = document.createElement('button');
     fab.id = 'scroll-fab';
-    fab.setAttribute('aria-label', 'Scroll');
-    fab.innerHTML = '↑';
+    fab.setAttribute('aria-label', 'Scroll page');
+    fab.innerHTML = '↓';
     document.body.appendChild(fab);
   }
+
+  // Ensure it's always visible/present in the layout
+  fab.classList.add('visible');
 
   let ticking = false;
   const updateFab = () => {
     const scrolled = window.scrollY;
-    const maxScroll = document.body.scrollHeight - window.innerHeight;
-    const atTop = scrolled < 200;
-    const atBottom = scrolled >= maxScroll - 200;
 
-    if (atTop) {
-      // Hide when at very top
-      fab.classList.remove('visible');
+    if (scrolled < 200) {
+      fab.innerHTML = '↓';
+      fab.setAttribute('aria-label', 'Scroll down');
     } else {
-      fab.classList.add('visible');
-      // Near bottom → show up arrow; in middle → show up; approaching top → show down
-      const nearBottom = scrolled > maxScroll * 0.8;
-      fab.innerHTML = nearBottom ? '↑' : '↑';
-      fab.setAttribute('aria-label', nearBottom ? 'Scroll to top' : 'Scroll to top');
+      fab.innerHTML = '↑';
+      fab.setAttribute('aria-label', 'Scroll to top');
     }
     ticking = false;
   };
@@ -4858,8 +4912,15 @@ function setupScrollFab() {
     }
   }, { passive: true });
 
+  // Initial update
+  updateFab();
+
   fab.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (window.scrollY > 200) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: Math.min(document.documentElement.scrollHeight, window.innerHeight * 0.85), behavior: 'smooth' });
+    }
   });
 }
 
@@ -4922,18 +4983,6 @@ async function orderNow(bookId, quantity = 1) {
 
     // Show success toast with tracking link
     showToast(`Order #${order.trackingId} created! Check WhatsApp to confirm.`, 'success');
-
-    // Add track link to app route if user is not signed in
-    setTimeout(() => {
-      const trackHtml = `<div style="position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.4rem;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;gap:0.75rem;align-items:center;font-size:0.9rem;" id="order-track-bar">
-        <span>📦 Order: <strong>${escapeHtml(order.trackingId)}</strong></span>
-        <a href="#/track?id=${encodeURIComponent(order.trackingId)}" style="color:var(--accent);font-weight:600;text-decoration:none;">Track</a>
-        <button onclick="document.getElementById('order-track-bar').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:0;line-height:1;">✕</button>
-      </div>`;
-      const el = document.createElement('div');
-      el.innerHTML = trackHtml;
-      document.body.appendChild(el.firstElementChild);
-    }, 1500);
 
   } catch (err) {
     console.error('orderNow error:', err);

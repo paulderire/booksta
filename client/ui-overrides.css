@@ -10,20 +10,20 @@ html,
 body {
   overflow-x: hidden !important;
   max-width: 100vw !important;
-  background-color: var(--bg) !important;
-  color: var(--text) !important;
-}
-
-html[data-theme='light'],
-html[data-theme='light'] body {
-  background-color: var(--bg) !important;
-  color: var(--text) !important;
+  background-color: #0b1120 !important;
+  color: #f0eeff !important;
 }
 
 html[data-theme='dark'],
 html[data-theme='dark'] body {
-  background-color: var(--bg) !important;
-  color: var(--text) !important;
+  background-color: #0b1120 !important;
+  color: #f0eeff !important;
+}
+
+html[data-theme='light'],
+html[data-theme='light'] body {
+  background-color: #faf9ff !important;
+  color: #1e1130 !important;
 }
 
 main#app {
@@ -67,7 +67,7 @@ main#app {
   max-width: 1200px !important;
   width: 100% !important;
   margin-inline: auto !important;
-  padding-top: 2rem !important;
+  padding-top: 4.5rem !important;
   box-sizing: border-box !important;
 }
 
@@ -310,63 +310,63 @@ html[data-theme='light'] .admin-layout .stat-value {
    MOBILE CHATBOT
    ---------------------------------------------------------------- */
 body.is-mobile-chatbot .chatbot-float {
-  width: max-content;
-  min-width: max-content;
-  right: 1rem;
-  left: auto;
-  bottom: 1rem;
-  display: inline-flex;
+  width: max-content !important;
+  min-width: max-content !important;
+  right: 1rem !important;
+  left: auto !important;
+  bottom: 1rem !important;
+  display: inline-flex !important;
 }
 
 body.is-mobile-chatbot .chatbot-toggle {
-  width: 3.5rem;
-  height: 3.5rem;
-  min-width: 3.5rem;
-  min-height: 3.5rem;
-  padding: 0;
-  border-radius: 999px;
-  justify-content: center;
-  font-size: 1.2rem;
-  position: relative;
+  width: 3.5rem !important;
+  height: 3.5rem !important;
+  min-width: 3.5rem !important;
+  min-height: 3.5rem !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  justify-content: center !important;
+  font-size: 1.2rem !important;
+  position: relative !important;
 }
 
 body.is-mobile-chatbot .chatbot-toggle::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.20), transparent);
-  border-radius: 999px;
-  animation: pulseRing 2s ease-out infinite;
-  pointer-events: none;
+  content: '' !important;
+  position: absolute !important;
+  inset: -4px !important;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.20), transparent) !important;
+  border-radius: 999px !important;
+  animation: pulseRing 2s ease-out infinite !important;
+  pointer-events: none !important;
 }
 
 body.is-mobile-chatbot .chatbot-toggle:active {
-  transform: scale(0.95);
+  transform: scale(0.95) !important;
 }
 
 body.is-mobile-chatbot .chatbot-toggle-label {
-  display: none;
+  display: none !important;
 }
 
 body.is-mobile-chatbot .chatbot-toggle-icon {
-  display: inline;
-  font-size: 1.5rem;
-  line-height: 1;
-  position: relative;
-  z-index: 1;
+  display: inline !important;
+  font-size: 1.5rem !important;
+  line-height: 1 !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 body.is-mobile-chatbot .chatbot-panel {
-  max-height: 70vh;
-  width: min(20rem, calc(100vw - 2rem));
-  position: fixed;
-  bottom: 5rem;
-  right: 1rem;
+  max-height: 70vh !important;
+  width: min(20rem, calc(100vw - 2rem)) !important;
+  position: fixed !important;
+  bottom: 5rem !important;
+  right: 1rem !important;
 }
 
 body.is-mobile-chatbot .chatbot-chip {
-  font-size: 0.75rem;
-  padding: 0.5rem 0.7rem;
+  font-size: 0.75rem !important;
+  padding: 0.5rem 0.7rem !important;
 }
 
 @keyframes floatingButton {
@@ -607,11 +607,20 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
 
 
 
-/* Brand logo & text */
+/* Brand logo & text alignment */
+.brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  text-decoration: none !important;
+}
+
 .site-logo {
-  height: 36px !important;
-  width: 36px !important;
-  border-radius: 8px !important;
+  height: 38px !important;
+  width: 38px !important;
+  border-radius: 10px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
   transition: transform 0.2s ease !important;
 }
 
@@ -620,31 +629,50 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
 }
 
 .site-name {
-  font-size: 1.25rem !important;
-  letter-spacing: -0.01em !important;
-  gap: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  gap: 3px !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-.site-name strong {
-  font-size: 1.3rem !important;
-  font-weight: 600 !important;
-}
-
-/* Always white brand strong and green small on dark teal header */
-.topbar .site-name strong {
+.site-name strong,
+.topbar .site-name strong,
+html[data-theme='light'] .site-name strong,
+html[data-theme='light'] .topbar .site-name strong {
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-style: normal !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  letter-spacing: -0.02em !important;
 }
 
-.topbar .site-name small {
-  color: var(--accent-3) !important;
-  /* Premium violet matching the theme */
-}
-
-.site-name small {
-  font-size: 0.68rem !important;
-  letter-spacing: 0.2em !important;
-  opacity: 0.65 !important;
-  margin-top: 1px !important;
+.site-name small,
+.topbar .site-name small,
+html[data-theme='light'] .site-name small,
+html[data-theme='light'] .topbar .site-name small {
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-size: 0.62rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.15em !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 0.9 !important;
+  font-style: normal !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
 }
 
 /* Premium Search Bar capsule styled for dark teal background */
@@ -1042,13 +1070,13 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
 
   /* ---- PAGE SPACING ---- */
   .page.home-page {
-    margin-top: -76px !important;
+    margin-top: 0 !important;
     padding-top: 0 !important;
   }
 
   .page.home-page>.hero {
-    min-height: 58vh !important;
-    padding-top: 110px !important;
+    min-height: auto !important;
+    padding-top: 1.75rem !important;
     padding-bottom: 2rem !important;
   }
 
@@ -1058,7 +1086,7 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
 
   .page:not(.home-page),
   .page.book-detail {
-    padding-top: 56px !important;
+    padding-top: 3.5rem !important; /* Fits the 56px mobile topbar perfectly */
   }
 
   .page.book-detail {
@@ -1067,7 +1095,7 @@ html[data-route='home'] .topbar.glass.is-scrolled::after {
 
   .product-breadcrumbs {
     margin-bottom: 0.75rem !important;
-    padding: 0.5rem 0 !important;
+    padding: 0.25rem 0 0.5rem 0 !important; /* Snug top spacing */
   }
 
   /* ---- HEADER ELEMENT SIZING ---- */
@@ -2020,14 +2048,14 @@ html[data-theme='light'] .stat-col:hover {
 /* Responsiveness and Layout Fixes */
 @media (max-width: 991px) {
   .page.home-page {
-    margin-top: -100px !important;
+    margin-top: 0 !important;
     padding-top: 0 !important;
   }
 
   .page.home-page>.hero {
     min-height: auto !important;
     /* Grow naturally to fit stacked columns */
-    padding-top: 140px !important;
+    padding-top: 2rem !important;
     padding-bottom: 3rem !important;
   }
 
@@ -2224,7 +2252,6 @@ button,
 .ghost-button,
 .icon-button,
 .qty-button,
-.chatbot-toggle,
 .chatbot-chip,
 .compact-buy-button,
 .compact-action-button,
@@ -2562,7 +2589,7 @@ html[data-theme='light'] .compact-book-card:hover {
 .book-cover img {
   width: 100% !important;
   height: 100% !important;
-  object-fit: contain !important;
+  object-fit: cover !important;
   object-position: center !important;
   display: block !important;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -2994,11 +3021,12 @@ html[data-theme='light'] .search-page .secondary-button {
 
 /* Search Page Heading Override */
 .search-page .section-title {
-  font-family: 'Crimson Pro', Georgia, serif !important;
-  font-style: italic !important;
-  font-weight: 600 !important;
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
   font-size: 2.6rem !important;
-  color: var(--text) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   letter-spacing: -0.02em !important;
   margin-bottom: 0.6rem !important;
   text-align: center !important;
@@ -3194,12 +3222,12 @@ body {
 
 @media (max-width: 767px) {
   .page.home-page {
-    margin-top: -60px !important;
+    margin-top: 0 !important;
     /* Align container nicely on mobile */
   }
 
   .page.home-page>.hero {
-    padding-top: 120px !important;
+    padding-top: 1.75rem !important;
     min-height: auto !important;
     /* Grow naturally */
   }
@@ -3215,12 +3243,12 @@ body {
   .books-grid--compact {
     grid-template-columns: 1fr !important;
     /* Only 1 column on mobile */
-    gap: 1.5rem !important;
+    gap: 1.25rem !important;
   }
 
   .book-card,
   .compact-book-card {
-    max-width: 420px !important;
+    max-width: 100% !important;
     margin-left: auto !important;
     margin-right: auto !important;
     width: 100% !important;
@@ -3274,6 +3302,18 @@ body {
   margin-bottom: 3.5rem !important;
   overflow: hidden !important;
   /* Hide overlay bleed and rounded corners */
+}
+
+@media (max-width: 768px) {
+  .promo-banner-section {
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: 2rem !important;
+    margin-bottom: 2rem !important;
+  }
 }
 
 /* Match decorative grid pattern overlay of the hero section */
@@ -3375,46 +3415,54 @@ body {
   box-sizing: border-box !important;
 }
 
+.mobile-only-heading {
+  display: none !important;
+}
+
+.desktop-only-heading {
+  display: block !important;
+}
+
 .featured-author-grid {
   display: grid !important;
   grid-template-columns: 1fr 1.25fr !important;
-  gap: 6.5rem !important;
-  /* Increased gap for generous premium spacing */
+  gap: 4.5rem !important;
   align-items: center !important;
   background: transparent !important;
-  /* Make transparent */
-  border-radius: 0 !important;
-  /* Remove card radius */
-  padding: 0 !important;
-  /* Remove card padding */
-  box-shadow: none !important;
-  /* Remove card shadow */
-  margin-top: 2.5rem !important;
   border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  margin-top: 2rem !important;
+}
+
+.featured-author-grid:hover {
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .author-image-column {
   width: 100% !important;
   aspect-ratio: 1 / 1 !important;
-  border-radius: 0 !important;
-  /* Removed border-radius */
+  border-radius: var(--radius-lg, 16px) !important;
   overflow: hidden !important;
   position: relative !important;
-  box-shadow: none !important;
-  /* Removed shadow */
-  border: none !important;
-  /* Removed border */
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid var(--border-strong) !important;
+  flex-shrink: 0 !important;
 }
 
 .featured-author-img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  object-position: center 20% !important; /* Centers the face beautifully */
   transition: transform 0.5s ease !important;
 }
 
 .featured-author-grid:hover .featured-author-img {
-  transform: scale(1.04) !important;
+  transform: scale(1.03) !important;
 }
 
 .author-details-column {
@@ -3425,46 +3473,46 @@ body {
   text-align: left !important;
 }
 
-.author-badge {
-  background: var(--accent-soft) !important;
+.featured-author-heading {
+  font-size: 1.1rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
   color: var(--accent) !important;
   font-weight: 700 !important;
-  font-size: 0.85rem !important;
-  padding: 0.35rem 1rem !important;
-  border-radius: 999px !important;
-  margin-bottom: 1rem !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.5rem !important;
 }
 
 .featured-author-name {
-  font-size: 2.5rem !important;
+  font-size: 2.75rem !important;
   font-weight: 800 !important;
-  color: #0f2b35 !important;
+  color: var(--text) !important;
   margin: 0 0 0.5rem 0 !important;
   font-family: var(--font-heading) !important;
-  letter-spacing: -0.5px !important;
+  letter-spacing: -0.75px !important;
 }
 
 .author-genre-specialty {
-  font-size: 1.1rem !important;
-  color: #475569 !important;
+  font-size: 1.15rem !important;
+  color: var(--accent-light, var(--accent)) !important;
   font-weight: 600 !important;
   margin: 0 0 1.25rem 0 !important;
 }
 
 .featured-author-description {
   font-size: 1.05rem !important;
-  line-height: 1.7 !important;
-  color: #475569 !important;
+  line-height: 1.75 !important;
+  color: var(--text-muted) !important;
   margin: 0 0 2rem 0 !important;
-  opacity: 0.9 !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
 }
 
 .author-stats {
   display: flex !important;
   gap: 3rem !important;
-  border-top: 1px solid #f1f5f9 !important;
+  border-top: 1px solid var(--border) !important;
   padding-top: 1.75rem !important;
   width: 100% !important;
 }
@@ -3485,22 +3533,102 @@ body {
 
 .author-stat-item .stat-label {
   font-size: 0.85rem !important;
-  color: #64748b !important;
+  color: var(--text-muted) !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
 }
 
 @media (max-width: 991px) {
+  .mobile-only-heading {
+    display: block !important;
+    font-size: 2.2rem !important;
+    font-weight: 800 !important;
+    color: var(--text) !important;
+    text-align: center !important;
+    font-family: var(--font-heading) !important;
+    margin-bottom: 1.5rem !important;
+    letter-spacing: -0.75px !important;
+  }
+
+  .desktop-only-heading {
+    display: none !important;
+  }
+
   .featured-author-grid {
     grid-template-columns: 1fr !important;
-    gap: 2.5rem !important;
-    padding: 2rem !important;
+    gap: 2rem !important;
+    padding: 0 !important;
+    text-align: center !important;
   }
 
   .author-image-column {
-    max-width: 400px !important;
+    width: 190px !important;
+    height: 190px !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
     margin: 0 auto !important;
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.2), inset 0 0 20px rgba(0, 0, 0, 0.15) !important;
+    border: 4px solid var(--bg-card) !important;
+    outline: 2px solid var(--accent) !important;
+    flex-shrink: 0 !important;
+    background: var(--bg-card) !important;
+  }
+
+  .featured-author-img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    border-radius: 50% !important;
+    object-position: center 20% !important;
+  }
+
+  .author-details-column {
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  .featured-author-heading {
+    display: none !important;
+  }
+
+  .featured-author-name {
+    font-size: 2.2rem !important;
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  .author-genre-specialty {
+    font-size: 1.05rem !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .featured-author-description {
+    font-size: 1rem !important;
+    text-align: center !important;
+    max-width: 540px !important;
+    margin: 0 auto 2.5rem auto !important;
+  }
+
+  .author-stats {
+    justify-content: center !important;
+    gap: 3.5rem !important;
+    border-top: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 1.5rem 0 !important;
+    max-width: 440px !important;
+    margin: 0 auto 2.5rem auto !important;
+  }
+
+  .author-stat-item {
+    align-items: center !important;
+  }
+
+  .author-stat-item .stat-label {
+    font-size: 0.75rem !important;
   }
 }
 
@@ -4770,10 +4898,23 @@ html[data-theme='dark'] .auth-fullpage-card {
     padding-top: 2rem !important;
   }
 
+  .auth-modal-panel.auth-large,
+  .auth-modal-panel {
+    width: min(420px, calc(100% - 1.5rem)) !important;
+    max-height: 85vh !important;
+    border-radius: 16px !important;
+    margin-inline: auto !important;
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    overflow-y: auto !important;
+  }
+
   .auth-fullpage-card {
     grid-template-columns: 1fr !important;
     border-radius: 16px !important;
-    max-width: 480px !important;
+    max-width: 100% !important;
     margin-inline: auto !important;
   }
 
@@ -4788,42 +4929,61 @@ html[data-theme='dark'] .auth-fullpage-card {
   }
 
   .auth-form-head {
-    margin-bottom: 0.85rem !important;
+    margin-bottom: 0.65rem !important;
+  }
+
+  .auth-form-hint {
+    display: none !important;
+  }
+
+  .auth-form-title {
+    font-size: 1.2rem !important;
+    margin-bottom: 0.15rem !important;
   }
 
   .auth-form-subtitle {
-    font-size: 0.82rem !important;
-    line-height: 1.4 !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    margin-bottom: 0.4rem !important;
   }
 
   .auth-field {
-    margin-bottom: 0.6rem !important;
+    margin-bottom: 0.45rem !important;
   }
 
   .auth-field-label {
-    margin-bottom: 0.25rem !important;
-    font-size: 0.78rem !important;
+    margin-bottom: 0.2rem !important;
+    font-size: 0.75rem !important;
   }
 
   .auth-fullpage-form .auth-form .text-input {
-    padding: 0.55rem 0.75rem !important;
-    font-size: 0.85rem !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.88rem !important;
     border-radius: 8px !important;
+    min-height: 40px !important;
+    height: 40px !important;
   }
 
   .auth-submit-btn {
-    padding: 0.65rem 1rem !important;
+    padding: 0.55rem 1rem !important;
     font-size: 0.88rem !important;
+    min-height: 40px !important;
+    height: 40px !important;
   }
 
   .auth-fullpage-form .auth-card-foot {
-    margin-top: 1rem !important;
-    padding-top: 0.85rem !important;
+    margin-top: 0.65rem !important;
+    padding-top: 0.5rem !important;
   }
 
   .auth-fullpage-form .auth-helper-text {
-    font-size: 0.8rem !important;
-    margin-bottom: 0.25rem !important;
+    font-size: 0.78rem !important;
+    margin-bottom: 0.2rem !important;
+  }
+
+  .auth-fullpage-form .forgot-password-btn {
+    font-size: 0.78rem !important;
+    padding: 0.2rem 0 !important;
   }
 }
 
@@ -5785,11 +5945,12 @@ html[data-theme='dark'] .auth-fullpage-card {
 
 .page:not(.home-page)>.order-head h1,
 .page:not(.home-page)>.section-header h1 {
-  font-family: 'Crimson Pro', Georgia, serif !important;
-  font-style: italic !important;
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-style: normal !important;
   font-size: clamp(1.8rem, 4vw, 2.6rem) !important;
-  font-weight: 600 !important;
-  color: var(--text) !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   margin: 0 !important;
   line-height: 1.15 !important;
   letter-spacing: -0.02em !important;
@@ -6855,20 +7016,18 @@ html[data-theme='dark'] .kids-book-card {
 }
 
 .catalog-page-title {
-  font-family: 'Crimson Pro', Georgia, serif !important;
-  font-style: italic !important;
-  font-size: 3.5rem !important;
-  font-weight: 600 !important;
-  line-height: 1.25 !important;
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-style: normal !important;
+  font-size: clamp(2rem, 5vw, 3.5rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
   margin-top: 0.4rem !important;
   margin-bottom: 0.6rem !important;
-  color: var(--text) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
   text-align: left !important;
-  letter-spacing: -0.01em !important;
-  /* Text gradient clip for a luxurious feel */
-  background: linear-gradient(135deg, var(--accent, #e07a16) 0%, var(--text) 60%) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
+  letter-spacing: -0.02em !important;
 }
 
 .catalog-page-subtitle {
@@ -7410,9 +7569,10 @@ html[data-theme='light'] .genre-chip--active {
     max-width: 100% !important;
   }
 
-  .kids-books-row {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 0.75rem !important;
+  .kids-books-row,
+  .deals-books-row {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
     max-width: 100% !important;
     width: 100% !important;
   }
@@ -7499,6 +7659,43 @@ html[data-theme='light'] .genre-chip--active {
   font-size: 1.15rem !important;
   line-height: 1 !important;
   filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5)) !important;
+}
+
+.chatbot-toggle-label {
+  display: inline !important;
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+}
+
+/* Mobile: compact circle with icon only */
+@media (max-width: 700px) {
+  #floating-ui .chatbot-float {
+    right: 1rem !important;
+    bottom: 1rem !important;
+  }
+
+  .chatbot-toggle {
+    width: 3.25rem !important;
+    height: 3.25rem !important;
+    min-width: 3.25rem !important;
+    min-height: 3.25rem !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    justify-content: center !important;
+  }
+
+  .chatbot-toggle-label {
+    display: none !important;
+  }
+
+  .chatbot-toggle-icon {
+    font-size: 1.2rem !important;
+  }
+
+  .chatbot-panel {
+    width: min(22rem, calc(100vw - 1.3rem)) !important;
+    max-height: 68vh !important;
+  }
 }
 
 /* Floating Glass Slate Panel */
@@ -7682,9 +7879,9 @@ html[data-theme='light'] .drawer-head {
 }
 
 .drawer-head .order-head h2 {
-  font-family: 'Crimson Pro', Georgia, serif !important;
-  font-style: italic !important;
-  font-weight: 600 !important;
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
   font-size: 1.8rem !important;
   color: #ffffff !important;
   margin: 0 !important;
@@ -8619,7 +8816,7 @@ main#app:has(.home-page) {
 
   /* Global page containers */
   .page:not(.home-page) {
-    padding-top: 1.25rem !important;
+    padding-top: 3.5rem !important;
     padding-left: 0.85rem !important;
     padding-right: 0.85rem !important;
   }
@@ -8628,22 +8825,20 @@ main#app:has(.home-page) {
     padding-inline: 0.5rem !important;
   }
 
-  /* Grids — prevent overflow from large minmax minimums */
-  .books-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
-    gap: 0.75rem !important;
-  }
-
-  /* Force 1 column (one book per row) on catalog and search pages on mobile */
+  /* Grids — force single column stacked view on mobile */
+  .books-grid,
+  .books-grid--compact,
   .books-page .books-grid,
-  .search-page .books-grid {
+  .books-page .books-grid--compact,
+  .search-page .books-grid,
+  .search-page .books-grid--compact {
     grid-template-columns: 1fr !important;
-    gap: 1.5rem !important;
+    gap: 1.25rem !important;
   }
 
   .skeleton-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
-    gap: 0.75rem !important;
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
   }
 
   /* Book card refinements */
@@ -8748,15 +8943,20 @@ main#app:has(.home-page) {
   }
 
   .author-image-column {
+    width: 170px !important;
+    height: 170px !important;
+    border-radius: 50% !important;
+    margin: 0 auto !important;
     order: -1 !important;
-    display: flex !important;
-    justify-content: center !important;
+    flex-shrink: 0 !important;
   }
 
   .featured-author-img {
-    max-width: 200px !important;
-    width: 60% !important;
-    height: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    max-width: none !important;
   }
 
   .featured-author-name {
@@ -8947,11 +9147,11 @@ main#app:has(.home-page) {
     justify-content: center !important;
   }
 
-  /* Auth modal — near full-screen on mobile */
+  /* Auth modal — compact card on mobile */
   .auth-modal-panel {
-    width: calc(100% - 1rem) !important;
-    max-height: 92vh !important;
-    border-radius: var(--radius-lg, 16px) !important;
+    width: min(420px, calc(100% - 1.5rem)) !important;
+    max-height: 85vh !important;
+    border-radius: 16px !important;
   }
 
   /* Paginator */
@@ -9067,22 +9267,27 @@ main#app:has(.home-page) {
   .page:not(.home-page) {
     padding-left: 0.65rem !important;
     padding-right: 0.65rem !important;
-    padding-top: 1rem !important;
+    padding-top: 3.5rem !important;
   }
 
   main#app {
     padding-inline: 0.35rem !important;
   }
 
-  /* Smaller grids */
-  .books-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 0.55rem !important;
+  /* Smaller grids — force stacked single column layout (1 book per row) */
+  .books-grid,
+  .books-grid--compact,
+  .books-page .books-grid,
+  .books-page .books-grid--compact,
+  .search-page .books-grid,
+  .search-page .books-grid--compact {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
   }
 
   .skeleton-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 0.55rem !important;
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
   }
 
   /* Book cards — tighter */
@@ -9447,9 +9652,9 @@ main#app:has(.home-page) {
 
   /* Auth */
   .auth-modal-panel {
-    width: 100% !important;
-    border-radius: 0 !important;
-    max-height: 100vh !important;
+    width: min(420px, calc(100% - 1rem)) !important;
+    border-radius: 16px !important;
+    max-height: 85vh !important;
   }
 
   /* Paginator */
@@ -9499,9 +9704,18 @@ main#app:has(.home-page) {
   }
 
   /* Featured author image smaller */
+  .author-image-column {
+    width: 140px !important;
+    height: 140px !important;
+    border-radius: 50% !important;
+  }
+
   .featured-author-img {
-    max-width: 150px !important;
-    width: 80% !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    max-width: none !important;
   }
 
   /* Detail actions — single column */
@@ -9643,4 +9857,143 @@ svg {
   .glass-card {
     min-width: 0 !important;
   }
+}
+
+/* ================================================================
+   FLOATING ACTION BUTTONS — Help (Bottom-Right) & Scroll (Middle-Right)
+   ================================================================ */
+
+/* Completely hide the old/redundant scroll-top-btn */
+.scroll-top-btn, #app-scroll-btn {
+  display: none !important;
+}
+
+/* Position native #scroll-fab vertically centered in middle of screen on the Right Side */
+#scroll-fab {
+  position: fixed !important;
+  right: 1.25rem !important;
+  top: 50% !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  background: var(--bg-card, #0f2b35) !important;
+  border: 1.5px solid var(--border-strong, rgba(139, 92, 246, 0.28)) !important;
+  color: var(--text, #f0eeff) !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(139, 92, 246, 0.15) !important;
+  z-index: 999 !important;
+  opacity: 1 !important; /* Force visible */
+  pointer-events: auto !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease !important;
+}
+
+html[data-theme='light'] #scroll-fab {
+  background: #ffffff !important;
+  border-color: rgba(109, 40, 217, 0.2) !important;
+  color: #1e1130 !important;
+  box-shadow: 0 4px 18px rgba(30, 17, 48, 0.15) !important;
+}
+
+#scroll-fab:hover {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb, 139, 92, 246), 0.45) !important;
+  transform: translateY(-50%) scale(1.08) !important;
+}
+
+/* Mobile Adjustments for Scroll Button (Middle-Right) & Help Button (Bottom-Right) */
+@media (max-width: 768px) {
+  #scroll-fab {
+    right: 0.75rem !important;
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.05rem !important;
+  }
+
+  .chatbot-float {
+    right: 1rem !important;
+    bottom: 1rem !important;
+    left: auto !important;
+    top: auto !important;
+  }
+
+  .chatbot-toggle {
+    min-width: auto !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0.45rem 0.85rem !important;
+    border-radius: 999px !important;
+    font-size: 0.82rem !important;
+    gap: 0.35rem !important;
+    box-shadow: 0 6px 20px rgba(var(--accent-rgb, 139, 92, 246), 0.45) !important;
+  }
+
+  .chatbot-toggle-icon {
+    font-size: 0.95rem !important;
+    display: inline-block !important;
+  }
+
+  .chatbot-toggle-label {
+    display: inline-block !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+  }
+}
+
+/* ================================================================
+   ELIMINATE UNNECESSARY PAGE FLASHES & RE-RENDER TRANSITIONS
+   Disables the page fade-in animation on local state updates (wishlist,
+   cart updates, toggles) while preserving it on actual route navigation.
+   ================================================================ */
+.page {
+  animation: none !important;
+}
+
+body.route-loading .page {
+  animation: fade-in 0.35s ease both !important;
+}
+
+/* ================================================================
+   PAGE HEADERS FONT OVERRIDE (NON-HOMEPAGE SUB-PAGES ONLY)
+   Applies standard non-italic Space Grotesk app font to sub-page titles
+   while leaving homepage section headings untouched.
+   ================================================================ */
+.page:not(.home-page) h1,
+.page:not(.home-page) h2,
+.page:not(.home-page) .catalog-page-title,
+.page:not(.home-page) .page-title,
+.page:not(.home-page) .detail-title,
+.page:not(.home-page) .search-page .section-title,
+.page:not(.home-page) .section-header h1,
+.page:not(.home-page) .order-head h1,
+.page:not(.home-page) .section-title {
+  font-family: 'Space Grotesk', system-ui, sans-serif !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
+}
+
+/* Eliminate flashes when opening or toggling Login / Register modal */
+.auth-modal,
+.auth-modal-backdrop,
+.auth-modal-panel,
+.auth-fullpage-card {
+  animation: none !important;
+  transition: opacity 0.15s ease-out !important;
+}
+
+/* Hide floating order tracking bar */
+#order-track-bar {
+  display: none !important;
 }
