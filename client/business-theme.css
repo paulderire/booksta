@@ -756,7 +756,7 @@ html[data-theme='light'] .header-search {
 }
 
 .page.home-page { width: 100%; max-width: 100%; padding: 0 !important; margin: 0 !important; overflow-x: hidden !important; box-sizing: border-box; }
-.section { display: grid; gap: 1.2rem; padding: 1.25rem 0; content-visibility: auto; contain-intrinsic-size: 1px 700px; }
+.section { display: grid; gap: 1.2rem; padding: 1.25rem 0; box-sizing: border-box; }
 .section.full-bleed { width: 100%; max-width: 100%; position: relative; left: 0; right: 0; margin-left: 0; margin-right: 0; box-sizing: border-box; }
 .section-wide { width: 100%; }
 

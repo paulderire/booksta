@@ -697,8 +697,7 @@ html[data-theme='light'] .header-search{flex:1 1 36%;max-width:420px}
 }
 
 .section {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 700px;
+  box-sizing: border-box;
 }
 
 .glass-card,
@@ -710,6 +709,15 @@ html[data-theme='light'] .header-search{flex:1 1 36%;max-width:420px}
   backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-deep);
+}
+
+/* Smooth scroll for drawers and modal containers */
+.mobile-menu,
+.drawer,
+.cart-drawer,
+[role="dialog"],
+.modal-card {
+  scroll-behavior: smooth;
 }
 
 html[data-theme='light'] .glass-card,
