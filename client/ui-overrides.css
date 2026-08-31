@@ -1076,7 +1076,7 @@ html[data-theme='light'] .topbar .site-name small {
 
   .page.home-page>.hero {
     min-height: auto !important;
-    padding-top: 1.75rem !important;
+    padding-top: 5rem !important;
     padding-bottom: 2rem !important;
   }
 
@@ -1263,21 +1263,34 @@ html[data-theme='light'] .topbar .site-name small {
   /* ---- MOBILE MENU REDESIGN & Z-INDEX FIX ---- */
   .mobile-menu-overlay {
     z-index: 1100 !important;
-    background: #ffffff !important;
+    background: var(--bg-elevated, #0d1117) !important;
     box-shadow: 0 0 24px rgba(15, 23, 42, 0.15) !important;
   }
 
-  .mobile-menu-header {
+  html[data-theme='light'] .mobile-menu-overlay {
     background: #ffffff !important;
+  }
+
+  .mobile-menu-header {
+    background: var(--bg-elevated, #0d1117) !important;
     padding: 1.25rem 1.5rem !important;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08)) !important;
+  }
+
+  html[data-theme='light'] .mobile-menu-header {
+    background: #ffffff !important;
     border-bottom: 1px solid rgba(15, 43, 53, 0.06) !important;
   }
 
   .mobile-menu-header h2 {
     font-size: 1.35rem !important;
     font-weight: 700 !important;
-    color: #0f2b35 !important;
+    color: var(--text, #f0eeff) !important;
     font-family: var(--font-heading) !important;
+  }
+
+  html[data-theme='light'] .mobile-menu-header h2 {
+    color: #0f2b35 !important;
   }
 
   .mobile-menu-content {
@@ -1545,10 +1558,19 @@ html[data-theme='light'] .topbar .site-name small {
   justify-content: center !important;
   cursor: pointer !important;
   z-index: 20 !important;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.3) !important;
   padding: 0 !important;
   line-height: 1 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.hero-showcase-container:hover .hero-arrow,
+.hero-arrow:focus-visible,
+.hero-arrow:hover {
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 .hero-arrow:hover {
@@ -1561,19 +1583,39 @@ html[data-theme='light'] .topbar .site-name small {
 }
 
 .hero-arrow.prev {
-  left: -40px !important;
+  left: -24px !important;
 }
 
 .hero-arrow.next {
+  right: -24px !important;
+}
+
+.hero-showcase-container:hover .hero-arrow.prev,
+.hero-arrow.prev:focus-visible {
+  left: -40px !important;
+}
+
+.hero-showcase-container:hover .hero-arrow.next,
+.hero-arrow.next:focus-visible {
   right: -40px !important;
 }
 
 @media (max-width: 1200px) {
   .hero-arrow.prev {
-    left: 8px !important;
+    left: -4px !important;
   }
 
   .hero-arrow.next {
+    right: -4px !important;
+  }
+
+  .hero-showcase-container:hover .hero-arrow.prev,
+  .hero-arrow.prev:focus-visible {
+    left: 8px !important;
+  }
+
+  .hero-showcase-container:hover .hero-arrow.next,
+  .hero-arrow.next:focus-visible {
     right: 8px !important;
   }
 }
@@ -2055,7 +2097,7 @@ html[data-theme='light'] .stat-col:hover {
   .page.home-page>.hero {
     min-height: auto !important;
     /* Grow naturally to fit stacked columns */
-    padding-top: 2rem !important;
+    padding-top: 5rem !important;
     padding-bottom: 3rem !important;
   }
 
@@ -3227,14 +3269,14 @@ body {
   }
 
   .page.home-page>.hero {
-    padding-top: 1.75rem !important;
+    padding-top: 5rem !important;
     min-height: auto !important;
     /* Grow naturally */
   }
 
   .hero-inner {
-    margin-top: 0.5rem !important;
-    /* Tighten up inner gap below header */
+    margin-top: 1rem !important;
+    /* Clean inner gap below header */
   }
 
   .books-page .books-grid,
@@ -5949,11 +5991,17 @@ html[data-theme='dark'] .auth-fullpage-card {
   font-style: normal !important;
   font-size: clamp(1.8rem, 4vw, 2.6rem) !important;
   font-weight: 700 !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--text, #ffffff) !important;
+  -webkit-text-fill-color: var(--text, #ffffff) !important;
   margin: 0 !important;
   line-height: 1.15 !important;
   letter-spacing: -0.02em !important;
+}
+
+html[data-theme='light'] .page:not(.home-page)>.order-head h1,
+html[data-theme='light'] .page:not(.home-page)>.section-header h1 {
+  color: #1e1130 !important;
+  -webkit-text-fill-color: #1e1130 !important;
 }
 
 /* ---------------------------------------------------------------
@@ -7023,11 +7071,16 @@ html[data-theme='dark'] .kids-book-card {
   line-height: 1.2 !important;
   margin-top: 0.4rem !important;
   margin-bottom: 0.6rem !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--text, #ffffff) !important;
+  -webkit-text-fill-color: var(--text, #ffffff) !important;
   background: none !important;
   text-align: left !important;
   letter-spacing: -0.02em !important;
+}
+
+html[data-theme='light'] .catalog-page-title {
+  color: #1e1130 !important;
+  -webkit-text-fill-color: #1e1130 !important;
 }
 
 .catalog-page-subtitle {
@@ -9979,9 +10032,22 @@ body.route-loading .page {
   font-family: 'Space Grotesk', system-ui, sans-serif !important;
   font-style: normal !important;
   font-weight: 700 !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--text, #ffffff) !important;
+  -webkit-text-fill-color: var(--text, #ffffff) !important;
   background: none !important;
+}
+
+html[data-theme='light'] .page:not(.home-page) h1,
+html[data-theme='light'] .page:not(.home-page) h2,
+html[data-theme='light'] .page:not(.home-page) .catalog-page-title,
+html[data-theme='light'] .page:not(.home-page) .page-title,
+html[data-theme='light'] .page:not(.home-page) .detail-title,
+html[data-theme='light'] .page:not(.home-page) .search-page .section-title,
+html[data-theme='light'] .page:not(.home-page) .section-header h1,
+html[data-theme='light'] .page:not(.home-page) .order-head h1,
+html[data-theme='light'] .page:not(.home-page) .section-title {
+  color: #1e1130 !important;
+  -webkit-text-fill-color: #1e1130 !important;
 }
 
 /* Eliminate flashes when opening or toggling Login / Register modal */
