@@ -65,6 +65,9 @@ class ScrollAnimations {
     this.setupScrollProgress();
     this.setupIntersectionObserver();
     this.observeAll();
+
+    // Clean up any stale scroll-top-btn or app-scroll-btn elements
+    document.querySelectorAll('.scroll-top-btn, #app-scroll-btn').forEach(el => el.remove());
   }
 
   /**

@@ -1,8 +1,9 @@
 (function() {
-  var t = 'light';
+  var t = 'dark';
   try {
-    // Check if localStorage is accessible (handles private browsing/incognito)
-    t = window.localStorage.getItem('bookstaTheme') || 'light';
+    t = window.localStorage.getItem('bookstaTheme') || 'dark';
   } catch (e) {}
   document.documentElement.setAttribute('data-theme', t);
+  var bg = (t === 'light') ? '#faf9ff' : '#0b1120';
+  document.documentElement.style.backgroundColor = bg;
 })();
